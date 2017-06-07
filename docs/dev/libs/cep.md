@@ -69,8 +69,8 @@ See linking with it for cluster execution [here]({{site.baseurl}}/dev/linking.ht
 
 Now you can start writing your first CEP program using the Pattern API.
 
-<span class="label label-danger">Attention</span> The events in the `DataStream` to which
-you want to apply pattern matching have to implement proper `equals()` and `hashCode()` methods
+{% warn Attention %} The events in the `DataStream` to which
+you want to apply pattern matching must implement proper `equals()` and `hashCode()` methods
 because these are used for comparing and matching events.
 
 <div class="codetabs" markdown="1">
@@ -140,10 +140,10 @@ can be seen as a graph of such patterns, where transitions from one pattern to t
 *conditions*, e.g. `event.getName().equals("start")`. A **match** is a sequence of input events which visits all
 patterns of the complex pattern graph, through a sequence of valid pattern transitions.
 
-<span class="label label-danger">Attention</span> Each pattern must have a unique name, which is used to later
+{% warn Attention %} Each pattern must have a unique name, which is used to later
 identify the matched events.
 
-<span class="label label-danger">Attention</span> Pattern names **CANNOT** contain the character `":"`.
+{% warn Attention %} Pattern names **CANNOT** contain the character `":"`.
 
 In the remainder of this section we will first describe how to define [Individual Patterns](#individual-patterns), and then cover how you can
 combine individual patterns into [Complex Patterns](#combining-patterns).
@@ -257,7 +257,7 @@ middle.oneOrMore().where(
 </div>
 </div>
 
-<span class="label label-danger">Attention</span> The call to `context.getEventsForPattern(...)` finds all the 
+{% warn Attention %} The call to `context.getEventsForPattern(...)` finds all the
 previously accepted events for a given potential match. The cost of this operation can vary, so when implementing 
 your condition, try to minimize its use.
 
@@ -358,6 +358,12 @@ input `"a1", "c", "a2", "b"` will have the following results:
 For looping patterns (e.g. `oneOrMore()` and `times()`) the default is *relaxed contiguity*. If you want 
 strict contiguity, you have to explicitly specify it by using the `consecutive()` call, and if you want 
 *non-deterministic relaxed contiguity* you can use the `allowCombinations()` call.
+
+{% warn Attention %}
+In this section we are talking about contiguity *within* a single looping pattern, and the
+`consecutive()` and `allowCombinations()` calls need to be understood in that context. Later when looking at
+[Combining Patterns](#combining-patterns) we'll discuss other calls, such as `next()` and `followedBy()`,
+that are used to specify contiguity conditions *between* patterns.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -674,9 +680,9 @@ or
 1. `notNext()`, if you do not want an event type to directly follow another
 2. `notFollowedBy()`, if you do not want an event type to be anywhere between two other event types
 
-<span class="label label-danger">Attention</span> A pattern sequence cannot end in `notFollowedBy()`.
+{% warn Attention %} A pattern sequence cannot end in `notFollowedBy()`.
 
-<span class="label label-danger">Attention</span> A `NOT` pattern cannot be preceded by an optional one.
+{% warn Attention %} A `NOT` pattern cannot be preceded by an optional one.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -737,7 +743,7 @@ Finally, it is also possible to define a temporal constraint for the pattern to 
 For example, you can define that a pattern should occur within 10 seconds via the `pattern.within()` method. 
 Temporal patterns are supported for both [processing and event time]({{site.baseurl}}/dev/event_time.html).
 
-<span class="label label-danger">Attention</span> A pattern sequence can only have one temporal constraint. If 
+{% warn Attention %} A pattern sequence can only have one temporal constraint. If
 multiple such constraints are defined on different individual patterns, then the smallest one is applied.
 
 <div class="codetabs" markdown="1">
@@ -957,7 +963,7 @@ val patternStream: PatternStream[Event] = CEP.pattern(input, pattern)
 
 The input stream can be *keyed* or *non-keyed* depending on your use-case.
 
-<span class="label label-danger">Attention</span> Applying your pattern on a non-keyed stream will result in a job with
+{% warn Attention %} Applying your pattern on a non-keyed stream will result in a job with
 parallelism equal to 1.
 
 ### Selecting from Patterns
@@ -1112,8 +1118,7 @@ when working in event time, an incoming element is initially put in a buffer whe
 order based on their timestamp*, and when a watermark arrives, all the elements in this buffer with timestamps smaller 
 than that of the watermark are processed. This implies that elements between watermarks are processed in event-time order. 
 
-<span class="label label-danger">Attention</span> The library assumes correctness of the watermark when working 
-in event time.
+{% warn Attention %} The library assumes correctness of the watermark when working in event time.
 
 To also guarantee that elements across watermarks are processed in event-time order, Flink's CEP library assumes 
 *correctness of the watermark*, and considers as *late* elements whose timestamp is smaller than that of the last 
