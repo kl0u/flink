@@ -38,6 +38,7 @@ import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.functions.SelectiveWatermarkAssigner;
 import org.apache.flink.api.java.io.CsvOutputFormat;
 import org.apache.flink.api.java.io.TextOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple;
@@ -82,6 +83,7 @@ import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.ExtractTimestampsOperator;
+import org.apache.flink.streaming.runtime.operators.TimestampsAndMultiPeriodicWMOperator;
 import org.apache.flink.streaming.runtime.operators.TimestampsAndPeriodicWatermarksOperator;
 import org.apache.flink.streaming.runtime.operators.TimestampsAndPunctuatedWatermarksOperator;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
@@ -877,6 +879,25 @@ public class DataStream<T> {
 				new TimestampsAndPeriodicWatermarksOperator<>(cleanedAssigner);
 
 		return transform("Timestamps/Watermarks", getTransformation().getOutputType(), operator)
+				.setParallelism(inputParallelism);
+	}
+
+	public SingleOutputStreamOperator<T> withWatermarkAssigners(SelectiveWatermarkAssigner<T>... assigner) {
+
+		// match parallelism to input, otherwise dop=1 sources could lead to some strange
+		// behaviour: the watermark will creep along very slowly because the elements
+		// from the source go to each extraction operator round robin.
+		final int inputParallelism = getTransformation().getParallelism();
+
+		final List<SelectiveWatermarkAssigner<T>> watermarkAssigners = new ArrayList<>(assigner.length);
+		for (SelectiveWatermarkAssigner<T> anAssigner : assigner) {
+			watermarkAssigners.add(clean(anAssigner));
+		}
+
+		TimestampsAndMultiPeriodicWMOperator<T> operator =
+				new TimestampsAndMultiPeriodicWMOperator<>(watermarkAssigners);
+
+		return transform("MultiWatermarkAssigner", getTransformation().getOutputType(), operator)
 				.setParallelism(inputParallelism);
 	}
 
