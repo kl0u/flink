@@ -236,12 +236,12 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 		}
 	}
 
-	public void advanceWatermark(long time) throws Exception {
+	public void advanceWatermark(long time, String tag) throws Exception {
 		currentWatermark = time;
 
 		InternalTimer<K, N> timer;
 
-		while ((timer = eventTimeTimersQueue.peek()) != null && timer.getTimestamp() <= time) {
+		while ((timer = eventTimeTimersQueue.peek()) != null && timer.getNamespace().equals(tag) && timer.getTimestamp() <= time) {
 			eventTimeTimersQueue.poll();
 			keyContext.setCurrentKey(timer.getKey());
 			triggerTarget.onEventTime(timer);
