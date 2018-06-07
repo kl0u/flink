@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.flink.streaming.runtime.operators;
 
 import org.apache.flink.api.java.functions.SelectiveWatermarkAssigner;
@@ -19,6 +36,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * javadoc.
+ */
 public class TimestampsAndMultiPeriodicWMOperator<IN>
 		extends AbstractUdfStreamOperator<IN, TimestampsAndMultiPeriodicWMOperator.MultiWmAssigner<IN>>
 		implements OneInputStreamOperator<IN, IN>, ProcessingTimeCallback {
@@ -55,8 +75,8 @@ public class TimestampsAndMultiPeriodicWMOperator<IN>
 	public void processElement(StreamRecord<IN> element) throws Exception {
 		final long newTimestamp = userFunction.extractTimestamp(element.getValue(),
 				element.hasTimestamp() ? element.getTimestamp() : Long.MIN_VALUE);
-
-		output.collect(element.replace(element.getValue(), newTimestamp));
+// TODO: 6/7/18 calls can be optimized
+		output.collect(element.replace(element.getValue(), newTimestamp, userFunction.getTag(element.getValue())));
 	}
 
 	@Override
@@ -102,6 +122,9 @@ public class TimestampsAndMultiPeriodicWMOperator<IN>
 		}
 	}
 
+	/**
+	 * Javadoc.
+	 */
 	public static class MultiWmAssigner<T> implements TimestampAssigner<T> {
 
 		private static final long serialVersionUID = 4998222228683986485L;
@@ -122,6 +145,16 @@ public class TimestampsAndMultiPeriodicWMOperator<IN>
 			return tmp;
 		}
 
+		public String getTag(T element) {
+			for (SelectiveWatermarkAssigner<T> assigner: watermarkAssigners.values()) {
+				if (assigner.select(element)) {
+					return assigner.getId();
+				}
+			}
+			// TODO: 6/7/18 we should have a default
+			throw new FlinkRuntimeException("Uncategorized element " + element);
+		}
+
 		public Set<String> getTags() {
 			return Collections.unmodifiableSet(watermarkAssigners.keySet());
 		}
@@ -132,7 +165,9 @@ public class TimestampsAndMultiPeriodicWMOperator<IN>
 			for (SelectiveWatermarkAssigner<T> assigner: watermarkAssigners.values()) {
 				Long timestamp = assigner.getCurrentWatermark();
 				if (timestamp != null) {
-					watermarks.add(new Watermark(assigner.getId(), timestamp));
+					Watermark wm = new Watermark(timestamp);
+					wm.setTag(assigner.getId());
+					watermarks.add(wm);
 				}
 			}
 			return watermarks;

@@ -106,11 +106,11 @@ public class StreamRecordTest {
 	@Test
 	public void testReplacePreservesTimestamp() {
 		StreamRecord<String> recNoTimestamp = new StreamRecord<>("o sole mio");
-		StreamRecord<Integer> newRecNoTimestamp = recNoTimestamp.replace(17);
+		StreamRecord<Integer> newRecNoTimestamp = recNoTimestamp.replace(17, recNoTimestamp.getTag());
 		assertFalse(newRecNoTimestamp.hasTimestamp());
 
 		StreamRecord<String> recWithTimestamp = new StreamRecord<>("la dolce vita", 99);
-		StreamRecord<Integer> newRecWithTimestamp = recWithTimestamp.replace(17);
+		StreamRecord<Integer> newRecWithTimestamp = recWithTimestamp.replace(17, recNoTimestamp.getTag());
 
 		assertTrue(newRecWithTimestamp.hasTimestamp());
 		assertEquals(99L, newRecWithTimestamp.getTimestamp());
@@ -121,7 +121,7 @@ public class StreamRecordTest {
 		StreamRecord<String> record = new StreamRecord<>("la divina comedia");
 		assertFalse(record.hasTimestamp());
 
-		StreamRecord<Double> newRecord = record.replace(3.14, 123);
+		StreamRecord<Double> newRecord = record.replace(3.14, 123, StreamRecord.DEFAULT_TAG);
 		assertTrue(newRecord.hasTimestamp());
 		assertEquals(123L, newRecord.getTimestamp());
 	}

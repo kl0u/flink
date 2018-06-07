@@ -64,7 +64,7 @@ public class TimestampsAndPeriodicWatermarksOperator<T>
 		final long newTimestamp = userFunction.extractTimestamp(element.getValue(),
 				element.hasTimestamp() ? element.getTimestamp() : Long.MIN_VALUE);
 
-		output.collect(element.replace(element.getValue(), newTimestamp));
+		output.collect(element.replace(element.getValue(), newTimestamp, element.getTag()));
 	}
 
 	@Override

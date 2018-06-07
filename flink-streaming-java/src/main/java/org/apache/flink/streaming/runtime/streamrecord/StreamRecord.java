@@ -27,6 +27,8 @@ import org.apache.flink.annotation.Internal;
 @Internal
 public final class StreamRecord<T> extends StreamElement {
 
+	public static final String DEFAULT_TAG = "DEFAULT";
+
 	/** The actual value held by this record. */
 	private T value;
 
@@ -35,6 +37,8 @@ public final class StreamRecord<T> extends StreamElement {
 
 	/** Flag whether the timestamp is actually set. */
 	private boolean hasTimestamp;
+
+	private String tag = DEFAULT_TAG;
 
 	/**
 	 * Creates a new StreamRecord. The record does not have a timestamp.
@@ -59,6 +63,14 @@ public final class StreamRecord<T> extends StreamElement {
 	// ------------------------------------------------------------------------
 	//  Accessors
 	// ------------------------------------------------------------------------
+
+	public void setTag(String tag) {
+		this.tag = tag;
+	}
+
+	public String getTag() {
+		return tag;
+	}
 
 	/**
 	 * Returns the value wrapped in this stream value.
@@ -102,8 +114,9 @@ public final class StreamRecord<T> extends StreamElement {
 	 * @return Returns the StreamElement with replaced value
 	 */
 	@SuppressWarnings("unchecked")
-	public <X> StreamRecord<X> replace(X element) {
+	public <X> StreamRecord<X> replace(X element, String tag) {
 		this.value = (T) element;
+		this.tag = tag;
 		return (StreamRecord<X>) this;
 	}
 
@@ -117,11 +130,11 @@ public final class StreamRecord<T> extends StreamElement {
 	 * @return Returns the StreamElement with replaced value
 	 */
 	@SuppressWarnings("unchecked")
-	public <X> StreamRecord<X> replace(X value, long timestamp) {
+	public <X> StreamRecord<X> replace(X value, long timestamp, String tag) {
 		this.timestamp = timestamp;
 		this.value = (T) value;
 		this.hasTimestamp = true;
-
+		this.tag = tag;
 		return (StreamRecord<X>) this;
 	}
 
@@ -146,6 +159,7 @@ public final class StreamRecord<T> extends StreamElement {
 		StreamRecord<T> copy = new StreamRecord<>(valueCopy);
 		copy.timestamp = this.timestamp;
 		copy.hasTimestamp = this.hasTimestamp;
+		copy.tag = this.tag;
 		return copy;
 	}
 
@@ -157,6 +171,7 @@ public final class StreamRecord<T> extends StreamElement {
 		target.value = valueCopy;
 		target.timestamp = this.timestamp;
 		target.hasTimestamp = this.hasTimestamp;
+		target.tag = this.tag;
 	}
 
 	// ------------------------------------------------------------------------
@@ -172,6 +187,7 @@ public final class StreamRecord<T> extends StreamElement {
 			StreamRecord<?> that = (StreamRecord<?>) o;
 			return this.hasTimestamp == that.hasTimestamp &&
 					(!this.hasTimestamp || this.timestamp == that.timestamp) &&
+					this.tag.equals(that.tag) &&
 					(this.value == null ? that.value == null : this.value.equals(that.value));
 		}
 		else {
@@ -181,12 +197,12 @@ public final class StreamRecord<T> extends StreamElement {
 
 	@Override
 	public int hashCode() {
-		int result = value != null ? value.hashCode() : 0;
+		int result = 31 * tag.hashCode() + (value != null ? value.hashCode() : 0);
 		return 31 * result + (hasTimestamp ? (int) (timestamp ^ (timestamp >>> 32)) : 0);
 	}
 
 	@Override
 	public String toString() {
-		return "Record @ " + (hasTimestamp ? timestamp : "(undef)") + " : " + value;
+		return "Record for " + tag + " @ " + (hasTimestamp ? timestamp : "(undef)") + " : " + value;
 	}
 }

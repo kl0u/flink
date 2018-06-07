@@ -38,6 +38,6 @@ public class StreamMap<IN, OUT>
 
 	@Override
 	public void processElement(StreamRecord<IN> element) throws Exception {
-		output.collect(element.replace(userFunction.map(element.getValue())));
+		output.collect(element.replace(userFunction.map(element.getValue()), element.getTag()));
 	}
 }

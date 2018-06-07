@@ -51,7 +51,7 @@ public class StreamProject<IN, OUT extends Tuple>
 		for (int i = 0; i < this.numFields; i++) {
 			outTuple.setField(((Tuple) element.getValue()).getField(fields[i]), i);
 		}
-		output.collect(element.replace(outTuple));
+		output.collect(element.replace(outTuple, element.getTag()));
 	}
 
 	@Override

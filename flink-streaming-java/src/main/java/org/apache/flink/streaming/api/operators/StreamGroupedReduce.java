@@ -61,10 +61,10 @@ public class StreamGroupedReduce<IN> extends AbstractUdfStreamOperator<IN, Reduc
 		if (currentValue != null) {
 			IN reduced = userFunction.reduce(currentValue, value);
 			values.update(reduced);
-			output.collect(element.replace(reduced));
+			output.collect(element.replace(reduced, element.getTag()));
 		} else {
 			values.update(value);
-			output.collect(element.replace(value));
+			output.collect(element.replace(value, element.getTag()));
 		}
 	}
 }

@@ -48,7 +48,11 @@ public class TimestampedCollector<T> implements Collector<T> {
 
 	@Override
 	public void collect(T record) {
-		output.collect(reuse.replace(record));
+		String tag = StreamRecord.DEFAULT_TAG;
+		if (record instanceof StreamRecord) {
+			tag = ((StreamRecord) record).getTag();
+		}
+		output.collect(reuse.replace(record, tag));
 	}
 
 	public void setTimestamp(StreamRecord<?> timestampBase) {

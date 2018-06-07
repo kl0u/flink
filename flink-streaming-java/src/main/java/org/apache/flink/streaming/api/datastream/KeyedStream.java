@@ -261,11 +261,11 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 			OneInputStreamOperator<T, R> operator) {
 
 		SingleOutputStreamOperator<R> returnStream;
-		if (wmCategories.isEmpty()) {
+		if (watermarkAssigners.isEmpty()) {
 			returnStream = super.transform(operatorName, outTypeInfo, operator);
 		} else {
 			returnStream = super.
-					transform("PerKeyAssigner", getType(), new TimestampsAndMultiPeriodicWMOperator<>(wmCategories)).
+					transform("PerKeyAssigner", getType(), new TimestampsAndMultiPeriodicWMOperator<>(watermarkAssigners)).
 					transform(operatorName, outTypeInfo, operator);
 		}
 
@@ -321,10 +321,10 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 		return process(processFunction, outType);
 	}
 
-	private final List<SelectiveWatermarkAssigner<T>> wmCategories = new ArrayList<>();
+	private final List<SelectiveWatermarkAssigner<T>> watermarkAssigners = new ArrayList<>();
 
-	public KeyedStream<T, KEY> withWMCategories(SelectiveWatermarkAssigner<T>... splitter) {
-		Collections.addAll(wmCategories, splitter);
+	public KeyedStream<T, KEY> withWatermarkAssigners(SelectiveWatermarkAssigner<T>... assigner) {
+		Collections.addAll(watermarkAssigners, assigner);
 		return this;
 	}
 

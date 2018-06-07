@@ -46,21 +46,22 @@ public final class Watermark extends StreamElement {
 
 	// ------------------------------------------------------------------------
 
+	public static final String DEFAULT_TAG = "DEFAULT";
+
 	/** The timestamp of the watermark in milliseconds. */
 	private final long timestamp;
 
-	private final String tag;
-
-	public Watermark(String tag, long timestamp) {
-		this.tag = tag;
-		this.timestamp = timestamp;
-	}
+	private String tag = DEFAULT_TAG;
 
 	/**
 	 * Creates a new watermark with the given timestamp in milliseconds.
 	 */
 	public Watermark(long timestamp) {
-		this(null, timestamp);
+		this.timestamp = timestamp;
+	}
+
+	public void setTag(String tag) {
+		this.tag = tag;
 	}
 
 	public String getTag() {

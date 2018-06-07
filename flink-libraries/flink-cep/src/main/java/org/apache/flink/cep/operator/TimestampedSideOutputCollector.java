@@ -56,7 +56,11 @@ public class TimestampedSideOutputCollector<T> implements Collector<T> {
 
 	@Override
 	public void collect(T record) {
-		output.collect(outputTag, reuse.replace(record));
+		String tag = StreamRecord.DEFAULT_TAG;
+		if (record instanceof StreamRecord) {
+			tag = ((StreamRecord) record).getTag();
+		}
+		output.collect(outputTag, reuse.replace(record, tag));
 	}
 
 	public void setTimestamp(StreamRecord<?> timestampBase) {

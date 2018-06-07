@@ -88,11 +88,11 @@ public class StreamGroupedFold<IN, OUT, KEY>
 		if (value != null) {
 			OUT folded = userFunction.fold(outTypeSerializer.copy(value), element.getValue());
 			values.update(folded);
-			output.collect(element.replace(folded));
+			output.collect(element.replace(folded, element.getTag()));
 		} else {
 			OUT first = userFunction.fold(outTypeSerializer.copy(initialValue), element.getValue());
 			values.update(first);
-			output.collect(element.replace(first));
+			output.collect(element.replace(first, element.getTag()));
 		}
 	}
 

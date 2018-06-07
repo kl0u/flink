@@ -40,11 +40,11 @@ public class CoStreamMap<IN1, IN2, OUT>
 
 	@Override
 	public void processElement1(StreamRecord<IN1> element) throws Exception {
-		output.collect(element.replace(userFunction.map1(element.getValue())));
+		output.collect(element.replace(userFunction.map1(element.getValue()), element.getTag()));
 	}
 
 	@Override
 	public void processElement2(StreamRecord<IN2> element) throws Exception {
-		output.collect(element.replace(userFunction.map2(element.getValue())));
+		output.collect(element.replace(userFunction.map2(element.getValue()), element.getTag()));
 	}
 }

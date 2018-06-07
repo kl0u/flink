@@ -26,6 +26,7 @@ import org.apache.flink.api.common.typeutils.TypeDeserializerAdapter;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
+import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -144,12 +145,15 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
 			// move timestamp
 			target.writeLong(source.readLong());
 			typeSerializer.copy(source, target);
+			StringSerializer.INSTANCE.copy(source, target);
 		}
 		else if (tag == TAG_REC_WITHOUT_TIMESTAMP) {
 			typeSerializer.copy(source, target);
+			StringSerializer.INSTANCE.copy(source, target);
 		}
 		else if (tag == TAG_WATERMARK) {
 			target.writeLong(source.readLong());
+			StringSerializer.INSTANCE.copy(source, target);
 		}
 		else if (tag == TAG_STREAM_STATUS) {
 			target.writeInt(source.readInt());
@@ -175,10 +179,14 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
 				target.write(TAG_REC_WITHOUT_TIMESTAMP);
 			}
 			typeSerializer.serialize(record.getValue(), target);
+			StringSerializer.INSTANCE.serialize(record.getTag(), target);
 		}
 		else if (value.isWatermark()) {
+			Watermark watermark = value.asWatermark();
+
 			target.write(TAG_WATERMARK);
-			target.writeLong(value.asWatermark().getTimestamp());
+			target.writeLong(watermark.getTimestamp());
+			StringSerializer.INSTANCE.serialize(watermark.getTag(), target);
 		}
 		else if (value.isStreamStatus()) {
 			target.write(TAG_STREAM_STATUS);
@@ -201,13 +209,24 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
 		int tag = source.readByte();
 		if (tag == TAG_REC_WITH_TIMESTAMP) {
 			long timestamp = source.readLong();
-			return new StreamRecord<T>(typeSerializer.deserialize(source), timestamp);
+			T value = typeSerializer.deserialize(source);
+
+			StreamRecord<T> record = new StreamRecord<T>(value, timestamp);
+			record.setTag(StringSerializer.INSTANCE.deserialize(source));
+			return record;
 		}
 		else if (tag == TAG_REC_WITHOUT_TIMESTAMP) {
-			return new StreamRecord<T>(typeSerializer.deserialize(source));
+			T value = typeSerializer.deserialize(source);
+
+			StreamRecord<T> record = new StreamRecord<T>(value);
+			record.setTag(StringSerializer.INSTANCE.deserialize(source));
+			return record;
 		}
 		else if (tag == TAG_WATERMARK) {
-			return new Watermark(source.readLong());
+			Watermark wm = new Watermark(source.readLong());
+			String recTag = StringSerializer.INSTANCE.deserialize(source);
+			wm.setTag(recTag);
+			return wm;
 		}
 		else if (tag == TAG_STREAM_STATUS) {
 			return new StreamStatus(source.readInt());
@@ -227,17 +246,19 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
 			long timestamp = source.readLong();
 			T value = typeSerializer.deserialize(source);
 			StreamRecord<T> reuseRecord = reuse.asRecord();
-			reuseRecord.replace(value, timestamp);
+			reuseRecord.replace(value, timestamp, StringSerializer.INSTANCE.deserialize(source));
 			return reuseRecord;
 		}
 		else if (tag == TAG_REC_WITHOUT_TIMESTAMP) {
 			T value = typeSerializer.deserialize(source);
 			StreamRecord<T> reuseRecord = reuse.asRecord();
-			reuseRecord.replace(value);
+			reuseRecord.replace(value, StringSerializer.INSTANCE.deserialize(source));
 			return reuseRecord;
 		}
 		else if (tag == TAG_WATERMARK) {
-			return new Watermark(source.readLong());
+			Watermark wm = new Watermark(source.readLong());
+			wm.setTag(StringSerializer.INSTANCE.deserialize(source));
+			return wm;
 		}
 		else if (tag == TAG_LATENCY_MARKER) {
 			return new LatencyMarker(source.readLong(), new OperatorID(source.readLong(), source.readLong()), source.readInt());

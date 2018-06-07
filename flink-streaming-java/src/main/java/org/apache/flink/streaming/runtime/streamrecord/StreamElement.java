@@ -28,6 +28,8 @@ import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 @Internal
 public abstract class StreamElement {
 
+	// TODO: 6/7/18 the tag can be here
+
 	/**
 	 * Checks whether this element is a watermark.
 	 * @return True, if this element is a watermark, false otherwise.
