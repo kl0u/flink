@@ -43,6 +43,7 @@ import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.streamstatus.StatusMultiWatermarkValve;
 import org.apache.flink.streaming.runtime.streamstatus.StatusWatermarkValve;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
@@ -87,7 +88,7 @@ public class StreamInputProcessor<IN> {
 	// ---------------- Status and Watermark Valve ------------------
 
 	/** Valve that controls how watermarks and stream statuses are forwarded. */
-	private StatusWatermarkValve statusWatermarkValve;
+	private StatusMultiWatermarkValve statusWatermarkValve;
 
 	/** Number of input channels the valve needs to handle. */
 	private final int numInputChannels;
@@ -146,7 +147,7 @@ public class StreamInputProcessor<IN> {
 		this.streamStatusMaintainer = checkNotNull(streamStatusMaintainer);
 		this.streamOperator = checkNotNull(streamOperator);
 
-		this.statusWatermarkValve = new StatusWatermarkValve(
+		this.statusWatermarkValve = new StatusMultiWatermarkValve(
 				numInputChannels,
 				new ForwardingValveOutputHandler(streamOperator, lock));
 
@@ -245,7 +246,7 @@ public class StreamInputProcessor<IN> {
 		barrierHandler.cleanup();
 	}
 
-	private class ForwardingValveOutputHandler implements StatusWatermarkValve.ValveOutputHandler {
+	private class ForwardingValveOutputHandler implements StatusMultiWatermarkValve.ValveOutputHandler {
 		private final OneInputStreamOperator<IN, ?> operator;
 		private final Object lock;
 
