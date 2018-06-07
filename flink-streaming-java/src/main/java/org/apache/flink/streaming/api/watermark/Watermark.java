@@ -49,11 +49,22 @@ public final class Watermark extends StreamElement {
 	/** The timestamp of the watermark in milliseconds. */
 	private final long timestamp;
 
+	private final String tag;
+
+	public Watermark(String tag, long timestamp) {
+		this.tag = tag;
+		this.timestamp = timestamp;
+	}
+
 	/**
 	 * Creates a new watermark with the given timestamp in milliseconds.
 	 */
 	public Watermark(long timestamp) {
-		this.timestamp = timestamp;
+		this(null, timestamp);
+	}
+
+	public String getTag() {
+		return tag;
 	}
 
 	/**
@@ -67,8 +78,7 @@ public final class Watermark extends StreamElement {
 
 	@Override
 	public boolean equals(Object o) {
-		return this == o ||
-				o != null && o.getClass() == Watermark.class && ((Watermark) o).timestamp == this.timestamp;
+		return this == o || o != null && o.getClass() == Watermark.class && ((Watermark) o).timestamp == this.timestamp;
 	}
 
 	@Override
@@ -78,6 +88,6 @@ public final class Watermark extends StreamElement {
 
 	@Override
 	public String toString() {
-		return "Watermark @ " + timestamp;
+		return "Watermark for " + tag + " @ " + timestamp;
 	}
 }

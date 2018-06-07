@@ -32,6 +32,7 @@ import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.functions.SelectiveWatermarkAssigner;
 import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
@@ -66,12 +67,14 @@ import org.apache.flink.streaming.api.windowing.triggers.PurgingTrigger;
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.api.windowing.windows.Window;
+import org.apache.flink.streaming.runtime.operators.TimestampsAndMultiPeriodicWMOperator;
 import org.apache.flink.streaming.runtime.partitioner.KeyGroupStreamPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 
 import org.apache.commons.lang3.StringUtils;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Stack;
 import java.util.UUID;
@@ -252,10 +255,19 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 
 	@Override
 	@PublicEvolving
-	public <R> SingleOutputStreamOperator<R> transform(String operatorName,
-			TypeInformation<R> outTypeInfo, OneInputStreamOperator<T, R> operator) {
+	public <R> SingleOutputStreamOperator<R> transform(
+			String operatorName,
+			TypeInformation<R> outTypeInfo,
+			OneInputStreamOperator<T, R> operator) {
 
-		SingleOutputStreamOperator<R> returnStream = super.transform(operatorName, outTypeInfo, operator);
+		SingleOutputStreamOperator<R> returnStream;
+		if (wmCategories.isEmpty()) {
+			returnStream = super.transform(operatorName, outTypeInfo, operator);
+		} else {
+			returnStream = super.
+					transform("PerKeyAssigner", getType(), new TimestampsAndMultiPeriodicWMOperator<>(wmCategories)).
+					transform(operatorName, outTypeInfo, operator);
+		}
 
 		// inject the key selector and key type
 		OneInputTransformation<T, R> transform = (OneInputTransformation<T, R>) returnStream.getTransformation();
@@ -307,6 +319,13 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 			true);
 
 		return process(processFunction, outType);
+	}
+
+	private final List<SelectiveWatermarkAssigner<T>> wmCategories = new ArrayList<>();
+
+	public KeyedStream<T, KEY> withWMCategories(SelectiveWatermarkAssigner<T>... splitter) {
+		Collections.addAll(wmCategories, splitter);
+		return this;
 	}
 
 	/**
