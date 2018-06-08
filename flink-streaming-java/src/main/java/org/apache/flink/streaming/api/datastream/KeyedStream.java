@@ -323,7 +323,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 
 	private final List<SelectiveWatermarkAssigner<T>> watermarkAssigners = new ArrayList<>();
 
-	public KeyedStream<T, KEY> withWatermarkAssigners(SelectiveWatermarkAssigner<T>... assigner) {
+	public KeyedStream<T, KEY> withWatermarkAssignersKeyed(SelectiveWatermarkAssigner<T>... assigner) {
 		Collections.addAll(watermarkAssigners, assigner);
 		return this;
 	}

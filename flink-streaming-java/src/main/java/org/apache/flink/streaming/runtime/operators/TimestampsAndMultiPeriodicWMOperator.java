@@ -73,7 +73,8 @@ public class TimestampsAndMultiPeriodicWMOperator<IN>
 
 	@Override
 	public void processElement(StreamRecord<IN> element) throws Exception {
-		final long newTimestamp = userFunction.extractTimestamp(element.getValue(),
+		final long newTimestamp = userFunction.extractTimestamp(
+				element.getValue(),
 				element.hasTimestamp() ? element.getTimestamp() : Long.MIN_VALUE);
 // TODO: 6/7/18 calls can be optimized
 		output.collect(element.replace(element.getValue(), newTimestamp, userFunction.getTag(element.getValue())));
@@ -102,9 +103,14 @@ public class TimestampsAndMultiPeriodicWMOperator<IN>
 	public void processWatermark(Watermark mark) throws Exception {
 		// if we receive a Long.MAX_VALUE watermark we forward it since it is used
 		// to signal the end of input and to not block watermark progress downstream
-		if (mark.getTimestamp() == Long.MAX_VALUE && currentWatermarks.get(mark.getTag()) != Long.MAX_VALUE) {
-			currentWatermarks.put(mark.getTag(), Long.MAX_VALUE);
-			output.emitWatermark(mark);
+		if (mark.getTimestamp() == Long.MAX_VALUE) {
+			for (String tag : userFunction.getTags()) {
+				currentWatermarks.put(tag, Long.MAX_VALUE);
+
+				final Watermark newWatermark = new Watermark(Long.MAX_VALUE);
+				newWatermark.setTag(tag);
+				output.emitWatermark(newWatermark);
+			}
 		}
 	}
 
