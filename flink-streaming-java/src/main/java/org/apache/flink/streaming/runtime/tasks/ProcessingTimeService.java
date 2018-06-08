@@ -56,6 +56,8 @@ public abstract class ProcessingTimeService {
 	 */
 	public abstract ScheduledFuture<?> registerTimer(long timestamp, ProcessingTimeCallback target);
 
+	public abstract ScheduledFuture<?> registerTimer(String tag, long timestamp, ProcessingTimeCallback target);
+
 	/**
 	 * Registers a task to be executed repeatedly at a fixed rate.
 	 *

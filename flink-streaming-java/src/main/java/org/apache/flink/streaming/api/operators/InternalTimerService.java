@@ -31,6 +31,7 @@ import org.apache.flink.annotation.Internal;
 @Internal
 public interface InternalTimerService<N> {
 
+	// TODO: 6/8/18 these two should also change to include the tag
 	/** Returns the current processing time. */
 	long currentProcessingTime();
 
@@ -43,10 +44,14 @@ public interface InternalTimerService<N> {
 	 */
 	void registerProcessingTimeTimer(N namespace, long time);
 
+	void registerProcessingTimeTimer(String tag, N namespace, long time);
+
 	/**
 	 * Deletes the timer for the given key and namespace.
 	 */
 	void deleteProcessingTimeTimer(N namespace, long time);
+
+	void deleteProcessingTimeTimer(String tag, N namespace, long time);
 
 	/**
 	 * Registers a timer to be fired when event time watermark passes the given time. The namespace
@@ -54,8 +59,12 @@ public interface InternalTimerService<N> {
 	 */
 	void registerEventTimeTimer(N namespace, long time);
 
+	void registerEventTimeTimer(String tag, N namespace, long time);
+
 	/**
 	 * Deletes the timer for the given key and namespace.
 	 */
 	void deleteEventTimeTimer(N namespace, long time);
+
+	void deleteEventTimeTimer(String tag, N namespace, long time);
 }

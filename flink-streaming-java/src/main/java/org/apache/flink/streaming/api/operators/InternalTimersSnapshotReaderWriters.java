@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerSerializationUtil;
+import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
@@ -31,8 +32,10 @@ import org.apache.flink.util.InstantiationUtil;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -101,22 +104,46 @@ public class InternalTimersSnapshotReaderWriters {
 				timersSnapshot.getNamespaceSerializer());
 
 			// write the event time timers
-			Set<InternalTimer<K, N>> eventTimers = timersSnapshot.getEventTimeTimers();
+			Map<String, Set<InternalTimer<K, N>>> eventTimers = timersSnapshot.getEventTimeTimers();
 			if (eventTimers != null) {
 				out.writeInt(eventTimers.size());
-				for (InternalTimer<K, N> eventTimer : eventTimers) {
-					timerSerializer.serialize(eventTimer, out);
+
+				for (Map.Entry<String, Set<InternalTimer<K, N>>> entry: eventTimers.entrySet()) {
+					String tag = entry.getKey();
+					Set<InternalTimer<K, N>> timers = entry.getValue();
+
+					StringSerializer.INSTANCE.serialize(tag, out);
+					if (timers != null && !timers.isEmpty()) {
+						out.writeInt(timers.size());
+						for (InternalTimer<K, N> eventTimer : timers) {
+							timerSerializer.serialize(eventTimer, out);
+						}
+					} else {
+						out.writeInt(0);
+					}
 				}
 			} else {
 				out.writeInt(0);
 			}
 
 			// write the processing time timers
-			Set<InternalTimer<K, N>> processingTimers = timersSnapshot.getProcessingTimeTimers();
+			Map<String, Set<InternalTimer<K, N>>> processingTimers = timersSnapshot.getProcessingTimeTimers();
 			if (processingTimers != null) {
 				out.writeInt(processingTimers.size());
-				for (InternalTimer<K, N> processingTimer : processingTimers) {
-					timerSerializer.serialize(processingTimer, out);
+
+				for (Map.Entry<String, Set<InternalTimer<K, N>>> entry: processingTimers.entrySet()) {
+					String tag = entry.getKey();
+					Set<InternalTimer<K, N>> timers = entry.getValue();
+
+					StringSerializer.INSTANCE.serialize(tag, out);
+					if (timers != null && !timers.isEmpty()) {
+						out.writeInt(timers.size());
+						for (InternalTimer<K, N> processingTimer : timers) {
+							timerSerializer.serialize(processingTimer, out);
+						}
+					} else {
+						out.writeInt(0);
+					}
 				}
 			} else {
 				out.writeInt(0);
@@ -222,25 +249,46 @@ public class InternalTimersSnapshotReaderWriters {
 
 			// read the event time timers
 			int sizeOfEventTimeTimers = in.readInt();
-			Set<InternalTimer<K, N>> restoredEventTimers = new HashSet<>(sizeOfEventTimeTimers);
+
+			Map<String, Set<InternalTimer<K, N>>> taggedEventTimeTimers = new HashMap<>();
 			if (sizeOfEventTimeTimers > 0) {
 				for (int i = 0; i < sizeOfEventTimeTimers; i++) {
-					InternalTimer<K, N> timer = timerSerializer.deserialize(in);
-					restoredEventTimers.add(timer);
+					String tag = StringSerializer.INSTANCE.deserialize(in);
+					int sizeOfEventTimeTimersForTag = in.readInt();
+
+					Set<InternalTimer<K, N>> restoredEventTimers = new HashSet<>(sizeOfEventTimeTimersForTag);
+					if (sizeOfEventTimeTimersForTag > 0) {
+						for (int j = 0; j < sizeOfEventTimeTimersForTag; j++) {
+							InternalTimer<K, N> timer = timerSerializer.deserialize(in);
+							restoredEventTimers.add(timer);
+						}
+					}
+					taggedEventTimeTimers.put(tag, restoredEventTimers);
 				}
 			}
-			restoredTimersSnapshot.setEventTimeTimers(restoredEventTimers);
+			restoredTimersSnapshot.setEventTimeTimers(taggedEventTimeTimers);
 
 			// read the processing time timers
 			int sizeOfProcessingTimeTimers = in.readInt();
-			Set<InternalTimer<K, N>> restoredProcessingTimers = new HashSet<>(sizeOfProcessingTimeTimers);
+
+			Map<String, Set<InternalTimer<K, N>>> taggedProcessingTimeTimers = new HashMap<>();
+
 			if (sizeOfProcessingTimeTimers > 0) {
 				for (int i = 0; i < sizeOfProcessingTimeTimers; i++) {
-					InternalTimer<K, N> timer = timerSerializer.deserialize(in);
-					restoredProcessingTimers.add(timer);
+					String tag = StringSerializer.INSTANCE.deserialize(in);
+					int sizeOfProcessingTimeTimersForTag = in.readInt();
+
+					Set<InternalTimer<K, N>> restoredProcessingTimers = new HashSet<>(sizeOfProcessingTimeTimersForTag);
+					if (sizeOfProcessingTimeTimersForTag > 0) {
+						for (int j = 0; j < sizeOfProcessingTimeTimersForTag; j++) {
+							InternalTimer<K, N> timer = timerSerializer.deserialize(in);
+							restoredProcessingTimers.add(timer);
+						}
+					}
+					taggedProcessingTimeTimers.put(tag, restoredProcessingTimers);
 				}
 			}
-			restoredTimersSnapshot.setProcessingTimeTimers(restoredProcessingTimers);
+			restoredTimersSnapshot.setProcessingTimeTimers(taggedProcessingTimeTimers);
 
 			return restoredTimersSnapshot;
 		}

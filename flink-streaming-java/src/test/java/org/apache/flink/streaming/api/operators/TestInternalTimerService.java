@@ -81,12 +81,22 @@ public class TestInternalTimerService<K, N> implements InternalTimerService<N> {
 	}
 
 	@Override
+	public void registerProcessingTimeTimer(String tag, N namespace, long time) {
+
+	}
+
+	@Override
 	public void registerEventTimeTimer(N namespace, long time) {
 		@SuppressWarnings("unchecked")
 		Timer<K, N> timer = new Timer<>(time, (K) keyContext.getCurrentKey(), namespace);
 		if (watermarkTimers.add(timer)) {
 			watermarkTimersQueue.add(timer);
 		}
+	}
+
+	@Override
+	public void registerEventTimeTimer(String tag, N namespace, long time) {
+
 	}
 
 	@Override
@@ -100,12 +110,22 @@ public class TestInternalTimerService<K, N> implements InternalTimerService<N> {
 	}
 
 	@Override
+	public void deleteProcessingTimeTimer(String tag, N namespace, long time) {
+
+	}
+
+	@Override
 	public void deleteEventTimeTimer(N namespace, long time) {
 		@SuppressWarnings("unchecked")
 		Timer<K, N> timer = new Timer<>(time, (K) keyContext.getCurrentKey(), namespace);
 		if (watermarkTimers.remove(timer)) {
 			watermarkTimersQueue.remove(timer);
 		}
+	}
+
+	@Override
+	public void deleteEventTimeTimer(String tag, N namespace, long time) {
+
 	}
 
 	public Collection<Timer<K, N>> advanceProcessingTime(long time) throws Exception {

@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.flink.streaming.examples.sideoutput;
 
 import org.apache.flink.api.java.functions.KeySelector;
@@ -11,6 +28,9 @@ import org.apache.flink.util.Collector;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Javadoc.
+ */
 public class MultiWatermarkExample {
 
 	public static void main(String[] args) throws Exception {
@@ -56,7 +76,7 @@ public class MultiWatermarkExample {
 						return field.f0 == 2L;
 					}
 				}
-		).keyBy(new KeySelector<Tuple2<Long,Long>, Long>() {
+		).keyBy(new KeySelector<Tuple2<Long, Long>, Long>() {
 			private static final long serialVersionUID = -5418652699978930099L;
 
 			@Override
@@ -64,12 +84,13 @@ public class MultiWatermarkExample {
 				return value.f0;
 			}
 
-		}).process(new KeyedProcessFunction<Long, Tuple2<Long,Long>, String>() {
+		}).process(new KeyedProcessFunction<Long, Tuple2<Long, Long>, String>() {
 			private static final long serialVersionUID = -3769094390200355336L;
 
 			@Override
 			public void processElement(Tuple2<Long, Long> value, Context ctx, Collector<String> out) {
 				System.out.println("HERE");
+				ctx.timerService().registerEventTimeTimer(ctx.timestamp() + 1L);
 			}
 
 		}).print();
@@ -78,6 +99,9 @@ public class MultiWatermarkExample {
 
 	}
 
+	/**
+	 * Javadoc.
+	 */
 	private abstract static class TestSelectiveAssigner implements SelectiveWatermarkAssigner<Tuple2<Long, Long>> {
 
 		private static final long serialVersionUID = -1512741661391275024L;

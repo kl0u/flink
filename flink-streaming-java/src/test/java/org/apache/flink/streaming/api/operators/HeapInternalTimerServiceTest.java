@@ -338,10 +338,10 @@ public class HeapInternalTimerServiceTest {
 		HeapInternalTimerService<Integer, String> timerService =
 				createTimerService(mockTriggerable, keyContext, processingTimeService, testKeyGroupRange, maxParallelism);
 
-		timerService.advanceWatermark(17, Watermark.DEFAULT_TAG);
+		timerService.advanceWatermark(new Watermark(17));
 		assertEquals(17, timerService.currentWatermark());
 
-		timerService.advanceWatermark(42, Watermark.DEFAULT_TAG);
+		timerService.advanceWatermark(new Watermark(42));
 		assertEquals(42, timerService.currentWatermark());
 	}
 
@@ -379,7 +379,7 @@ public class HeapInternalTimerServiceTest {
 		assertEquals(2, timerService.numEventTimeTimers("hello"));
 		assertEquals(2, timerService.numEventTimeTimers("ciao"));
 
-		timerService.advanceWatermark(10, Watermark.DEFAULT_TAG);
+		timerService.advanceWatermark(new Watermark(10));
 
 		verify(mockTriggerable, times(4)).onEventTime(anyInternalTimer());
 		verify(mockTriggerable, times(1)).onEventTime(eq(new TimerHeapInternalTimer<>(10, key1, "ciao")));
@@ -481,7 +481,7 @@ public class HeapInternalTimerServiceTest {
 		assertEquals(1, timerService.numEventTimeTimers("hello"));
 		assertEquals(1, timerService.numEventTimeTimers("ciao"));
 
-		timerService.advanceWatermark(10, Watermark.DEFAULT_TAG);
+		timerService.advanceWatermark(new Watermark(10));
 
 		verify(mockTriggerable, times(2)).onEventTime(anyInternalTimer());
 		verify(mockTriggerable, times(1)).onEventTime(eq(new TimerHeapInternalTimer<>(10, key1, "ciao")));
@@ -635,7 +635,7 @@ public class HeapInternalTimerServiceTest {
 			maxParallelism);
 
 		processingTimeService.setCurrentTime(10);
-		timerService.advanceWatermark(10, Watermark.DEFAULT_TAG);
+		timerService.advanceWatermark(new Watermark(10));
 
 		verify(mockTriggerable2, times(2)).onProcessingTime(anyInternalTimer());
 		verify(mockTriggerable2, times(1)).onProcessingTime(eq(new TimerHeapInternalTimer<>(10, key1, "ciao")));
@@ -737,7 +737,7 @@ public class HeapInternalTimerServiceTest {
 			maxParallelism);
 
 		processingTimeService1.setCurrentTime(10);
-		timerService1.advanceWatermark(10, Watermark.DEFAULT_TAG);
+		timerService1.advanceWatermark(new Watermark(10));
 
 		verify(mockTriggerable1, times(1)).onProcessingTime(anyInternalTimer());
 		verify(mockTriggerable1, times(1)).onProcessingTime(eq(new TimerHeapInternalTimer<>(10, key1, "ciao")));
@@ -749,7 +749,7 @@ public class HeapInternalTimerServiceTest {
 		assertEquals(0, timerService1.numEventTimeTimers());
 
 		processingTimeService2.setCurrentTime(10);
-		timerService2.advanceWatermark(10, Watermark.DEFAULT_TAG);
+		timerService2.advanceWatermark(new Watermark(10));
 
 		verify(mockTriggerable2, times(1)).onProcessingTime(anyInternalTimer());
 		verify(mockTriggerable2, never()).onProcessingTime(eq(new TimerHeapInternalTimer<>(10, key1, "ciao")));

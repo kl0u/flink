@@ -19,6 +19,7 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Deadline;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -109,13 +110,18 @@ public class SystemProcessingTimeService extends ProcessingTimeService {
 	 */
 	@Override
 	public ScheduledFuture<?> registerTimer(long timestamp, ProcessingTimeCallback target) {
+		return registerTimer(Watermark.DEFAULT_TAG, timestamp, target);
+	}
+
+	@Override
+	public ScheduledFuture<?> registerTimer(String tag, long timestamp, ProcessingTimeCallback target) {
 		long delay = Math.max(timestamp - getCurrentProcessingTime(), 0);
 
 		// we directly try to register the timer and only react to the status on exception
 		// that way we save unnecessary volatile accesses for each timer
 		try {
 			return timerService.schedule(
-					new TriggerTask(status, task, checkpointLock, target, timestamp), delay, TimeUnit.MILLISECONDS);
+					new TriggerTask(status, task, checkpointLock, target, timestamp, tag), delay, TimeUnit.MILLISECONDS);
 		}
 		catch (RejectedExecutionException e) {
 			final int status = this.status.get();
@@ -257,6 +263,7 @@ public class SystemProcessingTimeService extends ProcessingTimeService {
 		private final Object lock;
 		private final ProcessingTimeCallback target;
 		private final long timestamp;
+		private final String tag;
 		private final AsyncExceptionHandler exceptionHandler;
 
 		private TriggerTask(
@@ -264,13 +271,15 @@ public class SystemProcessingTimeService extends ProcessingTimeService {
 				final AsyncExceptionHandler exceptionHandler,
 				final Object lock,
 				final ProcessingTimeCallback target,
-				final long timestamp) {
+				final long timestamp,
+				final String tag) {
 
 			this.serviceStatus = Preconditions.checkNotNull(serviceStatus);
 			this.exceptionHandler = Preconditions.checkNotNull(exceptionHandler);
 			this.lock = Preconditions.checkNotNull(lock);
 			this.target = Preconditions.checkNotNull(target);
 			this.timestamp = timestamp;
+			this.tag = Preconditions.checkNotNull(tag);
 		}
 
 		@Override
@@ -278,7 +287,7 @@ public class SystemProcessingTimeService extends ProcessingTimeService {
 			synchronized (lock) {
 				try {
 					if (serviceStatus.get() == STATUS_ALIVE) {
-						target.onProcessingTime(timestamp);
+						target.onProcessingTime(timestamp, tag);
 					}
 				} catch (Throwable t) {
 					TimerException asyncException = new TimerException(t);

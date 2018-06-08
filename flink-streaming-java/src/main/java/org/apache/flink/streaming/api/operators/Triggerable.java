@@ -34,8 +34,16 @@ public interface Triggerable<K, N> {
 	 */
 	void onEventTime(InternalTimer<K, N> timer) throws Exception;
 
+	default void onEventTime(InternalTimer<K, N> timer, String tag) throws Exception {
+		onEventTime(timer);
+	}
+
 	/**
 	 * Invoked when a processing-time timer fires.
 	 */
 	void onProcessingTime(InternalTimer<K, N> timer) throws Exception;
+
+	default void onProcessingTime(InternalTimer<K, N> timer, String tag) throws Exception {
+		onProcessingTime(timer);
+	}
 }

@@ -67,15 +67,25 @@ public class KeyedProcessOperator<K, IN, OUT>
 	}
 
 	@Override
-	public void onEventTime(InternalTimer<K, String> timer) throws Exception {
+	public void onEventTime(InternalTimer<K, String> timer, String tag) throws Exception {
 		collector.setAbsoluteTimestamp(timer.getTimestamp());
-		invokeUserFunction(TimeDomain.EVENT_TIME, timer);
+		invokeUserFunction(TimeDomain.EVENT_TIME, timer, tag);
+	}
+
+	@Override
+	public void onEventTime(InternalTimer<K, String> timer) throws Exception {
+// TODO: 6/8/18 implement
 	}
 
 	@Override
 	public void onProcessingTime(InternalTimer<K, String> timer) throws Exception {
+// TODO: 6/8/18 implement
+	}
+
+	@Override
+	public void onProcessingTime(InternalTimer<K, String> timer, String tag) throws Exception {
 		collector.eraseTimestamp();
-		invokeUserFunction(TimeDomain.PROCESSING_TIME, timer);
+		invokeUserFunction(TimeDomain.PROCESSING_TIME, timer, tag);
 	}
 
 	@Override
@@ -89,10 +99,13 @@ public class KeyedProcessOperator<K, IN, OUT>
 
 	private void invokeUserFunction(
 			TimeDomain timeDomain,
-			InternalTimer<K, String> timer) throws Exception {
+			InternalTimer<K, String> timer,
+			String tag) throws Exception {
 		onTimerContext.timeDomain = timeDomain;
 		onTimerContext.timer = timer;
-		onTimerContext.setTag(timer.getNamespace());
+		onTimerContext.setTag(tag);
+
+		System.out.println("TIMER: " + timeDomain +" "+ tag +" "+ timer.getTimestamp());
 		userFunction.onTimer(timer.getTimestamp(), onTimerContext, collector);
 		onTimerContext.timeDomain = null;
 		onTimerContext.timer = null;
@@ -214,14 +227,14 @@ public class KeyedProcessOperator<K, IN, OUT>
 
 		@Override
 		public void registerProcessingTimeTimer(long time) {
-			System.out.println("PROCESSING: " + tag);
-			internalTimerService.registerProcessingTimeTimer(tag, time);
+			System.out.println("PROCESSING: " + tag + " REGISTERING FOR: " + time);
+			internalTimerService.registerProcessingTimeTimer(tag, "asdas", time);
 		}
 
 		@Override
 		public void registerEventTimeTimer(long time) {
-			System.out.println("EVENT: " + tag);
-			internalTimerService.registerEventTimeTimer(tag, time);
+			System.out.println("EVENT: " + tag + " REGISTERING FOR: " + time);
+			internalTimerService.registerEventTimeTimer(tag, "asdas", time);
 		}
 
 		@Override

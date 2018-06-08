@@ -96,6 +96,11 @@ public class TestProcessingTimeService extends ProcessingTimeService {
 	}
 
 	@Override
+	public ScheduledFuture<?> registerTimer(String tag, long timestamp, ProcessingTimeCallback target) {
+		return registerTimer(timestamp, target); // TODO: 6/8/18 passs the tag to the target
+	}
+
+	@Override
 	public ScheduledFuture<?> scheduleAtFixedRate(ProcessingTimeCallback callback, long initialDelay, long period) {
 		if (isTerminated) {
 			throw new IllegalStateException("terminated");
