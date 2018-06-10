@@ -51,7 +51,7 @@ public class TimestampsAndPunctuatedWatermarksOperator<T>
 
 		output.collect(element.replace(element.getValue(), newTimestamp, element.getTag()));
 
-		final Watermark nextWatermark = userFunction.checkAndGetNextWatermark(value, newTimestamp);
+		final Watermark nextWatermark = userFunction. checkAndGetNextWatermark(value, newTimestamp);
 		if (nextWatermark != null && nextWatermark.getTimestamp() > currentWatermark) {
 			currentWatermark = nextWatermark.getTimestamp();
 			output.emitWatermark(nextWatermark);

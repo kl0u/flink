@@ -15,23 +15,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.java.functions;
-
-import org.apache.flink.api.common.functions.Function;
-
-import java.io.Serializable;
+package org.apache.flink.streaming.api.functions;
 
 /**
  * Javadoc.
  */
-public interface SelectiveWatermarkAssigner<IN> extends Function, Serializable {
+public interface SelectivePeriodicWatermarkAssigner<IN> extends AssignerWithPeriodicWatermarks<IN> {
 
-	String getId();
+	String getTag();
 
-	boolean select(IN field);
-
-	long extractTimestamp(IN element, long previousElementTimestamp);
-
-	// TODO: 6/7/18 boxed to keep the null semantics with the old assigner
-	Long getCurrentWatermark();
+	boolean select(IN element);
 }

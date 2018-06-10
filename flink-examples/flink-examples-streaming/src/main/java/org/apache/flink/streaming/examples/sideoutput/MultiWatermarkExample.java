@@ -18,7 +18,7 @@
 package org.apache.flink.streaming.examples.sideoutput;
 
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.functions.SelectiveWatermarkAssigner;
+import org.apache.flink.streaming.api.functions.SelectivePeriodicWatermarkAssigner;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -49,12 +49,12 @@ public class MultiWatermarkExample {
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.getConfig().setAutoWatermarkInterval(1L);
 
-		env.fromCollection(input).withWatermarkAssigners(
+		env.fromCollection(input).withPeriodicWatermarkAssigners(
 				new TestSelectiveAssigner() {
 					private static final long serialVersionUID = 5205421884283200468L;
 
 					@Override
-					public String getId() {
+					public String getTag() {
 						return "SLOW";
 					}
 
@@ -67,7 +67,7 @@ public class MultiWatermarkExample {
 					private static final long serialVersionUID = -8011140393754572692L;
 
 					@Override
-					public String getId() {
+					public String getTag() {
 						return "FAST";
 					}
 
@@ -102,7 +102,7 @@ public class MultiWatermarkExample {
 	/**
 	 * Javadoc.
 	 */
-	private abstract static class TestSelectiveAssigner implements SelectiveWatermarkAssigner<Tuple2<Long, Long>> {
+	private abstract static class TestSelectiveAssigner implements SelectivePeriodicWatermarkAssigner<Tuple2<Long, Long>> {
 
 		private static final long serialVersionUID = -1512741661391275024L;
 

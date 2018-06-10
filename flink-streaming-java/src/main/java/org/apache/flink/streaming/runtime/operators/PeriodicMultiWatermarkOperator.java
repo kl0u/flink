@@ -17,7 +17,7 @@
 
 package org.apache.flink.streaming.runtime.operators;
 
-import org.apache.flink.api.java.functions.SelectiveWatermarkAssigner;
+import org.apache.flink.streaming.api.functions.SelectivePeriodicWatermarkAssigner;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.TimestampAssigner;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
@@ -39,18 +39,18 @@ import java.util.Set;
 /**
  * javadoc.
  */
-public class TimestampsAndMultiPeriodicWMOperator<IN>
-		extends AbstractUdfStreamOperator<IN, TimestampsAndMultiPeriodicWMOperator.MultiWmAssigner<IN>>
+public class PeriodicMultiWatermarkOperator<IN>
+		extends AbstractUdfStreamOperator<IN, PeriodicMultiWatermarkOperator.PeriodicMultiWatermarkAssigner<IN>>
 		implements OneInputStreamOperator<IN, IN>, ProcessingTimeCallback {
 
-	private static final long serialVersionUID = 1L;
+	private static final long serialVersionUID = -231765136670977695L;
 
 	private transient long watermarkInterval;
 
 	private transient Map<String, Long> currentWatermarks;
 
-	public TimestampsAndMultiPeriodicWMOperator(final List<SelectiveWatermarkAssigner<IN>> assigners) {
-		super(Preconditions.checkNotNull(new MultiWmAssigner<>(assigners)));
+	public PeriodicMultiWatermarkOperator(final List<SelectivePeriodicWatermarkAssigner<IN>> assigners) {
+		super(Preconditions.checkNotNull(new PeriodicMultiWatermarkAssigner<>(assigners)));
 		setChainingStrategy(ChainingStrategy.ALWAYS);
 	}
 
@@ -131,30 +131,30 @@ public class TimestampsAndMultiPeriodicWMOperator<IN>
 	/**
 	 * Javadoc.
 	 */
-	public static class MultiWmAssigner<T> implements TimestampAssigner<T> {
+	public static class PeriodicMultiWatermarkAssigner<T> implements TimestampAssigner<T> {
 
 		private static final long serialVersionUID = 4998222228683986485L;
 
-		private final Map<String, SelectiveWatermarkAssigner<T>> watermarkAssigners;
+		private final Map<String, SelectivePeriodicWatermarkAssigner<T>> watermarkAssigners;
 
-		public MultiWmAssigner(List<SelectiveWatermarkAssigner<T>> assigners) {
+		public PeriodicMultiWatermarkAssigner(List<SelectivePeriodicWatermarkAssigner<T>> assigners) {
 			this.watermarkAssigners = Collections.unmodifiableMap(
 					Preconditions.checkNotNull(loadAssigners(assigners))
 			);
 		}
 
-		private Map<String, SelectiveWatermarkAssigner<T>> loadAssigners(List<SelectiveWatermarkAssigner<T>> assigners) {
-			Map<String, SelectiveWatermarkAssigner<T>> tmp = new HashMap<>(assigners.size());
-			for (SelectiveWatermarkAssigner<T> assigner : assigners) {
-				tmp.put(assigner.getId(), assigner);
+		private Map<String, SelectivePeriodicWatermarkAssigner<T>> loadAssigners(List<SelectivePeriodicWatermarkAssigner<T>> assigners) {
+			Map<String, SelectivePeriodicWatermarkAssigner<T>> tmp = new HashMap<>(assigners.size());
+			for (SelectivePeriodicWatermarkAssigner<T> assigner : assigners) {
+				tmp.put(assigner.getTag(), assigner);
 			}
 			return tmp;
 		}
 
 		public String getTag(T element) {
-			for (SelectiveWatermarkAssigner<T> assigner: watermarkAssigners.values()) {
+			for (SelectivePeriodicWatermarkAssigner<T> assigner: watermarkAssigners.values()) {
 				if (assigner.select(element)) {
-					return assigner.getId();
+					return assigner.getTag();
 				}
 			}
 			// TODO: 6/7/18 we should have a default
@@ -168,12 +168,11 @@ public class TimestampsAndMultiPeriodicWMOperator<IN>
 		// TODO: 6/7/18 can be a set when I fix the equals/hashcode of the Watermark
 		public List<Watermark> getCurrentWatermarks() {
 			final List<Watermark> watermarks = new ArrayList<>();
-			for (SelectiveWatermarkAssigner<T> assigner: watermarkAssigners.values()) {
-				Long timestamp = assigner.getCurrentWatermark();
-				if (timestamp != null) {
-					Watermark wm = new Watermark(timestamp);
-					wm.setTag(assigner.getId());
-					watermarks.add(wm);
+			for (SelectivePeriodicWatermarkAssigner<T> assigner: watermarkAssigners.values()) {
+				final Watermark watermark = assigner.getCurrentWatermark();
+				if (watermark != null) {
+					watermark.setTag(assigner.getTag());
+					watermarks.add(watermark);
 				}
 			}
 			return watermarks;
@@ -181,7 +180,7 @@ public class TimestampsAndMultiPeriodicWMOperator<IN>
 
 		@Override
 		public long extractTimestamp(T element, long previousElementTimestamp) {
-			for (SelectiveWatermarkAssigner<T> assigner: watermarkAssigners.values()) {
+			for (SelectivePeriodicWatermarkAssigner<T> assigner: watermarkAssigners.values()) {
 				if (assigner.select(element)) {
 					return assigner.extractTimestamp(element, previousElementTimestamp);
 				}

@@ -32,7 +32,7 @@ import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.functions.SelectiveWatermarkAssigner;
+import org.apache.flink.streaming.api.functions.SelectivePeriodicWatermarkAssigner;
 import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
@@ -67,7 +67,7 @@ import org.apache.flink.streaming.api.windowing.triggers.PurgingTrigger;
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.api.windowing.windows.Window;
-import org.apache.flink.streaming.runtime.operators.TimestampsAndMultiPeriodicWMOperator;
+import org.apache.flink.streaming.runtime.operators.PeriodicMultiWatermarkOperator;
 import org.apache.flink.streaming.runtime.partitioner.KeyGroupStreamPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 
@@ -265,7 +265,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 			returnStream = super.transform(operatorName, outTypeInfo, operator);
 		} else {
 			returnStream = super.
-					transform("PerKeyAssigner", getType(), new TimestampsAndMultiPeriodicWMOperator<>(watermarkAssigners)).
+					transform("PerKeyAssigner", getType(), new PeriodicMultiWatermarkOperator<>(watermarkAssigners)).
 					transform(operatorName, outTypeInfo, operator);
 		}
 
@@ -321,9 +321,9 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 		return process(processFunction, outType);
 	}
 
-	private final List<SelectiveWatermarkAssigner<T>> watermarkAssigners = new ArrayList<>();
+	private final List<SelectivePeriodicWatermarkAssigner<T>> watermarkAssigners = new ArrayList<>();
 
-	public KeyedStream<T, KEY> withWatermarkAssignersKeyed(SelectiveWatermarkAssigner<T>... assigner) {
+	public KeyedStream<T, KEY> withWatermarkAssignersKeyed(SelectivePeriodicWatermarkAssigner<T>... assigner) {
 		Collections.addAll(watermarkAssigners, assigner);
 		return this;
 	}

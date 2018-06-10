@@ -38,7 +38,7 @@ import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.functions.SelectiveWatermarkAssigner;
+import org.apache.flink.streaming.api.functions.SelectivePeriodicWatermarkAssigner;
 import org.apache.flink.api.java.io.CsvOutputFormat;
 import org.apache.flink.api.java.io.TextOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple;
@@ -52,6 +52,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
+import org.apache.flink.streaming.api.functions.SelectivePunctuatedWatermarkAssigner;
 import org.apache.flink.streaming.api.functions.TimestampExtractor;
 import org.apache.flink.streaming.api.functions.sink.OutputFormatSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
@@ -83,7 +84,8 @@ import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.ExtractTimestampsOperator;
-import org.apache.flink.streaming.runtime.operators.TimestampsAndMultiPeriodicWMOperator;
+import org.apache.flink.streaming.runtime.operators.PeriodicMultiWatermarkOperator;
+import org.apache.flink.streaming.runtime.operators.PunctuatedMultiWatermarkOperator;
 import org.apache.flink.streaming.runtime.operators.TimestampsAndPeriodicWatermarksOperator;
 import org.apache.flink.streaming.runtime.operators.TimestampsAndPunctuatedWatermarksOperator;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
@@ -882,22 +884,41 @@ public class DataStream<T> {
 				.setParallelism(inputParallelism);
 	}
 
-	public SingleOutputStreamOperator<T> withWatermarkAssigners(SelectiveWatermarkAssigner<T>... assigner) {
+	public SingleOutputStreamOperator<T> withPeriodicWatermarkAssigners(SelectivePeriodicWatermarkAssigner<T>... assigner) {
 
 		// match parallelism to input, otherwise dop=1 sources could lead to some strange
 		// behaviour: the watermark will creep along very slowly because the elements
 		// from the source go to each extraction operator round robin.
 		final int inputParallelism = getTransformation().getParallelism();
 
-		final List<SelectiveWatermarkAssigner<T>> watermarkAssigners = new ArrayList<>(assigner.length);
-		for (SelectiveWatermarkAssigner<T> anAssigner : assigner) {
+		final List<SelectivePeriodicWatermarkAssigner<T>> watermarkAssigners = new ArrayList<>(assigner.length);
+		for (SelectivePeriodicWatermarkAssigner<T> anAssigner : assigner) {
 			watermarkAssigners.add(clean(anAssigner));
 		}
 
-		TimestampsAndMultiPeriodicWMOperator<T> operator =
-				new TimestampsAndMultiPeriodicWMOperator<>(watermarkAssigners);
+		PeriodicMultiWatermarkOperator<T> operator =
+				new PeriodicMultiWatermarkOperator<>(watermarkAssigners);
 
-		return transform("MultiWatermarkAssigner", getTransformation().getOutputType(), operator)
+		return transform("PeriodicMultiWatermarkAssigner", getTransformation().getOutputType(), operator)
+				.setParallelism(inputParallelism);
+	}
+
+	public SingleOutputStreamOperator<T> withPunctuatedWatermarkAssigners(SelectivePunctuatedWatermarkAssigner<T>... assigner) {
+
+		// match parallelism to input, otherwise dop=1 sources could lead to some strange
+		// behaviour: the watermark will creep along very slowly because the elements
+		// from the source go to each extraction operator round robin.
+		final int inputParallelism = getTransformation().getParallelism();
+
+		final List<SelectivePunctuatedWatermarkAssigner<T>> watermarkAssigners = new ArrayList<>(assigner.length);
+		for (SelectivePunctuatedWatermarkAssigner<T> anAssigner : assigner) {
+			watermarkAssigners.add(clean(anAssigner));
+		}
+
+		PunctuatedMultiWatermarkOperator<T> operator =
+				new PunctuatedMultiWatermarkOperator<>(watermarkAssigners);
+
+		return transform("PunctuatedMultiWatermarkAssigner", getTransformation().getOutputType(), operator)
 				.setParallelism(inputParallelism);
 	}
 
