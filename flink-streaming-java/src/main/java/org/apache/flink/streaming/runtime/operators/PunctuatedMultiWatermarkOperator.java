@@ -16,8 +16,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-public class PunctuatedMultiWatermarkOperator<IN>
-		extends AbstractUdfStreamOperator<IN, PunctuatedMultiWatermarkOperator.PunctuatedMultiWatermarkAssigner<IN>>
+public class PunctuatedMultiWatermarkOperator<IN, KEY>
+		extends AbstractUdfStreamOperator<IN, PunctuatedMultiWatermarkOperator.PunctuatedMultiWatermarkAssigner<IN, KEY>>
 		implements OneInputStreamOperator<IN, IN> {
 
 	private static final long serialVersionUID = 1509538640986248046L;
@@ -43,6 +43,7 @@ public class PunctuatedMultiWatermarkOperator<IN>
 	@Override
 	public void processElement(StreamRecord<IN> element) throws Exception {
 		final IN value = element.getValue();
+		KEY key = (KEY) getCurrentKey();
 		final long newTimestamp = userFunction.extractTimestamp(
 				value,
 				element.hasTimestamp() ? element.getTimestamp() : Long.MIN_VALUE);
@@ -76,34 +77,34 @@ public class PunctuatedMultiWatermarkOperator<IN>
 	 * Javadoc.
 	 * todo deduplicate code with the periodic one.
 	 */
-	public static class PunctuatedMultiWatermarkAssigner<T> implements TimestampAssigner<T> {
+	public static class PunctuatedMultiWatermarkAssigner<T, K> implements TimestampAssigner<T> {
 
 		private static final long serialVersionUID = 4998222228683986485L;
 
-		private final Map<String, SelectivePunctuatedWatermarkAssigner<T>> watermarkAssigners;
+		private final Map<String, SelectivePunctuatedWatermarkAssigner<T, K>> watermarkAssigners;
 
-		public PunctuatedMultiWatermarkAssigner(List<SelectivePunctuatedWatermarkAssigner<T>> assigners) {
+		public PunctuatedMultiWatermarkAssigner(List<SelectivePunctuatedWatermarkAssigner<T, K>> assigners) {
 			this.watermarkAssigners = Collections.unmodifiableMap(
 					Preconditions.checkNotNull(loadAssigners(assigners))
 			);
 		}
 
-		private Map<String, SelectivePunctuatedWatermarkAssigner<T>> loadAssigners(List<SelectivePunctuatedWatermarkAssigner<T>> assigners) {
-			Map<String, SelectivePunctuatedWatermarkAssigner<T>> tmp = new HashMap<>(assigners.size());
-			for (SelectivePunctuatedWatermarkAssigner<T> assigner : assigners) {
+		private Map<String, SelectivePunctuatedWatermarkAssigner<T, K>> loadAssigners(List<SelectivePunctuatedWatermarkAssigner<T, K>> assigners) {
+			Map<String, SelectivePunctuatedWatermarkAssigner<T, K>> tmp = new HashMap<>(assigners.size());
+			for (SelectivePunctuatedWatermarkAssigner<T, K> assigner : assigners) {
 				tmp.put(assigner.getTag(), assigner);
 			}
 			return tmp;
 		}
 
-		public String getTag(T element) {
-			for (SelectivePunctuatedWatermarkAssigner<T> assigner : watermarkAssigners.values()) {
-				if (assigner.select(element)) {
+		public String getTag(K key) {
+			for (SelectivePunctuatedWatermarkAssigner<T, K> assigner : watermarkAssigners.values()) {
+				if (assigner.select(key)) {
 					return assigner.getTag();
 				}
 			}
 			// TODO: 6/7/18 we should have a default
-			throw new FlinkRuntimeException("Uncategorized element " + element);
+			throw new FlinkRuntimeException("Uncategorized element " + key);
 		}
 
 		public Set<String> getTags() {
@@ -111,7 +112,7 @@ public class PunctuatedMultiWatermarkOperator<IN>
 		}
 
 		public Watermark checkAndGetNextWatermark(String tag, T lastElement, long extractedTimestamp) {
-			SelectivePunctuatedWatermarkAssigner<T> assigner = watermarkAssigners.get(tag);
+			SelectivePunctuatedWatermarkAssigner<T, K> assigner = watermarkAssigners.get(tag);
 			if (assigner == null) {
 				// TODO: 6/7/18 we should have a default
 				throw new FlinkRuntimeException("Uncategorized element " + lastElement);
@@ -127,7 +128,7 @@ public class PunctuatedMultiWatermarkOperator<IN>
 
 		@Override
 		public long extractTimestamp(T element, long previousElementTimestamp) {
-			for (SelectivePunctuatedWatermarkAssigner<T> assigner: watermarkAssigners.values()) {
+			for (SelectivePunctuatedWatermarkAssigner<T, K> assigner: watermarkAssigners.values()) {
 				if (assigner.select(element)) {
 					return assigner.extractTimestamp(element, previousElementTimestamp);
 				}

@@ -324,6 +324,20 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	private final List<SelectivePeriodicWatermarkAssigner<T>> watermarkAssigners = new ArrayList<>();
 
 	public KeyedStream<T, KEY> withWatermarkAssignersKeyed(SelectivePeriodicWatermarkAssigner<T>... assigner) {
+
+		// match parallelism to input, otherwise dop=1 sources could lead to some strange
+		// behaviour: the watermark will creep along very slowly because the elements
+		// from the source go to each extraction operator round robin.
+		final int inputParallelism = getTransformation().getParallelism();
+		final TypeInformation<T> outputTypeInfo = getTransformation().getOutputType();
+
+		final List<SelectivePeriodicWatermarkAssigner<T>> watermarkAssigners = new ArrayList<>(assigner.length);
+		for (SelectivePeriodicWatermarkAssigner<T> anAssigner : assigner) {
+			watermarkAssigners.add(clean(anAssigner));
+		}
+
+		PeriodicMultiWatermarkOperator<T> operator = new PeriodicMultiWatermarkOperator<>(watermarkAssigners);
+
 		Collections.addAll(watermarkAssigners, assigner);
 		return this;
 	}

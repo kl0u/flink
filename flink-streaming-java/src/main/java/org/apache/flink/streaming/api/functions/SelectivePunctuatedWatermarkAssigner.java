@@ -1,8 +1,8 @@
 package org.apache.flink.streaming.api.functions;
 
-public interface SelectivePunctuatedWatermarkAssigner<IN> extends AssignerWithPunctuatedWatermarks<IN> {
+public interface SelectivePunctuatedWatermarkAssigner<IN, KEY> extends AssignerWithPunctuatedWatermarks<IN> {
 
 	String getTag();
 
-	boolean select(IN element);
+	boolean select(KEY key);
 }

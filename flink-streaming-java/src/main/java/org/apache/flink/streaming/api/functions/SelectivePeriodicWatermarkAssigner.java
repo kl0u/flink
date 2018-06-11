@@ -20,9 +20,9 @@ package org.apache.flink.streaming.api.functions;
 /**
  * Javadoc.
  */
-public interface SelectivePeriodicWatermarkAssigner<IN> extends AssignerWithPeriodicWatermarks<IN> {
+public interface SelectivePeriodicWatermarkAssigner<IN, KEY> extends AssignerWithPeriodicWatermarks<IN> {
 
 	String getTag();
 
-	boolean select(IN element);
+	boolean select(KEY key);
 }
