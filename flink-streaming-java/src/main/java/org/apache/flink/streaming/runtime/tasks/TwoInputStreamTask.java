@@ -25,6 +25,7 @@ import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
+import org.apache.flink.streaming.runtime.io.StreamNInputProcessor;
 import org.apache.flink.streaming.runtime.io.StreamTwoInputProcessor;
 import org.apache.flink.streaming.runtime.metrics.MinWatermarkGauge;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
@@ -39,6 +40,7 @@ import java.util.List;
 public class TwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputStreamOperator<IN1, IN2, OUT>> {
 
 	private StreamTwoInputProcessor<IN1, IN2> inputProcessor;
+//	private StreamNInputProcessor inputProcessor;
 
 	private volatile boolean running = true;
 
@@ -88,7 +90,7 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputS
 			}
 		}
 
-		this.inputProcessor = new StreamTwoInputProcessor<>(
+		this.inputProcessor = new StreamTwoInputProcessor<>(//new StreamNInputProcessor(//
 				inputList1, inputList2,
 				inputDeserializer1, inputDeserializer2,
 				this,
@@ -113,6 +115,7 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputS
 	protected void run() throws Exception {
 		// cache processor reference on the stack, to make the code more JIT friendly
 		final StreamTwoInputProcessor<IN1, IN2> inputProcessor = this.inputProcessor;
+//		final StreamNInputProcessor inputProcessor = this.inputProcessor;
 
 		while (running && inputProcessor.processInput()) {
 			// all the work happens in the "processInput" method

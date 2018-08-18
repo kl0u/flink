@@ -34,6 +34,7 @@ import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.operators.NInputStreamOperator;
 import org.apache.flink.streaming.api.operators.OutputTypeConfigurable;
 import org.apache.flink.streaming.api.operators.StoppableStreamSource;
 import org.apache.flink.streaming.api.operators.StreamOperator;
@@ -252,6 +253,36 @@ public class StreamGraph extends StreamingPlan {
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("CO-TASK: {}", vertexID);
 		}
+	}
+
+	public <IN1, OUT> void addNaryOperator(
+			Integer vertexID,
+			String slotSharingGroup,
+			@Nullable String coLocationGroup,
+			NInputStreamOperator taskOperatorObject,
+			TypeInformation<IN1> inTypeInfo,
+			List<TypeInformation<?>> sideInputTypeInfo,
+			TypeInformation<OUT> outTypeInfo,
+			String operatorName
+	) {
+
+//		addNode(vertexID, slotSharingGroup, coLocationGroup, TwoInputStreamTask.class, taskOperatorObject, operatorName);
+//
+//		TypeSerializer<OUT> outSerializer = (outTypeInfo != null) && !(outTypeInfo instanceof MissingTypeInfo) ?
+//				outTypeInfo.createSerializer(executionConfig) : null;
+//
+//		setSerializers(vertexID, in1TypeInfo.createSerializer(executionConfig), in2TypeInfo.createSerializer(executionConfig), outSerializer);
+//
+//		if (taskOperatorObject instanceof OutputTypeConfigurable) {
+//			@SuppressWarnings("unchecked")
+//			OutputTypeConfigurable<OUT> outputTypeConfigurable = (OutputTypeConfigurable<OUT>) taskOperatorObject;
+//			// sets the output type which must be know at StreamGraph creation time
+//			outputTypeConfigurable.setOutputType(outTypeInfo, executionConfig);
+//		}
+//
+//		if (LOG.isDebugEnabled()) {
+//			LOG.debug("CO-TASK: {}", vertexID);
+//		}
 	}
 
 	protected StreamNode addNode(Integer vertexID,
@@ -500,14 +531,6 @@ public class StreamGraph extends StreamingPlan {
 		vertex.setSerializerIn1(in1);
 		vertex.setSerializerIn2(in2);
 		vertex.setSerializerOut(out);
-	}
-
-	public void setSerializersFrom(Integer from, Integer to) {
-		StreamNode fromVertex = getStreamNode(from);
-		StreamNode toVertex = getStreamNode(to);
-
-		toVertex.setSerializerIn1(fromVertex.getTypeSerializerOut());
-		toVertex.setSerializerOut(fromVertex.getTypeSerializerIn1());
 	}
 
 	public <OUT> void setOutType(Integer vertexID, TypeInformation<OUT> outType) {
