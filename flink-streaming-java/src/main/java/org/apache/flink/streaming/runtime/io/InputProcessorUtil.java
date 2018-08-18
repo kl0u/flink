@@ -30,7 +30,7 @@ import java.io.IOException;
 
 /**
  * Utility for creating {@link CheckpointBarrierHandler} based on checkpoint mode
- * for {@link StreamInputProcessor} and {@link StreamTwoInputProcessor}.
+ * for the {@link GeneralInputProcessor}.
  */
 @Internal
 public class InputProcessorUtil {
@@ -45,7 +45,7 @@ public class InputProcessorUtil {
 		CheckpointBarrierHandler barrierHandler;
 		if (checkpointMode == CheckpointingMode.EXACTLY_ONCE) {
 			long maxAlign = taskManagerConfig.getLong(TaskManagerOptions.TASK_CHECKPOINT_ALIGNMENT_BYTES_LIMIT);
-			if (!(maxAlign == -1 || maxAlign > 0)) {
+			if (!(maxAlign == -1L || maxAlign > 0L)) {
 				throw new IllegalConfigurationException(
 					TaskManagerOptions.TASK_CHECKPOINT_ALIGNMENT_BYTES_LIMIT.key()
 					+ " must be positive or -1 (infinite)");

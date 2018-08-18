@@ -58,8 +58,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import static org.junit.Assert.assertEquals;
 
 /**
- * Tests for {@link org.apache.flink.streaming.runtime.tasks.TwoInputStreamTask}. Theses tests
- * implicitly also test the {@link org.apache.flink.streaming.runtime.io.StreamTwoInputProcessor}.
+ * Tests for {@link TwoInputStreamTask}.
  *
  * <p>Note:<br>
  * We only use a {@link CoStreamMap} operator here. We also test the individual operators but Map is

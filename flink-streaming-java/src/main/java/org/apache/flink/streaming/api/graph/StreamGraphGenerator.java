@@ -26,7 +26,6 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction;
 import org.apache.flink.streaming.api.transformations.CoFeedbackTransformation;
 import org.apache.flink.streaming.api.transformations.FeedbackTransformation;
-import org.apache.flink.streaming.api.transformations.NInputTransformation;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.transformations.SelectTransformation;
@@ -167,8 +166,6 @@ public class StreamGraphGenerator {
 			transformedIds = transformOneInputTransform((OneInputTransformation<?, ?>) transform);
 		} else if (transform instanceof TwoInputTransformation<?, ?, ?>) {
 			transformedIds = transformTwoInputTransform((TwoInputTransformation<?, ?, ?>) transform);
-		} else if (transform instanceof NInputTransformation<?, ?>) {
-			transformedIds = transformNInputTransform((NInputTransformation<?, ?>) transform);
 		} else if (transform instanceof SourceTransformation<?>) {
 			transformedIds = transformSource((SourceTransformation<?>) transform);
 		} else if (transform instanceof SinkTransformation<?>) {
@@ -619,52 +616,6 @@ public class StreamGraphGenerator {
 		return Collections.singleton(transform.getId());
 	}
 
-	private <IN1, OUT> Collection<Integer> transformNInputTransform(NInputTransformation<IN1, OUT> transform) {
-
-//		final Collection<Integer> transformIds = alreadyTransformed.get(transform);
-//		if (transformIds != null) {
-//			return transformIds;
-//		}
-//
-//		final List<Integer> allInputIds = new ArrayList<>();
-//		for (StreamTransformation<?> inputTransformation :transform.getInputTransformations()) {
-//			allInputIds.addAll(transform(inputTransformation));
-//		}
-//
-//		final String slotSharingGroup = determineSlotSharingGroup(transform.getSlotSharingGroup(), allInputIds);
-//		final List<TypeInformation<?>> inputTypeInfo = transform.getInputTypes();
-//
-//		streamGraph.addNaryOperator(
-//				transform.getId(),
-//				slotSharingGroup,
-//				transform.getCoLocationGroupKey(),
-//				transform.getOperator(),
-//				inputTypeInfo,
-//				transform.getOutputType(),
-//				transform.getName());
-//
-//		// TODO: 8/17/18 handle keySelectors
-//
-//		streamGraph.setParallelism(transform.getId(), transform.getParallelism());
-//		streamGraph.setMaxParallelism(transform.getId(), transform.getMaxParallelism());
-//
-//		for (Integer inputId: inputIds1) {
-//			streamGraph.addEdge(inputId,
-//					transform.getId(),
-//					1
-//			);
-//		}
-//
-//		for (Integer inputId: inputIds2) {
-//			streamGraph.addEdge(inputId,
-//					transform.getId(),
-//					2
-//			);
-//		}
-
-		throw new UnsupportedOperationException("N-ary transformations are not supported yet.");
-	}
-	
 	/**
 	 * Determines the slot sharing group for an operation based on the slot sharing group set by
 	 * the user and the slot sharing groups of the inputs.

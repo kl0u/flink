@@ -407,6 +407,11 @@ public class StatusWatermarkValveTest {
 		private BlockingQueue<StreamElement> allOutputs = new LinkedBlockingQueue<>();
 
 		@Override
+		public StreamStatus getStatus() {
+			return StreamStatus.ACTIVE;
+		}
+
+		@Override
 		public void handleWatermark(Watermark watermark) {
 			allOutputs.add(watermark);
 		}

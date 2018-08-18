@@ -25,12 +25,18 @@ import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
-import org.apache.flink.streaming.runtime.io.StreamNInputProcessor;
-import org.apache.flink.streaming.runtime.io.StreamTwoInputProcessor;
+import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.io.GeneralInputProcessor;
+import org.apache.flink.streaming.runtime.io.GeneralValveOutputHandler;
+import org.apache.flink.streaming.runtime.io.InputProcessor;
 import org.apache.flink.streaming.runtime.metrics.MinWatermarkGauge;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
+import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -39,8 +45,7 @@ import java.util.List;
 @Internal
 public class TwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputStreamOperator<IN1, IN2, OUT>> {
 
-	private StreamTwoInputProcessor<IN1, IN2> inputProcessor;
-//	private StreamNInputProcessor inputProcessor;
+	private InputProcessor inputProcessor;
 
 	private volatile boolean running = true;
 
@@ -90,19 +95,35 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputS
 			}
 		}
 
-		this.inputProcessor = new StreamTwoInputProcessor<>(//new StreamNInputProcessor(//
-				inputList1, inputList2,
-				inputDeserializer1, inputDeserializer2,
+		List<Collection<InputGate>> inputGates = new ArrayList<>();
+		inputGates.add(inputList1);
+		inputGates.add(inputList2);
+
+		List<TypeSerializer<?>> inputSerializers = new ArrayList<>();
+		inputSerializers.add(inputDeserializer1);
+		inputSerializers.add(inputDeserializer2);
+
+		List<WatermarkGauge> inputWatermarkGauges = new ArrayList<>();
+		inputWatermarkGauges.add(input1WatermarkGauge);
+		inputWatermarkGauges.add(input2WatermarkGauge);
+
+		List<GeneralValveOutputHandler.OperatorProxy> wrappers = new ArrayList<>();
+		wrappers.add(new FirstOperatorProxy(headOperator));
+		wrappers.add(new SecondOperatorProxy(headOperator));
+
+		this.inputProcessor = new GeneralInputProcessor(
+				inputGates,
+				inputSerializers,
+				inputWatermarkGauges,
+				wrappers,
 				this,
 				configuration.getCheckpointMode(),
 				getCheckpointLock(),
 				getEnvironment().getIOManager(),
 				getEnvironment().getTaskManagerInfo().getConfiguration(),
 				getStreamStatusMaintainer(),
-				this.headOperator,
-				getEnvironment().getMetricGroup().getIOMetricGroup(),
-				input1WatermarkGauge,
-				input2WatermarkGauge);
+				headOperator,
+				getEnvironment().getMetricGroup().getIOMetricGroup());
 
 		headOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, minInputWatermarkGauge);
 		headOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_1_WATERMARK, input1WatermarkGauge);
@@ -114,8 +135,7 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputS
 	@Override
 	protected void run() throws Exception {
 		// cache processor reference on the stack, to make the code more JIT friendly
-		final StreamTwoInputProcessor<IN1, IN2> inputProcessor = this.inputProcessor;
-//		final StreamNInputProcessor inputProcessor = this.inputProcessor;
+		final InputProcessor inputProcessor = this.inputProcessor;
 
 		while (running && inputProcessor.processInput()) {
 			// all the work happens in the "processInput" method
@@ -132,5 +152,61 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputS
 	@Override
 	protected void cancelTask() {
 		running = false;
+	}
+
+	/**
+	 * Javadoc.
+	 */
+	private static class FirstOperatorProxy implements GeneralValveOutputHandler.OperatorProxy {
+
+		private final TwoInputStreamOperator<?, ?, ?> operator;
+
+		FirstOperatorProxy(TwoInputStreamOperator<?, ?, ?> operator) {
+			this.operator = Preconditions.checkNotNull(operator);
+		}
+
+		@Override
+		public void processLatencyMarker(LatencyMarker marker) throws Exception {
+			operator.processLatencyMarker1(marker);
+		}
+
+		@Override
+		public void processElement(StreamRecord record) throws Exception {
+			operator.setKeyContextElement1(record);
+			operator.processElement1(record);
+		}
+
+		@Override
+		public void processWatermark(Watermark mark) throws Exception {
+			operator.processWatermark1(mark);
+		}
+	}
+
+	/**
+	 * Javadoc.
+	 */
+	private static class SecondOperatorProxy implements GeneralValveOutputHandler.OperatorProxy {
+
+		private final TwoInputStreamOperator<?, ?, ?> operator;
+
+		SecondOperatorProxy(TwoInputStreamOperator<?, ?, ?> operator) {
+			this.operator = Preconditions.checkNotNull(operator);
+		}
+
+		@Override
+		public void processLatencyMarker(LatencyMarker marker) throws Exception {
+			operator.processLatencyMarker2(marker);
+		}
+
+		@Override
+		public void processElement(StreamRecord record) throws Exception {
+			operator.setKeyContextElement2(record);
+			operator.processElement2(record);
+		}
+
+		@Override
+		public void processWatermark(Watermark mark) throws Exception {
+			operator.processWatermark2(mark);
+		}
 	}
 }

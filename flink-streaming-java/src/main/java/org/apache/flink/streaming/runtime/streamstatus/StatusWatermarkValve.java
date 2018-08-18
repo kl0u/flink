@@ -41,6 +41,9 @@ public class StatusWatermarkValve {
 	 * to handle watermark and stream status outputs from the valve.
 	 */
 	public interface ValveOutputHandler {
+
+		StreamStatus getStatus();
+
 		void handleWatermark(Watermark watermark);
 
 		void handleStreamStatus(StreamStatus streamStatus);

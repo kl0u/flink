@@ -16,11 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.operators;
+package org.apache.flink.streaming.runtime.io;
 
 /**
  * Javadoc.
  */
-public interface NInputStreamOperator<IN, OUT> extends StreamOperator<OUT> {
+public interface InputProcessor {
 
+	boolean processInput() throws Exception;
+
+	void cleanup() throws Exception;
 }

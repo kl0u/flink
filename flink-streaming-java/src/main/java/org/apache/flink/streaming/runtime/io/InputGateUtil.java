@@ -31,13 +31,14 @@ import java.util.List;
  * {@link InputGate input gates} are given.
  */
 @Internal
-public class InputGateUtil {
+public final class InputGateUtil {
 
-	public static InputGate createInputGate(Collection<InputGate> inputGates1, Collection<InputGate> inputGates2) {
-		List<InputGate> gates = new ArrayList<InputGate>(inputGates1.size() + inputGates2.size());
-		gates.addAll(inputGates1);
-		gates.addAll(inputGates2);
-		return createInputGate(gates.toArray(new InputGate[gates.size()]));
+	public static InputGate createInputGate(Collection<Collection<InputGate>> inputGates) {
+		final List<InputGate> resultGates = new ArrayList<InputGate>();
+		for (Collection<InputGate> gates : inputGates) {
+			resultGates.addAll(gates);
+		}
+		return createInputGate(resultGates.toArray(new InputGate[resultGates.size()]));
 	}
 
 	public static InputGate createInputGate(InputGate[] inputGates) {

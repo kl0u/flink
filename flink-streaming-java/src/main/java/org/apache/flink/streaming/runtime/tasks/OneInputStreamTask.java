@@ -26,10 +26,21 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.runtime.io.StreamInputProcessor;
+import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.io.GeneralInputProcessor;
+import org.apache.flink.streaming.runtime.io.GeneralValveOutputHandler;
+import org.apache.flink.streaming.runtime.io.InputProcessor;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
+import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * A {@link StreamTask} for executing a {@link OneInputStreamOperator}.
@@ -37,7 +48,7 @@ import javax.annotation.Nullable;
 @Internal
 public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamOperator<IN, OUT>> {
 
-	private StreamInputProcessor<IN> inputProcessor;
+	private InputProcessor inputProcessor;
 
 	private volatile boolean running = true;
 
@@ -79,18 +90,34 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 		if (numberOfInputs > 0) {
 			InputGate[] inputGates = getEnvironment().getAllInputGates();
 
-			inputProcessor = new StreamInputProcessor<>(
-					inputGates,
-					inSerializer,
+			List<InputGate> inputGatesList = new ArrayList<>();
+			Collections.addAll(inputGatesList, inputGates);
+
+			List<Collection<InputGate>> inputGatesCol = new ArrayList<>();
+			inputGatesCol.add(inputGatesList);
+
+			List<TypeSerializer<?>> inputSerializers = new ArrayList<>();
+			inputSerializers.add(inSerializer);
+
+			List<WatermarkGauge> inputWatermarkGauges = new ArrayList<>();
+			inputWatermarkGauges.add(inputWatermarkGauge);
+
+			List<GeneralValveOutputHandler.OperatorProxy> wrappers = new ArrayList<>();
+			wrappers.add(new Proxy(headOperator));
+
+			inputProcessor = new GeneralInputProcessor(
+					inputGatesCol,
+					inputSerializers,
+					inputWatermarkGauges,
+					wrappers,
 					this,
 					configuration.getCheckpointMode(),
 					getCheckpointLock(),
 					getEnvironment().getIOManager(),
 					getEnvironment().getTaskManagerInfo().getConfiguration(),
 					getStreamStatusMaintainer(),
-					this.headOperator,
-					getEnvironment().getMetricGroup().getIOMetricGroup(),
-					inputWatermarkGauge);
+					headOperator,
+					getEnvironment().getMetricGroup().getIOMetricGroup());
 		}
 		headOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, this.inputWatermarkGauge);
 		// wrap watermark gauge since registered metrics must be unique
@@ -100,7 +127,7 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 	@Override
 	protected void run() throws Exception {
 		// cache processor reference on the stack, to make the code more JIT friendly
-		final StreamInputProcessor<IN> inputProcessor = this.inputProcessor;
+		final InputProcessor inputProcessor = this.inputProcessor;
 
 		while (running && inputProcessor.processInput()) {
 			// all the work happens in the "processInput" method
@@ -117,5 +144,33 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 	@Override
 	protected void cancelTask() {
 		running = false;
+	}
+
+	/**
+	 * Javadoc.
+	 */
+	private static class Proxy implements GeneralValveOutputHandler.OperatorProxy {
+
+		private final OneInputStreamOperator<?, ?> operator;
+
+		Proxy(OneInputStreamOperator<?, ?> operator) {
+			this.operator = Preconditions.checkNotNull(operator);
+		}
+
+		@Override
+		public void processLatencyMarker(LatencyMarker marker) throws Exception {
+			operator.processLatencyMarker(marker);
+		}
+
+		@Override
+		public void processElement(StreamRecord record) throws Exception {
+			operator.setKeyContextElement1(record);
+			operator.processElement(record);
+		}
+
+		@Override
+		public void processWatermark(Watermark mark) throws Exception {
+			operator.processWatermark(mark);
+		}
 	}
 }
