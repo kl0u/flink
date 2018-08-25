@@ -51,6 +51,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
+import org.apache.flink.streaming.api.functions.SideInputProcessFunction;
 import org.apache.flink.streaming.api.functions.TimestampExtractor;
 import org.apache.flink.streaming.api.functions.sink.OutputFormatSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
@@ -93,6 +94,7 @@ import org.apache.flink.streaming.runtime.partitioner.RescalePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ShufflePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.util.keys.KeySelectorUtil;
+import org.apache.flink.util.InputTag;
 import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
@@ -275,6 +277,16 @@ public class DataStream<T> {
 				this,
 				Preconditions.checkNotNull(broadcastStream),
 				broadcastStream.getBroadcastStateDescriptor());
+	}
+
+	@PublicEvolving
+	public <I, O> SideInputStream<T, O> withSideInput(
+			final InputTag inputTag,
+			final DataStream<I> sideInput,
+			final SideInputProcessFunction<I, O> processFunction) {
+		final SideInputStream<T, O> resultingStream = new SideInputStream<>(this);
+		resultingStream.withSideInput(inputTag, sideInput, processFunction);
+		return resultingStream;
 	}
 
 	/**

@@ -24,10 +24,9 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.metrics.MetricNames;
-import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.runtime.io.GeneralInputProcessor;
+import org.apache.flink.streaming.runtime.io.InputProcessorImpl;
 import org.apache.flink.streaming.runtime.io.GeneralValveOutputHandler;
 import org.apache.flink.streaming.runtime.io.InputProcessor;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
@@ -82,18 +81,15 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 
 	@Override
 	public void init() throws Exception {
-		StreamConfig configuration = getConfiguration();
-
 		TypeSerializer<IN> inSerializer = configuration.getTypeSerializerIn1(getUserCodeClassLoader());
 		int numberOfInputs = configuration.getNumberOfInputs();
 
 		if (numberOfInputs > 0) {
 			InputGate[] inputGates = getEnvironment().getAllInputGates();
 
-			List<InputGate> inputGatesList = new ArrayList<>();
-			Collections.addAll(inputGatesList, inputGates);
-
 			List<Collection<InputGate>> inputGatesCol = new ArrayList<>();
+			Collection<InputGate> inputGatesList = new ArrayList<>();
+			Collections.addAll(inputGatesList, inputGates);
 			inputGatesCol.add(inputGatesList);
 
 			List<TypeSerializer<?>> inputSerializers = new ArrayList<>();
@@ -105,7 +101,7 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 			List<GeneralValveOutputHandler.OperatorProxy> wrappers = new ArrayList<>();
 			wrappers.add(new Proxy(headOperator));
 
-			inputProcessor = new GeneralInputProcessor(
+			inputProcessor = new InputProcessorImpl(
 					inputGatesCol,
 					inputSerializers,
 					inputWatermarkGauges,

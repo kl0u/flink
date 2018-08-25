@@ -56,9 +56,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Javadoc.
  * todo can I have a mapping of channel index to side input tag???
  */
-public class GeneralInputProcessor implements InputProcessor {
+public class InputProcessorImpl implements InputProcessor {
 
-	private static final Logger LOG = LoggerFactory.getLogger(GeneralInputProcessor.class);
+	private static final Logger LOG = LoggerFactory.getLogger(InputProcessorImpl.class);
 
 	private final ElementReader[] elementReaders;
 
@@ -81,7 +81,7 @@ public class GeneralInputProcessor implements InputProcessor {
 	private ElementReader currentElementReader;
 
 	@SuppressWarnings("unchecked")
-	public GeneralInputProcessor(
+	public InputProcessorImpl(
 			List<Collection<InputGate>> inputGates, //  todo the 4 lists should become sth like configuration object
 			List<TypeSerializer<?>> inputSerializers,
 			List<WatermarkGauge> input1WatermarkGauges,

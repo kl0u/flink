@@ -29,8 +29,8 @@ import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import java.io.IOException;
 
 /**
- * Utility for creating {@link CheckpointBarrierHandler} based on checkpoint mode
- * for the {@link GeneralInputProcessor}.
+ * Utility for creating {@link CheckpointBarrierHandler} based on
+ * checkpoint mode for the {@link InputProcessor}.
  */
 @Internal
 public class InputProcessorUtil {

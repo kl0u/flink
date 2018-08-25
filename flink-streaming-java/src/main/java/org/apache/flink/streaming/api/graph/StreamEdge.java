@@ -21,6 +21,8 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.util.OutputTag;
 
+import javax.annotation.Nullable;
+
 import java.io.Serializable;
 import java.util.List;
 
@@ -55,19 +57,28 @@ public class StreamEdge implements Serializable {
 	 */
 	private final OutputTag outputTag;
 
+	@Nullable private final SideInputEdgeInfo<?, ?, ?> inputInfo;
+
 	/**
 	 * The {@link StreamPartitioner} on this {@link StreamEdge}.
 	 */
 	private StreamPartitioner<?> outputPartitioner;
 
-	public StreamEdge(StreamNode sourceVertex, StreamNode targetVertex, int typeNumber,
-			List<String> selectedNames, StreamPartitioner<?> outputPartitioner, OutputTag outputTag) {
+	public StreamEdge(
+			StreamNode sourceVertex,
+			StreamNode targetVertex,
+			int typeNumber,
+			List<String> selectedNames,
+			StreamPartitioner<?> outputPartitioner,
+			OutputTag outputTag,
+			@Nullable SideInputEdgeInfo<?, ?, ?> inputInfo) {
 		this.sourceVertex = sourceVertex;
 		this.targetVertex = targetVertex;
 		this.typeNumber = typeNumber;
 		this.selectedNames = selectedNames;
 		this.outputPartitioner = outputPartitioner;
 		this.outputTag = outputTag;
+		this.inputInfo = inputInfo;
 
 		this.edgeId = sourceVertex + "_" + targetVertex + "_" + typeNumber + "_" + selectedNames
 				+ "_" + outputPartitioner;
@@ -95,6 +106,11 @@ public class StreamEdge implements Serializable {
 
 	public List<String> getSelectedNames() {
 		return selectedNames;
+	}
+
+	@Nullable
+	public SideInputEdgeInfo<?, ?, ?> getSideInputInfo() {
+		return inputInfo;
 	}
 
 	public OutputTag getOutputTag() {

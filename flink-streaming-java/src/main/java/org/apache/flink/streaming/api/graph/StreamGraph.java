@@ -34,6 +34,7 @@ import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.operators.MultiInputStreamOperator;
 import org.apache.flink.streaming.api.operators.OutputTypeConfigurable;
 import org.apache.flink.streaming.api.operators.StoppableStreamSource;
 import org.apache.flink.streaming.api.operators.StreamOperator;
@@ -42,6 +43,7 @@ import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
+import org.apache.flink.streaming.runtime.tasks.MultiInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.SourceStreamTask;
 import org.apache.flink.streaming.runtime.tasks.StoppableSourceStreamTask;
@@ -225,6 +227,41 @@ public class StreamGraph extends StreamingPlan {
 		}
 	}
 
+	public <IN, OUT> void addNaryOperator(
+			final Integer vertexID,
+			final String slotSharingGroup,
+			@Nullable String coLocationGroup,
+			final MultiInputStreamOperator<OUT> operator,
+			final TypeInformation<IN> inTypeInfo,
+			final TypeInformation<OUT> outTypeInfo,
+			final String operatorName
+	) {
+		// TODO: 8/27/18 check when the outTypeInfo == null or the input one or the InputTypeConfigurable also OutputTypeConfigurable
+
+		final TypeSerializer<IN> inSerializer = inTypeInfo.createSerializer(executionConfig);
+		final TypeSerializer<OUT> outSerializer = outTypeInfo.createSerializer(executionConfig);
+
+		StreamNode node = addNode(vertexID, slotSharingGroup, coLocationGroup, MultiInputStreamTask.class, operator, operatorName);
+		node.setSerializerIn1(inSerializer);
+		node.setSerializerOut(outSerializer);
+
+		if (operator instanceof OutputTypeConfigurable) {
+			@SuppressWarnings("unchecked")
+			OutputTypeConfigurable<OUT> outputTypeConfigurable = (OutputTypeConfigurable<OUT>) operator;
+			// sets the output type which must be know at StreamGraph creation time
+			outputTypeConfigurable.setOutputType(outTypeInfo, executionConfig);
+		}
+
+		if (operator instanceof InputTypeConfigurable) {
+			InputTypeConfigurable inputTypeConfigurable = (InputTypeConfigurable) operator;
+			inputTypeConfigurable.setInputType(inTypeInfo, executionConfig);
+		}
+
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("N-INPUT-TASK: {}", vertexID);
+		}
+	}
+
 	public <IN1, IN2, OUT> void addCoOperator(
 			Integer vertexID,
 			String slotSharingGroup,
@@ -381,17 +418,31 @@ public class StreamGraph extends StreamingPlan {
 				downStreamVertexID,
 				typeNumber,
 				null,
-				new ArrayList<String>(),
+				new ArrayList<>(),
+				null,
 				null);
 
 	}
 
-	private void addEdgeInternal(Integer upStreamVertexID,
+	public void addEdge(Integer upStreamVertexID, Integer downStreamVertexID, SideInputEdgeInfo<?, ?, ?> inputInfo) {
+		addEdgeInternal(upStreamVertexID,
+				downStreamVertexID,
+				-1,
+				null,
+				new ArrayList<>(),
+				null,
+				inputInfo);
+
+	}
+
+	private void addEdgeInternal(
+			Integer upStreamVertexID,
 			Integer downStreamVertexID,
 			int typeNumber,
 			StreamPartitioner<?> partitioner,
 			List<String> outputNames,
-			OutputTag outputTag) {
+			OutputTag outputTag,
+			SideInputEdgeInfo<?, ?, ?> inputInfo) {
 
 		if (virtualSideOutputNodes.containsKey(upStreamVertexID)) {
 			int virtualId = upStreamVertexID;
@@ -399,7 +450,7 @@ public class StreamGraph extends StreamingPlan {
 			if (outputTag == null) {
 				outputTag = virtualSideOutputNodes.get(virtualId).f1;
 			}
-			addEdgeInternal(upStreamVertexID, downStreamVertexID, typeNumber, partitioner, null, outputTag);
+			addEdgeInternal(upStreamVertexID, downStreamVertexID, typeNumber, partitioner, null, outputTag, inputInfo);
 		} else if (virtualSelectNodes.containsKey(upStreamVertexID)) {
 			int virtualId = upStreamVertexID;
 			upStreamVertexID = virtualSelectNodes.get(virtualId).f0;
@@ -407,14 +458,14 @@ public class StreamGraph extends StreamingPlan {
 				// selections that happen downstream override earlier selections
 				outputNames = virtualSelectNodes.get(virtualId).f1;
 			}
-			addEdgeInternal(upStreamVertexID, downStreamVertexID, typeNumber, partitioner, outputNames, outputTag);
+			addEdgeInternal(upStreamVertexID, downStreamVertexID, typeNumber, partitioner, outputNames, outputTag, inputInfo);
 		} else if (virtualPartitionNodes.containsKey(upStreamVertexID)) {
 			int virtualId = upStreamVertexID;
 			upStreamVertexID = virtualPartitionNodes.get(virtualId).f0;
 			if (partitioner == null) {
 				partitioner = virtualPartitionNodes.get(virtualId).f1;
 			}
-			addEdgeInternal(upStreamVertexID, downStreamVertexID, typeNumber, partitioner, outputNames, outputTag);
+			addEdgeInternal(upStreamVertexID, downStreamVertexID, typeNumber, partitioner, outputNames, outputTag, inputInfo);
 		} else {
 			StreamNode upstreamNode = getStreamNode(upStreamVertexID);
 			StreamNode downstreamNode = getStreamNode(downStreamVertexID);
@@ -436,7 +487,7 @@ public class StreamGraph extends StreamingPlan {
 				}
 			}
 
-			StreamEdge edge = new StreamEdge(upstreamNode, downstreamNode, typeNumber, outputNames, partitioner, outputTag);
+			StreamEdge edge = new StreamEdge(upstreamNode, downstreamNode, typeNumber, outputNames, partitioner, outputTag, inputInfo);
 
 			getStreamNode(edge.getSourceId()).addOutEdge(edge);
 			getStreamNode(edge.getTargetId()).addInEdge(edge);
@@ -495,7 +546,7 @@ public class StreamGraph extends StreamingPlan {
 		}
 	}
 
-	public void setSerializers(Integer vertexID, TypeSerializer<?> in1, TypeSerializer<?> in2, TypeSerializer<?> out) {
+	public void setSerializers(Integer vertexID, TypeSerializer<?> in1, @Nullable TypeSerializer<?> in2, @Nullable TypeSerializer<?> out) {
 		StreamNode vertex = getStreamNode(vertexID);
 		vertex.setSerializerIn1(in1);
 		vertex.setSerializerIn2(in2);

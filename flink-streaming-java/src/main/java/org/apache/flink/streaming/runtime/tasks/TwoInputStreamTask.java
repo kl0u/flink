@@ -22,11 +22,10 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.metrics.MetricNames;
-import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.runtime.io.GeneralInputProcessor;
+import org.apache.flink.streaming.runtime.io.InputProcessorImpl;
 import org.apache.flink.streaming.runtime.io.GeneralValveOutputHandler;
 import org.apache.flink.streaming.runtime.io.InputProcessor;
 import org.apache.flink.streaming.runtime.metrics.MinWatermarkGauge;
@@ -67,7 +66,6 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputS
 
 	@Override
 	public void init() throws Exception {
-		StreamConfig configuration = getConfiguration();
 		ClassLoader userClassLoader = getUserCodeClassLoader();
 
 		TypeSerializer<IN1> inputDeserializer1 = configuration.getTypeSerializerIn1(userClassLoader);
@@ -111,7 +109,7 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputS
 		wrappers.add(new FirstOperatorProxy(headOperator));
 		wrappers.add(new SecondOperatorProxy(headOperator));
 
-		this.inputProcessor = new GeneralInputProcessor(
+		this.inputProcessor = new InputProcessorImpl(
 				inputGates,
 				inputSerializers,
 				inputWatermarkGauges,

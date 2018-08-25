@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
+import org.apache.flink.streaming.api.datastream.SideInputInfo;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction;
 import org.apache.flink.streaming.api.transformations.CoFeedbackTransformation;
@@ -29,6 +30,7 @@ import org.apache.flink.streaming.api.transformations.FeedbackTransformation;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.transformations.SelectTransformation;
+import org.apache.flink.streaming.api.transformations.MultiInputTransformation;
 import org.apache.flink.streaming.api.transformations.SideOutputTransformation;
 import org.apache.flink.streaming.api.transformations.SinkTransformation;
 import org.apache.flink.streaming.api.transformations.SourceTransformation;
@@ -36,6 +38,8 @@ import org.apache.flink.streaming.api.transformations.SplitTransformation;
 import org.apache.flink.streaming.api.transformations.StreamTransformation;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.streaming.api.transformations.UnionTransformation;
+import org.apache.flink.util.InputTag;
+import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -166,6 +170,8 @@ public class StreamGraphGenerator {
 			transformedIds = transformOneInputTransform((OneInputTransformation<?, ?>) transform);
 		} else if (transform instanceof TwoInputTransformation<?, ?, ?>) {
 			transformedIds = transformTwoInputTransform((TwoInputTransformation<?, ?, ?>) transform);
+		} else if (transform instanceof MultiInputTransformation<?>) {
+			transformedIds = transformMultiInput((MultiInputTransformation<?>) transform);
 		} else if (transform instanceof SourceTransformation<?>) {
 			transformedIds = transformSource((SourceTransformation<?>) transform);
 		} else if (transform instanceof SinkTransformation<?>) {
@@ -614,6 +620,57 @@ public class StreamGraphGenerator {
 		}
 
 		return Collections.singleton(transform.getId());
+	}
+
+	private <O> Collection<Integer> transformMultiInput(final MultiInputTransformation<O> multiInputTransformation) {
+
+		if (alreadyTransformed.containsKey(multiInputTransformation)) {
+			return alreadyTransformed.get(multiInputTransformation);
+		}
+
+		final Map<InputTag, SideInputInfo<?, ?, O>> sideInputInfoMap = multiInputTransformation.getInputInfo();
+
+		final Map<InputTag, StreamTransformation<?>> inputTransformations = new HashMap<>(sideInputInfoMap.size());
+		for (Map.Entry<InputTag, SideInputInfo<?, ?, O>> entry : sideInputInfoMap.entrySet()) {
+			inputTransformations.put(entry.getKey(), entry.getValue().getTransformation());
+		}
+
+		// TODO: 8/30/18 here is where we see what we do with KeySelectors. E.g. do we allow keyed streams with non-keyed ones?
+		streamGraph.addNaryOperator(
+				multiInputTransformation.getId(),
+				determineSlotSharingGroup(multiInputTransformation, inputTransformations.values()),
+				multiInputTransformation.getCoLocationGroupKey(),
+				multiInputTransformation.getOperator(),
+				multiInputTransformation.getInputType(),
+				multiInputTransformation.getOutputType(),
+				multiInputTransformation.getName()
+		);
+
+		streamGraph.setParallelism(multiInputTransformation.getId(), multiInputTransformation.getParallelism());
+		streamGraph.setMaxParallelism(multiInputTransformation.getId(), multiInputTransformation.getMaxParallelism());
+
+		// TODO: 8/31/18 encode the tags in the type number here
+		for (Map.Entry<InputTag, SideInputInfo<?, ?, O>> entry : sideInputInfoMap.entrySet()) {
+			final SideInputInfo<?, ?, O> info = entry.getValue();
+			for (int inputId : transform(info.getTransformation())) {
+				streamGraph.addEdge(inputId, multiInputTransformation.getId(), new SideInputEdgeInfo<>(entry.getKey(), info));
+			}
+		}
+		return Collections.singleton(multiInputTransformation.getId());
+	}
+
+	private String determineSlotSharingGroup(
+			final StreamTransformation<?> mainTransformation,
+			final Collection<StreamTransformation<?>> inputTransformations) {
+
+		Preconditions.checkNotNull(mainTransformation);
+		Preconditions.checkNotNull(inputTransformations);
+
+		final Collection<Integer> inputIds = new ArrayList<>();
+		for (StreamTransformation<?> transformation : inputTransformations) {
+			inputIds.addAll(transform(transformation));
+		}
+		return determineSlotSharingGroup(mainTransformation.getSlotSharingGroup(), inputIds);
 	}
 
 	/**

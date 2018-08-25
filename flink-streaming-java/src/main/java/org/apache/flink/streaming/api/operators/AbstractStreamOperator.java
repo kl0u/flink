@@ -583,7 +583,7 @@ public abstract class AbstractStreamOperator<OUT>
 		setKeyContextElement(record, stateKeySelector2);
 	}
 
-	private <T> void setKeyContextElement(StreamRecord<T> record, KeySelector<T, ?> selector) throws Exception {
+	public <T> void setKeyContextElement(StreamRecord<T> record, KeySelector<T, ?> selector) throws Exception {
 		if (selector != null) {
 			Object key = selector.getKey(record.getValue());
 			setCurrentKey(key);

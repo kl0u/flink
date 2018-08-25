@@ -81,6 +81,7 @@ public class StreamConfigChainer {
 				0,
 				Collections.<String>emptyList(),
 				null,
+				null,
 				null)));
 		tailConfig = new StreamConfig(new Configuration());
 		tailConfig.setStreamOperator(checkNotNull(operator));
@@ -104,6 +105,7 @@ public class StreamConfigChainer {
 				0,
 				Collections.<String>emptyList(),
 				new BroadcastPartitioner<Object>(),
+				null,
 				null));
 
 		tailConfig.setBufferTimeout(0);

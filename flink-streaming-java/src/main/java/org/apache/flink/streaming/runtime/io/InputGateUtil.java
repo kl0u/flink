@@ -34,7 +34,7 @@ import java.util.List;
 public final class InputGateUtil {
 
 	public static InputGate createInputGate(Collection<Collection<InputGate>> inputGates) {
-		final List<InputGate> resultGates = new ArrayList<InputGate>();
+		final List<InputGate> resultGates = new ArrayList<>();
 		for (Collection<InputGate> gates : inputGates) {
 			resultGates.addAll(gates);
 		}

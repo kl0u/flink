@@ -809,7 +809,8 @@ public class OneInputStreamTaskTest extends TestLogger {
 				0,
 				Collections.<String>emptyList(),
 				null,
-				null
+				null,
+					null
 			);
 
 			outputEdges.add(outputEdge);
