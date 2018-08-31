@@ -38,7 +38,7 @@ public class StreamTaskTestHarnessTest {
 	public void testMultipleSetupsThrowsException() {
 		StreamTaskTestHarness<String> harness;
 
-		harness = new StreamTaskTestHarness<>(OneInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO);
+		harness = new StreamTaskTestHarness<>(MultiInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO);
 		harness.setupOutputForSingletonOperatorChain();
 
 		try {
@@ -60,7 +60,7 @@ public class StreamTaskTestHarnessTest {
 			// expected
 		}
 
-		harness = new StreamTaskTestHarness<>(OneInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO);
+		harness = new StreamTaskTestHarness<>(MultiInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO);
 		harness.setupOperatorChain(new OperatorID(), new TestOperator())
 			.chain(new OperatorID(), new TestOperator(), BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()));
 
@@ -83,7 +83,7 @@ public class StreamTaskTestHarnessTest {
 			// expected
 		}
 
-		harness = new StreamTaskTestHarness<>(TwoInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO);
+		harness = new StreamTaskTestHarness<>(MultiInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO);
 		harness.setupOperatorChain(new OperatorID(), new TwoInputTestOperator())
 			.chain(new OperatorID(), new TestOperator(), BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()));
 
@@ -108,12 +108,18 @@ public class StreamTaskTestHarnessTest {
 	}
 
 	private static class TestOperator extends AbstractStreamOperator<String> implements OneInputStreamOperator<String, String> {
+
+		private static final long serialVersionUID = 1L;
+
 		@Override
 		public void processElement(StreamRecord<String> element) throws Exception {
 		}
 	}
 
 	private static class TwoInputTestOperator extends AbstractStreamOperator<String> implements TwoInputStreamOperator<String, String, String> {
+
+		private static final long serialVersionUID = 1L;
+
 		@Override
 		public void processElement1(StreamRecord<String> element) throws Exception {
 		}

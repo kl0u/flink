@@ -23,7 +23,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamMap;
-import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
+import org.apache.flink.streaming.runtime.tasks.MultiInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
@@ -46,7 +46,7 @@ public class StreamTaskTimerTest {
 	public void testOpenCloseAndTimestamps() throws Exception {
 
 		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(
-				OneInputStreamTask::new,
+				MultiInputStreamTask::new,
 				BasicTypeInfo.STRING_TYPE_INFO,
 				BasicTypeInfo.STRING_TYPE_INFO);
 
@@ -61,7 +61,7 @@ public class StreamTaskTimerTest {
 		testHarness.invoke();
 		testHarness.waitForTaskRunning();
 
-		final OneInputStreamTask<String, String> mapTask = testHarness.getTask();
+		final MultiInputStreamTask<String, ?> mapTask = testHarness.getTask();
 
 		// first one spawns thread
 		mapTask.getProcessingTimeService().registerTimer(System.currentTimeMillis(), new ProcessingTimeCallback() {
@@ -88,7 +88,7 @@ public class StreamTaskTimerTest {
 	@Test
 	public void checkScheduledTimestampe() throws Exception {
 		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(
-				OneInputStreamTask::new,
+				MultiInputStreamTask::new,
 				BasicTypeInfo.STRING_TYPE_INFO,
 				BasicTypeInfo.STRING_TYPE_INFO);
 
@@ -101,7 +101,7 @@ public class StreamTaskTimerTest {
 		testHarness.invoke();
 		testHarness.waitForTaskRunning();
 
-		final OneInputStreamTask<String, String> mapTask = testHarness.getTask();
+		final MultiInputStreamTask<String, ?> mapTask = testHarness.getTask();
 
 		final AtomicReference<Throwable> errorRef = new AtomicReference<>();
 

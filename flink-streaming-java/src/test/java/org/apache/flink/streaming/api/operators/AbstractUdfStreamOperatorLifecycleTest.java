@@ -96,8 +96,7 @@ public class AbstractUdfStreamOperatorLifecycleTest {
 			"prepareSnapshotPreBarrier[long], " +
 			"setChainingStrategy[class org.apache.flink.streaming.api.operators.ChainingStrategy], " +
 			"setCurrentKey[class java.lang.Object], " +
-			"setKeyContextElement1[class org.apache.flink.streaming.runtime.streamrecord.StreamRecord], " +
-			"setKeyContextElement2[class org.apache.flink.streaming.runtime.streamrecord.StreamRecord], " +
+			"setKeyContextElement[class org.apache.flink.streaming.runtime.streamrecord.StreamRecord, interface org.apache.flink.api.java.functions.KeySelector], " +
 			"setup[class org.apache.flink.streaming.runtime.tasks.StreamTask, class org.apache.flink.streaming.api.graph.StreamConfig, interface org.apache.flink.streaming.api.operators.Output], " +
 			"snapshotState[long, long, class org.apache.flink.runtime.checkpoint.CheckpointOptions, interface org.apache.flink.runtime.state.CheckpointStreamFactory]]";
 

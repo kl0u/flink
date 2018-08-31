@@ -23,11 +23,13 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.partition.consumer.StreamTestSingleInputGate;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
+import org.apache.flink.streaming.api.graph.SideInputEdgeInfo;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.graph.StreamNode;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
+import org.apache.flink.util.InputTag;
 
 import java.io.IOException;
 import java.util.LinkedList;
@@ -36,7 +38,7 @@ import java.util.function.Function;
 
 
 /**
- * Test harness for testing a {@link TwoInputStreamTask}.
+ * Test harness for testing a {@link MultiInputStreamTask} with 2 inputs.
  *
  * <p>This mock Invokable provides the task with a basic runtime context and allows pushing elements
  * and watermarks into the task. {@link #getOutput()} can be used to get the emitted elements
@@ -71,7 +73,7 @@ public class TwoInputStreamTaskTestHarness<IN1, IN2, OUT> extends StreamTaskTest
 	 * it should be assigned to the first (1), or second (2) input of the task.
 	 */
 	public TwoInputStreamTaskTestHarness(
-			Function<Environment, ? extends TwoInputStreamTask<IN1, IN2, OUT>> taskFactory,
+			Function<Environment, ? extends MultiInputStreamTask<OUT, ?>> taskFactory,
 			int numInputGates,
 			int numInputChannelsPerGate,
 			int[] inputGateAssignment,
@@ -98,7 +100,7 @@ public class TwoInputStreamTaskTestHarness<IN1, IN2, OUT> extends StreamTaskTest
 	 * second task input.
 	 */
 	public TwoInputStreamTaskTestHarness(
-			Function<Environment, ? extends TwoInputStreamTask<IN1, IN2, OUT>> taskFactory,
+			Function<Environment, ? extends MultiInputStreamTask<OUT, ?>> taskFactory,
 			TypeInformation<IN1> inputType1,
 			TypeInformation<IN2> inputType2,
 			TypeInformation<OUT> outputType) {
@@ -134,7 +136,11 @@ public class TwoInputStreamTaskTestHarness<IN1, IN2, OUT> extends StreamTaskTest
 							new LinkedList<String>(),
 							new BroadcastPartitioner<Object>(),
 							null /* output tag */,
-							null);
+							new SideInputEdgeInfo(
+									InputTag.MAIN_INPUT_TAG,
+									inputType1,
+									null,
+									null));
 
 					inPhysicalEdges.add(streamEdge);
 					break;
@@ -151,7 +157,11 @@ public class TwoInputStreamTaskTestHarness<IN1, IN2, OUT> extends StreamTaskTest
 							new LinkedList<String>(),
 							new BroadcastPartitioner<Object>(),
 							null /* output tag */,
-							null);
+							new SideInputEdgeInfo(
+									InputTag.LEGACY_SECOND_INPUT_TAG,
+									inputType2,
+									null,
+									null));
 
 					inPhysicalEdges.add(streamEdge);
 					break;
@@ -171,8 +181,8 @@ public class TwoInputStreamTaskTestHarness<IN1, IN2, OUT> extends StreamTaskTest
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public TwoInputStreamTask<IN1, IN2, OUT> getTask() {
-		return (TwoInputStreamTask<IN1, IN2, OUT>) super.getTask();
+	public MultiInputStreamTask<OUT, ?> getTask() {
+		return (MultiInputStreamTask<OUT, ?>) super.getTask();
 	}
 }
 

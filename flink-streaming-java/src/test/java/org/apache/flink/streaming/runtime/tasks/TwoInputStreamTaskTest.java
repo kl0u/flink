@@ -58,7 +58,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import static org.junit.Assert.assertEquals;
 
 /**
- * Tests for {@link TwoInputStreamTask}.
+ * Tests for {@link MultiInputStreamTask} with two inputs.
  *
  * <p>Note:<br>
  * We only use a {@link CoStreamMap} operator here. We also test the individual operators but Map is
@@ -77,7 +77,7 @@ public class TwoInputStreamTaskTest {
 	public void testOpenCloseAndTimestamps() throws Exception {
 		final TwoInputStreamTaskTestHarness<String, Integer, String> testHarness =
 				new TwoInputStreamTaskTestHarness<>(
-						TwoInputStreamTask::new,
+						MultiInputStreamTask::new,
 						BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 		testHarness.setupOutputForSingletonOperatorChain();
 
@@ -122,7 +122,7 @@ public class TwoInputStreamTaskTest {
 
 		final TwoInputStreamTaskTestHarness<String, Integer, String> testHarness =
 			new TwoInputStreamTaskTestHarness<String, Integer, String>(
-				TwoInputStreamTask::new,
+				MultiInputStreamTask::new,
 				2, 2, new int[] {1, 2},
 				BasicTypeInfo.STRING_TYPE_INFO,
 				BasicTypeInfo.INT_TYPE_INFO,
@@ -234,7 +234,7 @@ public class TwoInputStreamTaskTest {
 	public void testCheckpointBarriers() throws Exception {
 		final TwoInputStreamTaskTestHarness<String, Integer, String> testHarness =
 				new TwoInputStreamTaskTestHarness<String, Integer, String>(
-						TwoInputStreamTask::new,
+						MultiInputStreamTask::new,
 						2, 2, new int[] {1, 2},
 						BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 		testHarness.setupOutputForSingletonOperatorChain();
@@ -318,7 +318,7 @@ public class TwoInputStreamTaskTest {
 	public void testOvertakingCheckpointBarriers() throws Exception {
 		final TwoInputStreamTaskTestHarness<String, Integer, String> testHarness =
 				new TwoInputStreamTaskTestHarness<>(
-						TwoInputStreamTask::new,
+						MultiInputStreamTask::new,
 						2, 2, new int[] {1, 2},
 						BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 
@@ -392,7 +392,7 @@ public class TwoInputStreamTaskTest {
 
 	@Test
 	public void testOperatorMetricReuse() throws Exception {
-		final TwoInputStreamTaskTestHarness<String, String, String> testHarness = new TwoInputStreamTaskTestHarness<>(TwoInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+		final TwoInputStreamTaskTestHarness<String, String, String> testHarness = new TwoInputStreamTaskTestHarness<>(MultiInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 
 		testHarness.setupOperatorChain(new OperatorID(), new DuplicatingOperator())
 			.chain(new OperatorID(), new OneInputStreamTaskTest.DuplicatingOperator(), BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()))
@@ -438,6 +438,8 @@ public class TwoInputStreamTaskTest {
 
 	static class DuplicatingOperator extends AbstractStreamOperator<String> implements TwoInputStreamOperator<String, String, String> {
 
+		private static final long serialVersionUID = 1L;
+
 		@Override
 		public void processElement1(StreamRecord<String> element) {
 			output.collect(element);
@@ -453,7 +455,7 @@ public class TwoInputStreamTaskTest {
 
 	@Test
 	public void testWatermarkMetrics() throws Exception {
-		final TwoInputStreamTaskTestHarness<String, Integer, String> testHarness = new TwoInputStreamTaskTestHarness<>(TwoInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+		final TwoInputStreamTaskTestHarness<String, Integer, String> testHarness = new TwoInputStreamTaskTestHarness<>(MultiInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 
 		CoStreamMap<String, Integer, String> headOperator = new CoStreamMap<>(new IdentityMap());
 		final OperatorID headOperatorId = new OperatorID();

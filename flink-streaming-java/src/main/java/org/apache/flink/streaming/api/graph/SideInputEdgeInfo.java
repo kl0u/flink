@@ -48,11 +48,23 @@ public class SideInputEdgeInfo<T, K, O> implements Serializable {
 			final InputTag inputTag,
 			final SideInputInfo<T, K, O> info
 	) {
-		this.inputTag = Preconditions.checkNotNull(inputTag);
-		Preconditions.checkNotNull(info);
-		this.inputTypeInfo = info.getInputTypeInfo();
-		this.keySelector = info.getKeySelector();
-		this.keyTypeInfo = info.getKeyTypeInfo();
+		this(
+				Preconditions.checkNotNull(inputTag),
+				Preconditions.checkNotNull(info).getInputTypeInfo(),
+				info.getKeySelector(),
+				info.getKeyTypeInfo());
+	}
+
+	public SideInputEdgeInfo(
+			final InputTag inputTag,
+			final TypeInformation<T> inputTypeInfo,
+			@Nullable final KeySelector<T, K> keySelector,
+			@Nullable final TypeInformation<K> keyTypeInfo
+	) {
+		this.inputTag = inputTag;
+		this.inputTypeInfo = inputTypeInfo;
+		this.keySelector = keySelector;
+		this.keyTypeInfo = keyTypeInfo;
 	}
 
 	public TypeInformation<T> getInputTypeInfo() {

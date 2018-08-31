@@ -452,8 +452,8 @@ public class StreamingJobGraphGenerator {
 			// so we use that one if checkpointing is not enabled
 			config.setCheckpointMode(CheckpointingMode.AT_LEAST_ONCE);
 		}
-		config.setStatePartitioner(0, vertex.getStatePartitioner1());
-		config.setStatePartitioner(1, vertex.getStatePartitioner2());
+//		config.setStatePartitioner(0, vertex.getStatePartitioner1());
+//		config.setStatePartitioner(1, vertex.getStatePartitioner2());
 		config.setStateKeySerializer(vertex.getStateKeySerializer());
 
 		Class<? extends AbstractInvokable> vertexClass = vertex.getJobVertexClass();
@@ -481,7 +481,6 @@ public class StreamingJobGraphGenerator {
 
 		StreamConfig downStreamConfig = new StreamConfig(downStreamVertex.getConfiguration());
 
-		// TODO: 8/25/18 this seems good
 		downStreamConfig.setNumberOfInputs(downStreamConfig.getNumberOfInputs() + 1);
 
 		StreamPartitioner<?> partitioner = edge.getPartitioner();

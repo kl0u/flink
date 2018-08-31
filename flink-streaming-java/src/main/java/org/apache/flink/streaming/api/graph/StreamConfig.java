@@ -19,7 +19,6 @@ package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.util.CorruptConfigurationException;
@@ -84,7 +83,6 @@ public class StreamConfig implements Serializable {
 	private static final String CHECKPOINT_MODE = "checkpointMode";
 
 	private static final String STATE_BACKEND = "statebackend";
-	private static final String STATE_PARTITIONER = "statePartitioner";
 
 	private static final String STATE_KEY_SERIALIZER = "statekeyser";
 
@@ -473,22 +471,6 @@ public class StreamConfig implements Serializable {
 
 	public byte[] getSerializedStateBackend() {
 		return this.config.getBytes(STATE_BACKEND, null);
-	}
-
-	public void setStatePartitioner(int input, KeySelector<?, ?> partitioner) {
-		try {
-			InstantiationUtil.writeObjectToConfig(partitioner, this.config, STATE_PARTITIONER + input);
-		} catch (IOException e) {
-			throw new StreamTaskException("Could not serialize state partitioner.", e);
-		}
-	}
-
-	public KeySelector<?, Serializable> getStatePartitioner(int input, ClassLoader cl) {
-		try {
-			return InstantiationUtil.readObjectFromConfig(this.config, STATE_PARTITIONER + input, cl);
-		} catch (Exception e) {
-			throw new StreamTaskException("Could not instantiate state partitioner.", e);
-		}
 	}
 
 	public void setStateKeySerializer(TypeSerializer<?> serializer) {

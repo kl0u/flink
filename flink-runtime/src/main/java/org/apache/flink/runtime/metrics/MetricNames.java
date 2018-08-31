@@ -18,6 +18,9 @@
 
 package org.apache.flink.runtime.metrics;
 
+import java.util.HashSet;
+import java.util.Set;
+
 /**
  * Collection of metric names.
  */
@@ -49,7 +52,17 @@ public class MetricNames {
 	public static final String IO_NUM_BUFFERS_OUT_RATE = IO_NUM_BUFFERS_OUT + SUFFIX_RATE;
 
 	public static final String IO_CURRENT_INPUT_WATERMARK = "currentInputWatermark";
+
+	// TODO: 9/6/18 remove the following 2
 	public static final String IO_CURRENT_INPUT_1_WATERMARK = "currentInput1Watermark";
 	public static final String IO_CURRENT_INPUT_2_WATERMARK = "currentInput2Watermark";
+
+	public static final Set<String> INPUT_WATERMARK_GAUGES = new HashSet<>();
 	public static final String IO_CURRENT_OUTPUT_WATERMARK = "currentOutputWatermark";
+
+	public static String getInputWatermarkGaugeName(final int index) {
+		final String name = "currentInput" + index + "Watermark";
+		INPUT_WATERMARK_GAUGES.add(name);
+		return name;
+	}
 }

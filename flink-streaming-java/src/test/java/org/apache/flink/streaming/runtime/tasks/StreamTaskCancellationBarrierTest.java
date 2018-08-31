@@ -86,7 +86,7 @@ public class StreamTaskCancellationBarrierTest {
 	public void testDeclineCallOnCancelBarrierOneInput() throws Exception {
 
 		OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(
-				OneInputStreamTask::new,
+				MultiInputStreamTask::new,
 				1, 2,
 				BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 		testHarness.setupOutputForSingletonOperatorChain();
@@ -131,7 +131,7 @@ public class StreamTaskCancellationBarrierTest {
 	public void testDeclineCallOnCancelBarrierTwoInputs() throws Exception {
 
 		TwoInputStreamTaskTestHarness<String, String, String> testHarness = new TwoInputStreamTaskTestHarness<>(
-				TwoInputStreamTask::new,
+				MultiInputStreamTask::new,
 				BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 		testHarness.setupOutputForSingletonOperatorChain();
 

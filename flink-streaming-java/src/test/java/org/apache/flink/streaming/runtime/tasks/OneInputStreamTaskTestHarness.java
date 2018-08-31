@@ -25,13 +25,24 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.partition.consumer.StreamTestSingleInputGate;
+import org.apache.flink.streaming.api.graph.SideInputEdgeInfo;
+import org.apache.flink.streaming.api.graph.StreamEdge;
+import org.apache.flink.streaming.api.graph.StreamNode;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
+import org.apache.flink.util.InputTag;
+import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.function.Function;
 
 
 /**
- * Test harness for testing a {@link org.apache.flink.streaming.runtime.tasks.OneInputStreamTask}.
+ * Test harness for testing a {@link MultiInputStreamTask} with a single input.
  *
  * <p>This mock Invokable provides the task with a basic runtime context and allows pushing elements
  * and watermarks into the task. {@link #getOutput()} can be used to get the emitted elements
@@ -54,16 +65,30 @@ public class OneInputStreamTaskTestHarness<IN, OUT> extends StreamTaskTestHarnes
 	private TypeInformation<IN> inputType;
 	private TypeSerializer<IN> inputSerializer;
 
-	/**
-	 * Creates a test harness with the specified number of input gates and specified number
-	 * of channels per input gate.
-	 */
+	private final KeySelector<IN, ?> keySelector;
+	private final TypeInformation<?> keyType;
+
 	public OneInputStreamTaskTestHarness(
 			Function<Environment, ? extends StreamTask<OUT, ?>> taskFactory,
 			int numInputGates,
 			int numInputChannelsPerGate,
 			TypeInformation<IN> inputType,
 			TypeInformation<OUT> outputType) {
+		this(taskFactory, numInputGates, numInputChannelsPerGate, inputType, outputType, null, null);
+	}
+
+	/**
+	 * Creates a test harness with the specified number of input gates and specified number
+	 * of channels per input gate.
+	 */
+	public <K> OneInputStreamTaskTestHarness(
+			Function<Environment, ? extends StreamTask<OUT, ?>> taskFactory,
+			int numInputGates,
+			int numInputChannelsPerGate,
+			TypeInformation<IN> inputType,
+			TypeInformation<OUT> outputType,
+			KeySelector<IN, K> keySelector,
+			TypeInformation<K> keyType) {
 
 		super(taskFactory, outputType);
 
@@ -72,47 +97,83 @@ public class OneInputStreamTaskTestHarness<IN, OUT> extends StreamTaskTestHarnes
 
 		this.numInputGates = numInputGates;
 		this.numInputChannelsPerGate = numInputChannelsPerGate;
+
+		if (keySelector != null) {
+			ClosureCleaner.clean(keySelector, false);
+			this.keySelector =  keySelector;
+			this.keyType = Preconditions.checkNotNull(keyType);
+			streamConfig.setStateKeySerializer(keyType.createSerializer(executionConfig));
+		} else {
+			this.keySelector = null;
+			this.keyType = null;
+		}
+	}
+
+	public OneInputStreamTaskTestHarness(
+			Function<Environment, ? extends StreamTask<OUT, ?>> taskFactory,
+			TypeInformation<IN> inputType,
+			TypeInformation<OUT> outputType) {
+		this(taskFactory, inputType, outputType, null, null);
 	}
 
 	/**
 	 * Creates a test harness with one input gate that has one input channel.
 	 */
-	public OneInputStreamTaskTestHarness(
+	public <K> OneInputStreamTaskTestHarness(
 			Function<Environment, ? extends StreamTask<OUT, ?>> taskFactory,
 			TypeInformation<IN> inputType,
-			TypeInformation<OUT> outputType) {
+			TypeInformation<OUT> outputType,
+			KeySelector<IN, K> keySelector,
+			TypeInformation<K> keyType) {
 
-		this(taskFactory, 1, 1, inputType, outputType);
+		this(taskFactory, 1, 1, inputType, outputType, keySelector, keyType);
 	}
 
 	@Override
 	protected void initializeInputs() throws IOException, InterruptedException {
 		inputGates = new StreamTestSingleInputGate[numInputGates];
 
+		final List<StreamEdge> inPhysicalEdges = new ArrayList<>();
+
+		final StreamOperator<IN> dummyOperator = new AbstractStreamOperator<IN>() {
+			private static final long serialVersionUID = 1L;
+		};
+
+		StreamNode sourceVertexDummy = new StreamNode(null, 0, "default group", null, dummyOperator, "source dummy", new LinkedList<>(), SourceStreamTask.class);
+		StreamNode targetVertexDummy = new StreamNode(null, 1, "default group", null, dummyOperator, "target dummy", new LinkedList<>(), SourceStreamTask.class);
+
 		for (int i = 0; i < numInputGates; i++) {
 			inputGates[i] = new StreamTestSingleInputGate<IN>(
 				numInputChannelsPerGate,
 				bufferSize,
 				inputSerializer);
-			this.mockEnv.addInputGate(inputGates[i].getInputGate());
+
+			final StreamEdge edge = new StreamEdge(
+					sourceVertexDummy,
+					targetVertexDummy,
+					0,
+					new ArrayList<>(),
+					new BroadcastPartitioner<>(),
+					null,
+					new SideInputEdgeInfo(
+							InputTag.MAIN_INPUT_TAG,
+							inputType,
+							keySelector,
+							keyType)
+					);
+			inPhysicalEdges.add(edge);
+			mockEnv.addInputGate(inputGates[i].getInputGate());
 		}
 
-		streamConfig.setNumberOfInputs(1);
+		streamConfig.setInPhysicalEdges(inPhysicalEdges);
+		streamConfig.setNumberOfInputs(numInputGates);
 		streamConfig.setTypeSerializerIn1(inputSerializer);
-	}
-
-	public <K> void configureForKeyedStream(
-			KeySelector<IN, K> keySelector,
-			TypeInformation<K> keyType) {
-		ClosureCleaner.clean(keySelector, false);
-		streamConfig.setStatePartitioner(0, keySelector);
-		streamConfig.setStateKeySerializer(keyType.createSerializer(executionConfig));
 	}
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public OneInputStreamTask<IN, OUT> getTask() {
-		return (OneInputStreamTask<IN, OUT>) super.getTask();
+	public MultiInputStreamTask<OUT, ?> getTask() {
+		return (MultiInputStreamTask<OUT, ?>) super.getTask();
 	}
 }
 

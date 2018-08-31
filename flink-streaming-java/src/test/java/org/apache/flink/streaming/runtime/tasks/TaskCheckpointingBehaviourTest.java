@@ -451,7 +451,7 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 	/**
 	 * Stream task that simply triggers a checkpoint.
 	 */
-	public static final class TestStreamTask extends OneInputStreamTask<Object, Object> {
+	public static final class TestStreamTask extends MultiInputStreamTask<Object, StreamOperator<Object>> {
 
 		public TestStreamTask(Environment env) {
 			super(env);

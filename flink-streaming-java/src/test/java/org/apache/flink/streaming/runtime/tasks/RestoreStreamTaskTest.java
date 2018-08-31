@@ -215,7 +215,7 @@ public class RestoreStreamTaskTest extends TestLogger {
 
 		final OneInputStreamTaskTestHarness<String, String> testHarness =
 			new OneInputStreamTaskTestHarness<>(
-				OneInputStreamTask::new,
+				MultiInputStreamTask::new,
 				1, 1,
 				BasicTypeInfo.STRING_TYPE_INFO,
 				BasicTypeInfo.STRING_TYPE_INFO);
@@ -243,7 +243,7 @@ public class RestoreStreamTaskTest extends TestLogger {
 		testHarness.invoke(environment);
 		testHarness.waitForTaskRunning();
 
-		OneInputStreamTask<String, String> streamTask = testHarness.getTask();
+		MultiInputStreamTask<String, ?> streamTask = testHarness.getTask();
 
 		processRecords(testHarness);
 		triggerCheckpoint(testHarness, streamTask);
@@ -261,7 +261,7 @@ public class RestoreStreamTaskTest extends TestLogger {
 
 	private void triggerCheckpoint(
 			OneInputStreamTaskTestHarness<String, String> testHarness,
-			OneInputStreamTask<String, String> streamTask) throws Exception {
+			MultiInputStreamTask<String, ?> streamTask) throws Exception {
 
 		long checkpointId = 1L;
 		CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, 1L);
@@ -294,6 +294,8 @@ public class RestoreStreamTaskTest extends TestLogger {
 	private abstract static class RestoreWatchOperator<IN, OUT>
 		extends AbstractStreamOperator<OUT>
 		implements OneInputStreamOperator<IN, OUT> {
+
+		private static final long serialVersionUID = 1L;
 
 		@Override
 		public void initializeState(StateInitializationContext context) throws Exception {

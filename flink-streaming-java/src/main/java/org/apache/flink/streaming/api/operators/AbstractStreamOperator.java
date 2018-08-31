@@ -115,22 +115,6 @@ public abstract class AbstractStreamOperator<OUT>
 
 	// ---------------- key/value state ------------------
 
-	/**
-	 * {@code KeySelector} for extracting a key from an element being processed. This is used to
-	 * scope keyed state to a key. This is null if the operator is not a keyed operator.
-	 *
-	 * <p>This is for elements from the first input.
-	 */
-	private transient KeySelector<?, ?> stateKeySelector1;
-
-	/**
-	 * {@code KeySelector} for extracting a key from an element being processed. This is used to
-	 * scope keyed state to a key. This is null if the operator is not a keyed operator.
-	 *
-	 * <p>This is for elements from the second input.
-	 */
-	private transient KeySelector<?, ?> stateKeySelector2;
-
 	/** Backend for keyed state. This might be empty if we're not on a keyed stream. */
 	private transient AbstractKeyedStateBackend<?> keyedStateBackend;
 
@@ -201,9 +185,6 @@ public abstract class AbstractStreamOperator<OUT>
 		}
 
 		this.runtimeContext = new StreamingRuntimeContext(this, environment, container.getAccumulatorMap());
-
-		stateKeySelector1 = config.getStatePartitioner(0, getUserCodeClassloader());
-		stateKeySelector2 = config.getStatePartitioner(1, getUserCodeClassloader());
 	}
 
 	@Override
@@ -572,17 +553,6 @@ public abstract class AbstractStreamOperator<OUT>
 	}
 
 	@Override
-	@SuppressWarnings({"unchecked", "rawtypes"})
-	public void setKeyContextElement1(StreamRecord record) throws Exception {
-		setKeyContextElement(record, stateKeySelector1);
-	}
-
-	@Override
-	@SuppressWarnings({"unchecked", "rawtypes"})
-	public void setKeyContextElement2(StreamRecord record) throws Exception {
-		setKeyContextElement(record, stateKeySelector2);
-	}
-
 	public <T> void setKeyContextElement(StreamRecord<T> record, KeySelector<T, ?> selector) throws Exception {
 		if (selector != null) {
 			Object key = selector.getKey(record.getValue());

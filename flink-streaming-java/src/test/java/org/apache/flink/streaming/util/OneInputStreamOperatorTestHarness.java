@@ -26,8 +26,6 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Preconditions;
 
-import java.util.Collection;
-
 /**
  * A test harness for testing a {@link OneInputStreamOperator}.
  *
@@ -38,7 +36,7 @@ import java.util.Collection;
 public class OneInputStreamOperatorTestHarness<IN, OUT>
 		extends AbstractStreamOperatorTestHarness<OUT> {
 
-	private final OneInputStreamOperator<IN, OUT> oneInputOperator;
+	protected final OneInputStreamOperator<IN, OUT> oneInputOperator;
 
 	private long currentWatermark;
 
@@ -107,15 +105,7 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
 	}
 
 	public void processElement(StreamRecord<IN> element) throws Exception {
-		operator.setKeyContextElement1(element);
 		oneInputOperator.processElement(element);
-	}
-
-	public void processElements(Collection<StreamRecord<IN>> elements) throws Exception {
-		for (StreamRecord<IN> element: elements) {
-			operator.setKeyContextElement1(element);
-			oneInputOperator.processElement(element);
-		}
 	}
 
 	public void processWatermark(long watermark) throws Exception {

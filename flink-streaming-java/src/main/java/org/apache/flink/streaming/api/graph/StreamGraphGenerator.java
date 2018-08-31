@@ -27,10 +27,10 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction;
 import org.apache.flink.streaming.api.transformations.CoFeedbackTransformation;
 import org.apache.flink.streaming.api.transformations.FeedbackTransformation;
+import org.apache.flink.streaming.api.transformations.MultiInputTransformation;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.transformations.SelectTransformation;
-import org.apache.flink.streaming.api.transformations.MultiInputTransformation;
 import org.apache.flink.streaming.api.transformations.SideOutputTransformation;
 import org.apache.flink.streaming.api.transformations.SinkTransformation;
 import org.apache.flink.streaming.api.transformations.SourceTransformation;
@@ -390,9 +390,14 @@ public class StreamGraphGenerator {
 			Collection<Integer> feedbackIds = transform(feedbackEdge);
 			allFeedbackIds.addAll(feedbackIds);
 			for (Integer feedbackId: feedbackIds) {
-				streamGraph.addEdge(feedbackId,
+				streamGraph.addEdge(
+						feedbackId,
 						itSink.getId(),
-						0
+						new SideInputEdgeInfo<>(
+								InputTag.MAIN_INPUT_TAG,
+								feedbackEdge.getOutputType(),
+								null, // TODO: 9/6/18 should these be null???
+								null)
 				);
 			}
 		}
@@ -453,9 +458,14 @@ public class StreamGraphGenerator {
 			Collection<Integer> feedbackIds = transform(feedbackEdge);
 			allFeedbackIds.addAll(feedbackIds);
 			for (Integer feedbackId: feedbackIds) {
-				streamGraph.addEdge(feedbackId,
+				streamGraph.addEdge(
+						feedbackId,
 						itSink.getId(),
-						0
+						new SideInputEdgeInfo<>(
+								InputTag.MAIN_INPUT_TAG,
+								feedbackEdge.getOutputType(),
+								null, // TODO: 9/6/18 should these be null???
+								null)
 				);
 			}
 		}
@@ -511,9 +521,14 @@ public class StreamGraphGenerator {
 		streamGraph.setMaxParallelism(sink.getId(), sink.getMaxParallelism());
 
 		for (Integer inputId: inputIds) {
-			streamGraph.addEdge(inputId,
+			streamGraph.addEdge(
+					inputId,
 					sink.getId(),
-					0
+					new SideInputEdgeInfo(
+							InputTag.MAIN_INPUT_TAG,
+							sink.getInput().getOutputType(),
+							sink.getStateKeySelector(),
+							sink.getStateKeyType())
 			);
 		}
 
@@ -542,7 +557,8 @@ public class StreamGraphGenerator {
 
 		String slotSharingGroup = determineSlotSharingGroup(transform.getSlotSharingGroup(), inputIds);
 
-		streamGraph.addOperator(transform.getId(),
+		streamGraph.addNaryOperator(
+				transform.getId(),
 				slotSharingGroup,
 				transform.getCoLocationGroupKey(),
 				transform.getOperator(),
@@ -559,7 +575,11 @@ public class StreamGraphGenerator {
 		streamGraph.setMaxParallelism(transform.getId(), transform.getMaxParallelism());
 
 		for (Integer inputId: inputIds) {
-			streamGraph.addEdge(inputId, transform.getId(), 0);
+			streamGraph.addEdge(inputId, transform.getId(), new SideInputEdgeInfo(
+					InputTag.MAIN_INPUT_TAG,
+					transform.getInput().getOutputType(),
+					transform.getStateKeySelector(),
+					transform.getStateKeyType()));
 		}
 
 		return Collections.singleton(transform.getId());
@@ -587,16 +607,17 @@ public class StreamGraphGenerator {
 
 		String slotSharingGroup = determineSlotSharingGroup(transform.getSlotSharingGroup(), allInputIds);
 
-		streamGraph.addCoOperator(
+		streamGraph.addNaryOperator(
 				transform.getId(),
 				slotSharingGroup,
 				transform.getCoLocationGroupKey(),
 				transform.getOperator(),
 				transform.getInputType1(),
-				transform.getInputType2(),
 				transform.getOutputType(),
 				transform.getName());
 
+		// TODO: 8/31/18 we may need to leave this because of legacy reasons: initialization of the keyedStateBackend. Look at AbstractStreamOperator line 217
+		// but we only need to find one keySelector and set it. No matter how many inputs.
 		if (transform.getStateKeySelector1() != null || transform.getStateKeySelector2() != null) {
 			TypeSerializer<?> keySerializer = transform.getStateKeyType().createSerializer(env.getConfig());
 			streamGraph.setTwoInputStateKey(transform.getId(), transform.getStateKeySelector1(), transform.getStateKeySelector2(), keySerializer);
@@ -606,16 +627,25 @@ public class StreamGraphGenerator {
 		streamGraph.setMaxParallelism(transform.getId(), transform.getMaxParallelism());
 
 		for (Integer inputId: inputIds1) {
-			streamGraph.addEdge(inputId,
+			streamGraph.addEdge(
+					inputId,
 					transform.getId(),
-					1
+					new SideInputEdgeInfo(
+							InputTag.MAIN_INPUT_TAG,
+							transform.getInput1().getOutputType(),
+							transform.getStateKeySelector1(),
+							transform.getStateKeyType())
 			);
 		}
 
 		for (Integer inputId: inputIds2) {
 			streamGraph.addEdge(inputId,
 					transform.getId(),
-					2
+					new SideInputEdgeInfo(
+							InputTag.LEGACY_SECOND_INPUT_TAG,
+							transform.getInput2().getOutputType(),
+							transform.getStateKeySelector2(),
+							transform.getStateKeyType())
 			);
 		}
 
@@ -645,6 +675,15 @@ public class StreamGraphGenerator {
 				multiInputTransformation.getOutputType(),
 				multiInputTransformation.getName()
 		);
+
+		// TODO: 8/31/18 we may need to leave this because of legacy reasons: initialization of the keyedStateBackend. Look at AbstractStreamOperator line 217
+		// but we only need to find one keySelector (and key serializer) and set it. No matter how many inputs.
+
+		// here I have to search for at least one keySelector and set it. If there is none, then we are non-keyed
+//		if (transform.getStateKeySelector1() != null || transform.getStateKeySelector2() != null) {
+//			TypeSerializer<?> keySerializer = transform.getStateKeyType().createSerializer(env.getConfig());
+//			streamGraph.setTwoInputStateKey(transform.getId(), transform.getStateKeySelector1(), transform.getStateKeySelector2(), keySerializer);
+//		}
 
 		streamGraph.setParallelism(multiInputTransformation.getId(), multiInputTransformation.getParallelism());
 		streamGraph.setMaxParallelism(multiInputTransformation.getId(), multiInputTransformation.getMaxParallelism());

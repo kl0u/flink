@@ -23,7 +23,7 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.runtime.tasks.AsyncExceptionHandler;
-import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
+import org.apache.flink.streaming.runtime.tasks.MultiInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
@@ -44,7 +44,7 @@ public class TestProcessingTimeServiceTest {
 		final TestProcessingTimeService tp = new TestProcessingTimeService();
 
 		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(
-				(env) -> new OneInputStreamTask<>(env, tp),
+				(env) -> new MultiInputStreamTask<>(env, tp),
 				BasicTypeInfo.STRING_TYPE_INFO,
 				BasicTypeInfo.STRING_TYPE_INFO);
 
@@ -58,7 +58,7 @@ public class TestProcessingTimeServiceTest {
 
 		testHarness.invoke();
 
-		final OneInputStreamTask<String, String> mapTask = testHarness.getTask();
+		final MultiInputStreamTask<String, ?> mapTask = testHarness.getTask();
 
 		assertEquals(Long.MIN_VALUE, testHarness.getProcessingTimeService().getCurrentProcessingTime());
 

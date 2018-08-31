@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
@@ -293,6 +294,11 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 			int outputId = outputEdge.getTargetId();
 			StreamConfig chainedOpConfig = chainedConfigs.get(outputId);
 
+			final KeySelector<?, ?> keySelector =
+					outputEdge.getSideInputInfo() == null ?
+							null :
+							outputEdge.getSideInputInfo().getKeySelector();
+
 			WatermarkGaugeExposingOutput<StreamRecord<T>> output = createChainedOperator(
 				containingTask,
 				chainedOpConfig,
@@ -300,7 +306,8 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 				userCodeClassloader,
 				streamOutputs,
 				allOperators,
-				outputEdge.getOutputTag());
+				outputEdge.getOutputTag(),
+				keySelector);
 			allOutputs.add(new Tuple2<>(output, outputEdge));
 		}
 
@@ -355,7 +362,8 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 			ClassLoader userCodeClassloader,
 			Map<StreamEdge, RecordWriterOutput<?>> streamOutputs,
 			List<StreamOperator<?>> allOperators,
-			OutputTag<IN> outputTag) {
+			OutputTag<IN> outputTag,
+			@Nullable KeySelector<IN, ?> keySelector) {
 		// create the output that the operator writes to first. this may recursively create more operators
 		WatermarkGaugeExposingOutput<StreamRecord<OUT>> chainedOperatorOutput = createOutputCollector(
 			containingTask,
@@ -374,11 +382,11 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 
 		WatermarkGaugeExposingOutput<StreamRecord<IN>> currentOperatorOutput;
 		if (containingTask.getExecutionConfig().isObjectReuseEnabled()) {
-			currentOperatorOutput = new ChainingOutput<>(chainedOperator, this, outputTag);
+			currentOperatorOutput = new ChainingOutput<>(chainedOperator, this, outputTag, keySelector);
 		}
 		else {
 			TypeSerializer<IN> inSerializer = operatorConfig.getTypeSerializerIn1(userCodeClassloader);
-			currentOperatorOutput = new CopyingChainingOutput<>(chainedOperator, inSerializer, outputTag, this);
+			currentOperatorOutput = new CopyingChainingOutput<>(chainedOperator, inSerializer, outputTag, this, keySelector);
 		}
 
 		// wrap watermark gauges since registered metrics must be unique
@@ -425,6 +433,8 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 	static class ChainingOutput<T> implements WatermarkGaugeExposingOutput<StreamRecord<T>> {
 
 		protected final OneInputStreamOperator<T, ?> operator;
+		protected final KeySelector<T, ?> keySelector;
+
 		protected final Counter numRecordsIn;
 		protected final WatermarkGauge watermarkGauge = new WatermarkGauge();
 
@@ -436,7 +446,8 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 		public ChainingOutput(
 				OneInputStreamOperator<T, ?> operator,
 				StreamStatusProvider streamStatusProvider,
-				@Nullable OutputTag<T> outputTag) {
+				@Nullable OutputTag<T> outputTag,
+				@Nullable KeySelector<T, ?> keySelector) {
 			this.operator = operator;
 
 			{
@@ -451,6 +462,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 				numRecordsIn = tmpNumRecordsIn;
 			}
 
+			this.keySelector = keySelector;
 			this.streamStatusProvider = streamStatusProvider;
 			this.outputTag = outputTag;
 		}
@@ -484,7 +496,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 				StreamRecord<T> castRecord = (StreamRecord<T>) record;
 
 				numRecordsIn.inc();
-				operator.setKeyContextElement1(castRecord);
+				operator.setKeyContextElement(castRecord, keySelector);
 				operator.processElement(castRecord);
 			}
 			catch (Exception e) {
@@ -539,8 +551,9 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 				OneInputStreamOperator<T, ?> operator,
 				TypeSerializer<T> serializer,
 				OutputTag<T> outputTag,
-				StreamStatusProvider streamStatusProvider) {
-			super(operator, streamStatusProvider, outputTag);
+				StreamStatusProvider streamStatusProvider,
+				@Nullable KeySelector<T, ?> keySelector) {
+			super(operator, streamStatusProvider, outputTag, keySelector);
 			this.serializer = serializer;
 		}
 
@@ -575,7 +588,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 
 				numRecordsIn.inc();
 				StreamRecord<T> copy = castRecord.copy(serializer.copy(castRecord.getValue()));
-				operator.setKeyContextElement1(copy);
+				operator.setKeyContextElement(copy, keySelector);
 				operator.processElement(copy);
 			} catch (ClassCastException e) {
 				if (outputTag != null) {

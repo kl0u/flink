@@ -26,6 +26,8 @@ import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.util.Preconditions;
 
 /**
  * Extension of {@link OneInputStreamOperatorTestHarness} that allows the operator to get
@@ -34,38 +36,48 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 		extends OneInputStreamOperatorTestHarness<IN, OUT> {
 
+	private final KeySelector<IN, K> keySelector;
+
 	public KeyedOneInputStreamOperatorTestHarness(
-			OneInputStreamOperator<IN, OUT> operator,
+			final OneInputStreamOperator<IN, OUT> operator,
 			final KeySelector<IN, K> keySelector,
-			TypeInformation<K> keyType,
-			int maxParallelism,
-			int numSubtasks,
-			int subtaskIndex) throws Exception {
+			final TypeInformation<K> keyType,
+			final int maxParallelism,
+			final int numSubtasks,
+			final int subtaskIndex) throws Exception {
 		super(operator, maxParallelism, numSubtasks, subtaskIndex);
 
-		ClosureCleaner.clean(keySelector, false);
-		config.setStatePartitioner(0, keySelector);
-		config.setStateKeySerializer(keyType.createSerializer(executionConfig));
+		ClosureCleaner.clean(Preconditions.checkNotNull(keySelector), false);
+		this.keySelector = keySelector;
+		config.setStateKeySerializer(
+				Preconditions.checkNotNull(keyType).createSerializer(executionConfig));
 	}
 
 	public KeyedOneInputStreamOperatorTestHarness(
-			OneInputStreamOperator<IN, OUT> operator,
+			final OneInputStreamOperator<IN, OUT> operator,
 			final KeySelector<IN, K> keySelector,
-			TypeInformation<K> keyType) throws Exception {
+			final TypeInformation<K> keyType) throws Exception {
 		this(operator, keySelector, keyType, 1, 1, 0);
 	}
 
 	public KeyedOneInputStreamOperatorTestHarness(
 			final OneInputStreamOperator<IN, OUT> operator,
-			final  KeySelector<IN, K> keySelector,
+			final KeySelector<IN, K> keySelector,
 			final TypeInformation<K> keyType,
 			final MockEnvironment environment) throws Exception {
 
 		super(operator, environment);
 
-		ClosureCleaner.clean(keySelector, false);
-		config.setStatePartitioner(0, keySelector);
-		config.setStateKeySerializer(keyType.createSerializer(executionConfig));
+		ClosureCleaner.clean(Preconditions.checkNotNull(keySelector), false);
+		this.keySelector = keySelector;
+		config.setStateKeySerializer(
+				Preconditions.checkNotNull(keyType).createSerializer(executionConfig));
+	}
+
+	@Override
+	public void processElement(StreamRecord<IN> element) throws Exception {
+		operator.setKeyContextElement(element, keySelector);
+		oneInputOperator.processElement(element);
 	}
 
 	public int numKeyedStateEntries() {

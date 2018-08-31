@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.BlockingQueueBroker;
 import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
@@ -37,7 +38,7 @@ import java.util.concurrent.TimeUnit;
  * combination with {@link StreamIterationTail}.
  */
 @Internal
-public class StreamIterationHead<OUT> extends OneInputStreamTask<OUT, OUT> {
+public class StreamIterationHead<OUT> extends MultiInputStreamTask<OUT, OneInputStreamOperator<OUT, OUT>> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StreamIterationHead.class);
 

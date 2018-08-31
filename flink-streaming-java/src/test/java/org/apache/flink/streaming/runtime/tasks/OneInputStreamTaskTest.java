@@ -83,7 +83,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
- * Tests for {@link OneInputStreamTask}.
+ * Tests for {@link MultiInputStreamTask} with a single input.
  *
  * <p>Note:<br>
  * We only use a {@link StreamMap} operator here. We also test the individual operators but Map is
@@ -103,7 +103,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 	@Test
 	public void testOpenCloseAndTimestamps() throws Exception {
 		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(
-				OneInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+				MultiInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 
 		testHarness.setupOutputForSingletonOperatorChain();
 
@@ -145,7 +145,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 
 		final OneInputStreamTaskTestHarness<String, String> testHarness =
 			new OneInputStreamTaskTestHarness<>(
-				OneInputStreamTask::new,
+				MultiInputStreamTask::new,
 				2, 2,
 				BasicTypeInfo.STRING_TYPE_INFO,
 				BasicTypeInfo.STRING_TYPE_INFO);
@@ -258,7 +258,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 
 		final OneInputStreamTaskTestHarness<String, String> testHarness =
 			new OneInputStreamTaskTestHarness<>(
-				OneInputStreamTask::new,
+				MultiInputStreamTask::new,
 				1, 1,
 				BasicTypeInfo.STRING_TYPE_INFO,
 				BasicTypeInfo.STRING_TYPE_INFO);
@@ -357,7 +357,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 	@Test
 	public void testCheckpointBarriers() throws Exception {
 		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(
-				OneInputStreamTask::new,
+				MultiInputStreamTask::new,
 				2, 2,
 				BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 
@@ -420,7 +420,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 	@Test
 	public void testOvertakingCheckpointBarriers() throws Exception {
 		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(
-				OneInputStreamTask::new,
+				MultiInputStreamTask::new,
 				2, 2,
 				BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 
@@ -494,13 +494,12 @@ public class OneInputStreamTaskTest extends TestLogger {
 	public void testSnapshottingAndRestoring() throws Exception {
 		final Deadline deadline = new FiniteDuration(2, TimeUnit.MINUTES).fromNow();
 
+		final IdentityKeySelector<String> keySelector = new IdentityKeySelector<>();
 		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(
-				OneInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+				MultiInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO,
+				keySelector, BasicTypeInfo.STRING_TYPE_INFO);
 
 		testHarness.setupOutputForSingletonOperatorChain();
-
-		IdentityKeySelector<String> keySelector = new IdentityKeySelector<>();
-		testHarness.configureForKeyedStream(keySelector, BasicTypeInfo.STRING_TYPE_INFO);
 
 		long checkpointId = 1L;
 		long checkpointTimestamp = 1L;
@@ -520,7 +519,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 		testHarness.invoke();
 		testHarness.waitForTaskRunning(deadline.timeLeft().toMillis());
 
-		final OneInputStreamTask<String, String> streamTask = testHarness.getTask();
+		final MultiInputStreamTask<String, ?> streamTask = testHarness.getTask();
 
 		CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, checkpointTimestamp);
 
@@ -538,9 +537,11 @@ public class OneInputStreamTaskTest extends TestLogger {
 
 		final OneInputStreamTaskTestHarness<String, String> restoredTaskHarness =
 				new OneInputStreamTaskTestHarness<>(
-						OneInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
-
-		restoredTaskHarness.configureForKeyedStream(keySelector, BasicTypeInfo.STRING_TYPE_INFO);
+						MultiInputStreamTask::new,
+						BasicTypeInfo.STRING_TYPE_INFO,
+						BasicTypeInfo.STRING_TYPE_INFO,
+						keySelector,
+						BasicTypeInfo.STRING_TYPE_INFO);
 
 		restoredTaskHarness.setTaskStateSnapshot(checkpointId, taskStateManager.getLastJobManagerTaskStateSnapshot());
 
@@ -570,7 +571,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 	public void testQuiesceTimerServiceAfterOpClose() throws Exception {
 
 		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(
-				OneInputStreamTask::new,
+				MultiInputStreamTask::new,
 				2, 2,
 				BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 		testHarness.setupOutputForSingletonOperatorChain();
@@ -617,7 +618,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 
 	@Test
 	public void testOperatorMetricReuse() throws Exception {
-		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(OneInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(MultiInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 
 		testHarness.setupOperatorChain(new OperatorID(), new DuplicatingOperator())
 			.chain(new OperatorID(), new DuplicatingOperator(), BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()))
@@ -666,7 +667,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 
 	@Test
 	public void testWatermarkMetrics() throws Exception {
-		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(OneInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(MultiInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 
 		OneInputStreamOperator<String, String> headOperator = new WatermarkMetricOperator();
 		OperatorID headOperatorId = new OperatorID();

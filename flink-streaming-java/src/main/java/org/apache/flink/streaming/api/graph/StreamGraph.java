@@ -34,22 +34,18 @@ import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.operators.MultiInputStreamOperator;
 import org.apache.flink.streaming.api.operators.OutputTypeConfigurable;
 import org.apache.flink.streaming.api.operators.StoppableStreamSource;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamSource;
-import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.tasks.MultiInputStreamTask;
-import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.SourceStreamTask;
 import org.apache.flink.streaming.runtime.tasks.StoppableSourceStreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationHead;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationTail;
-import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTask;
 import org.apache.flink.util.OutputTag;
 
 import org.slf4j.Logger;
@@ -201,7 +197,7 @@ public class StreamGraph extends StreamingPlan {
 		} else if (operatorObject instanceof StreamSource) {
 			addNode(vertexID, slotSharingGroup, coLocationGroup, SourceStreamTask.class, operatorObject, operatorName);
 		} else {
-			addNode(vertexID, slotSharingGroup, coLocationGroup, OneInputStreamTask.class, operatorObject, operatorName);
+			addNode(vertexID, slotSharingGroup, coLocationGroup, MultiInputStreamTask.class, operatorObject, operatorName);
 		}
 
 		TypeSerializer<IN> inSerializer = inTypeInfo != null && !(inTypeInfo instanceof MissingTypeInfo) ? inTypeInfo.createSerializer(executionConfig) : null;
@@ -227,25 +223,25 @@ public class StreamGraph extends StreamingPlan {
 		}
 	}
 
-	public <IN, OUT> void addNaryOperator(
+	public <IN, OUT, OP extends StreamOperator<OUT>> void addNaryOperator(
 			final Integer vertexID,
 			final String slotSharingGroup,
 			@Nullable String coLocationGroup,
-			final MultiInputStreamOperator<OUT> operator,
+			final OP operator,
 			final TypeInformation<IN> inTypeInfo,
 			final TypeInformation<OUT> outTypeInfo,
 			final String operatorName
 	) {
 		// TODO: 8/27/18 check when the outTypeInfo == null or the input one or the InputTypeConfigurable also OutputTypeConfigurable
 
-		final TypeSerializer<IN> inSerializer = inTypeInfo.createSerializer(executionConfig);
-		final TypeSerializer<OUT> outSerializer = outTypeInfo.createSerializer(executionConfig);
+		final TypeSerializer<IN> inSerializer = inTypeInfo != null && !(inTypeInfo instanceof MissingTypeInfo) ? inTypeInfo.createSerializer(executionConfig) : null;
+		final TypeSerializer<OUT> outSerializer = outTypeInfo != null && !(outTypeInfo instanceof MissingTypeInfo) ? outTypeInfo.createSerializer(executionConfig) : null;
 
 		StreamNode node = addNode(vertexID, slotSharingGroup, coLocationGroup, MultiInputStreamTask.class, operator, operatorName);
 		node.setSerializerIn1(inSerializer);
 		node.setSerializerOut(outSerializer);
 
-		if (operator instanceof OutputTypeConfigurable) {
+		if (operator instanceof OutputTypeConfigurable && outTypeInfo != null) {
 			@SuppressWarnings("unchecked")
 			OutputTypeConfigurable<OUT> outputTypeConfigurable = (OutputTypeConfigurable<OUT>) operator;
 			// sets the output type which must be know at StreamGraph creation time
@@ -258,36 +254,7 @@ public class StreamGraph extends StreamingPlan {
 		}
 
 		if (LOG.isDebugEnabled()) {
-			LOG.debug("N-INPUT-TASK: {}", vertexID);
-		}
-	}
-
-	public <IN1, IN2, OUT> void addCoOperator(
-			Integer vertexID,
-			String slotSharingGroup,
-			@Nullable String coLocationGroup,
-			TwoInputStreamOperator<IN1, IN2, OUT> taskOperatorObject,
-			TypeInformation<IN1> in1TypeInfo,
-			TypeInformation<IN2> in2TypeInfo,
-			TypeInformation<OUT> outTypeInfo,
-			String operatorName) {
-
-		addNode(vertexID, slotSharingGroup, coLocationGroup, TwoInputStreamTask.class, taskOperatorObject, operatorName);
-
-		TypeSerializer<OUT> outSerializer = (outTypeInfo != null) && !(outTypeInfo instanceof MissingTypeInfo) ?
-				outTypeInfo.createSerializer(executionConfig) : null;
-
-		setSerializers(vertexID, in1TypeInfo.createSerializer(executionConfig), in2TypeInfo.createSerializer(executionConfig), outSerializer);
-
-		if (taskOperatorObject instanceof OutputTypeConfigurable) {
-			@SuppressWarnings("unchecked")
-			OutputTypeConfigurable<OUT> outputTypeConfigurable = (OutputTypeConfigurable<OUT>) taskOperatorObject;
-			// sets the output type which must be know at StreamGraph creation time
-			outputTypeConfigurable.setOutputType(outTypeInfo, executionConfig);
-		}
-
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("CO-TASK: {}", vertexID);
+			LOG.debug("MULTI-INPUT-TASK: {}", vertexID);
 		}
 	}
 

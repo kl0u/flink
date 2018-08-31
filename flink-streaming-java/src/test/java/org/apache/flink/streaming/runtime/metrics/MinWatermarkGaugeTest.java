@@ -30,17 +30,36 @@ public class MinWatermarkGaugeTest {
 	public void testSetCurrentLowWatermark() {
 		WatermarkGauge metric1 = new WatermarkGauge();
 		WatermarkGauge metric2 = new WatermarkGauge();
-		MinWatermarkGauge metric = new MinWatermarkGauge(metric1, metric2);
+		WatermarkGauge metric3 = new WatermarkGauge();
+		WatermarkGauge metric4 = new WatermarkGauge();
+
+		final MinWatermarkGauge metric =
+				new MinWatermarkGauge(metric1, metric2, metric3, metric4);
 
 		Assert.assertEquals(Long.MIN_VALUE, metric.getValue().longValue());
 
-		metric1.setCurrentWatermark(1);
+		metric1.setCurrentWatermark(1L);
 		Assert.assertEquals(Long.MIN_VALUE, metric.getValue().longValue());
 
-		metric2.setCurrentWatermark(2);
+		metric2.setCurrentWatermark(2L);
+		Assert.assertEquals(Long.MIN_VALUE, metric.getValue().longValue());
+
+		metric3.setCurrentWatermark(0L);
+		Assert.assertEquals(Long.MIN_VALUE, metric.getValue().longValue());
+
+		metric4.setCurrentWatermark(0L);
+		Assert.assertEquals(0L, metric.getValue().longValue());
+
+		metric3.setCurrentWatermark(3L);
+		Assert.assertEquals(0L, metric.getValue().longValue());
+
+		metric4.setCurrentWatermark(3L);
 		Assert.assertEquals(1L, metric.getValue().longValue());
 
-		metric1.setCurrentWatermark(3);
+		metric1.setCurrentWatermark(4L);
 		Assert.assertEquals(2L, metric.getValue().longValue());
+
+		metric2.setCurrentWatermark(5L);
+		Assert.assertEquals(3L, metric.getValue().longValue());
 	}
 }

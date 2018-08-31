@@ -31,7 +31,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
  */
 public class TwoInputStreamOperatorTestHarness<IN1, IN2, OUT> extends AbstractStreamOperatorTestHarness<OUT> {
 
-	private final TwoInputStreamOperator<IN1, IN2, OUT> twoInputOperator;
+	protected final TwoInputStreamOperator<IN1, IN2, OUT> twoInputOperator;
 
 	public TwoInputStreamOperatorTestHarness(TwoInputStreamOperator<IN1, IN2, OUT> operator) throws Exception {
 		this(operator, 1, 1, 0);
@@ -48,12 +48,10 @@ public class TwoInputStreamOperatorTestHarness<IN1, IN2, OUT> extends AbstractSt
 	}
 
 	public void processElement1(StreamRecord<IN1> element) throws Exception {
-		twoInputOperator.setKeyContextElement1(element);
 		twoInputOperator.processElement1(element);
 	}
 
 	public void processElement2(StreamRecord<IN2> element) throws Exception {
-		twoInputOperator.setKeyContextElement2(element);
 		twoInputOperator.processElement2(element);
 	}
 

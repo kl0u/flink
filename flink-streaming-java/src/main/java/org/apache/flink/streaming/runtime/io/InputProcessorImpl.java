@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.runtime.io;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
@@ -40,23 +41,25 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
-import org.apache.flink.streaming.runtime.tasks.StreamTask;
+import org.apache.flink.streaming.runtime.tasks.InputConfig;
+import org.apache.flink.streaming.runtime.tasks.MultiInputStreamTask;
+import org.apache.flink.util.InputTag;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
+import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Javadoc.
- * todo can I have a mapping of channel index to side input tag???
  */
-public class InputProcessorImpl implements InputProcessor {
+public class InputProcessorImpl<OUT, OP extends StreamOperator<OUT>> implements InputProcessor {
 
 	private static final Logger LOG = LoggerFactory.getLogger(InputProcessorImpl.class);
 
@@ -68,7 +71,7 @@ public class InputProcessorImpl implements InputProcessor {
 
 	private final Object lock;
 
-	private final StreamOperator<?> streamOperator;
+	private final OP streamOperator;
 
 	// ---------------- Metrics ------------------
 
@@ -80,59 +83,61 @@ public class InputProcessorImpl implements InputProcessor {
 
 	private ElementReader currentElementReader;
 
-	@SuppressWarnings("unchecked")
 	public InputProcessorImpl(
-			List<Collection<InputGate>> inputGates, //  todo the 4 lists should become sth like configuration object
-			List<TypeSerializer<?>> inputSerializers,
-			List<WatermarkGauge> input1WatermarkGauges,
-			List<GeneralValveOutputHandler.OperatorProxy> wrappers,
-			StreamTask<?, ?> checkpointedTask,
-			CheckpointingMode checkpointMode,
-			Object lock,
-			IOManager ioManager,
-			Configuration taskManagerConfig,
-			StreamStatusMaintainer streamStatusMaintainer,
-			StreamOperator<?> streamOperator, // TODO: 8/24/18 this will be removed
-			TaskIOMetricGroup metrics) throws IOException {
+			final Map<InputTag, InputConfig> configs,
+			final MultiInputStreamTask<OUT, OP> checkpointedTask,
+			final CheckpointingMode checkpointMode,
+			final Object lock,
+			final IOManager ioManager,
+			final ExecutionConfig executionConfig,
+			final Configuration taskManagerConfig,
+			final StreamStatusMaintainer streamStatusMaintainer,
+			final OP streamOperator,
+			final TaskIOMetricGroup metrics
+	) throws IOException {
 
-		Preconditions.checkState(
-				inputGates.size() == inputSerializers.size() &&
-						inputGates.size() == input1WatermarkGauges.size() &&
-						inputGates.size() == wrappers.size()
-		);
+		Preconditions.checkArgument(configs != null && !configs.isEmpty());
 
-		final InputGate inputGate = InputGateUtil.createInputGate(checkNotNull(inputGates));
+		final Collection<Collection<InputGate>> inputGates = new ArrayList<>();
+		for (InputConfig config : configs.values()) {
+			inputGates.add(config.getInputGates());
+		}
+
+		final InputGate inputGate = InputGateUtil.createInputGate(inputGates);
 
 		this.barrierHandler = InputProcessorUtil.createCheckpointBarrierHandler(
 				checkpointedTask, checkpointMode, ioManager, inputGate, taskManagerConfig);
 		this.lock = checkNotNull(lock);
-		this.streamOperator = checkNotNull(streamOperator);
+		this.streamOperator = Preconditions.checkNotNull(streamOperator);
 
-		this.elementReaders = new ElementReader[inputGates.size()];
-		this.channelRangeEndPerReader = new int[inputGates.size()];
+		this.elementReaders = new ElementReader[configs.size()];
+		this.channelRangeEndPerReader = new int[configs.size()];
 
-		final GeneralValveOutputHandler[] handlers = new GeneralValveOutputHandler[inputGates.size()];
+		final GeneralValveOutputHandler[] handlers = new GeneralValveOutputHandler[configs.size()];
 		int channelOffset = 0;
 
-		for (int i = 0; i < inputGates.size(); i++) {
+		int j = 0;
+		for (Map.Entry<InputTag, InputConfig> e : configs.entrySet()) {
+			final InputTag tag = e.getKey();
+			final InputConfig config = e.getValue();
 
-			// TODO: 8/24/18 these should be passed as readerConf
-			final Collection<InputGate> gates = inputGates.get(i);
+			final Collection<InputGate> gates = config.getInputGates();
+			final TypeSerializer<?> serializer = config.getInputTypeInfo().createSerializer(Preconditions.checkNotNull(executionConfig));
+			final GeneralValveOutputHandler.OperatorProxy wrapper = config.createOperatorProxy(tag, streamOperator);
+			final WatermarkGauge watermarkGauge = config.getWatermarkGauge();
+
 			int noOfChannels = 0;
 			for (InputGate gate : gates) {
 				noOfChannels += gate.getNumberOfInputChannels();
 			}
-			final GeneralValveOutputHandler.OperatorProxy wrapper = wrappers.get(i);
-			final TypeSerializer<?> serializer = inputSerializers.get(i);
-			final WatermarkGauge watermarkGauge = input1WatermarkGauges.get(i);
 
 			final DeserializationDelegate<StreamElement> deserializationDelegate =
 					new NonReusingDeserializationDelegate<>(new StreamElementSerializer<>(serializer));
 			final GeneralValveOutputHandler handler =
 					new GeneralValveOutputHandler(wrapper, streamStatusMaintainer, watermarkGauge, lock);
-			handlers[i] = handler;
+			handlers[j] = handler;
 
-			elementReaders[i] = new ElementReader(
+			elementReaders[j] = new ElementReader(
 					wrapper,
 					initializeRecordDeserializers(ioManager, noOfChannels),
 					deserializationDelegate,
@@ -141,7 +146,8 @@ public class InputProcessorImpl implements InputProcessor {
 					channelOffset);
 
 			channelOffset += noOfChannels;
-			channelRangeEndPerReader[i] = channelOffset;
+			channelRangeEndPerReader[j] = channelOffset;
+			j++;
 		}
 
 		for (int i = 0; i < handlers.length; i++) {
@@ -165,10 +171,11 @@ public class InputProcessorImpl implements InputProcessor {
 		return others;
 	}
 
-	private static RecordDeserializer<DeserializationDelegate<StreamElement>>[] initializeRecordDeserializers(final IOManager ioManager, final int noOfInputChannels) {
+	private static RecordDeserializer<DeserializationDelegate<StreamElement>>[] initializeRecordDeserializers(
+			final IOManager ioManager,
+			final int noOfInputChannels) {
 
-		@SuppressWarnings("unchecked")
-		final RecordDeserializer<DeserializationDelegate<StreamElement>>[] deserializers =
+		@SuppressWarnings("unchecked") final RecordDeserializer<DeserializationDelegate<StreamElement>>[] deserializers =
 				new SpillingAdaptiveSpanningRecordDeserializer[noOfInputChannels];
 
 		for (int i = 0; i < deserializers.length; i++) {

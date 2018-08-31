@@ -52,7 +52,7 @@ import org.apache.flink.streaming.api.operators.async.queue.StreamElementQueueEn
 import org.apache.flink.streaming.api.operators.async.queue.StreamRecordQueueEntry;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
+import org.apache.flink.streaming.runtime.tasks.MultiInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
@@ -392,7 +392,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		JobVertex chainedVertex = createChainedVertex(false);
 
 		final OneInputStreamTaskTestHarness<Integer, Integer> testHarness = new OneInputStreamTaskTestHarness<>(
-				OneInputStreamTask::new,
+				MultiInputStreamTask::new,
 				1, 1,
 				BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO);
 		testHarness.setupOutputForSingletonOperatorChain();
@@ -504,7 +504,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 	@Test
 	public void testStateSnapshotAndRestore() throws Exception {
 		final OneInputStreamTaskTestHarness<Integer, Integer> testHarness = new OneInputStreamTaskTestHarness<>(
-				OneInputStreamTask::new,
+				MultiInputStreamTask::new,
 				1, 1,
 				BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO);
 
@@ -527,7 +527,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		testHarness.invoke();
 		testHarness.waitForTaskRunning();
 
-		final OneInputStreamTask<Integer, Integer> task = testHarness.getTask();
+		final MultiInputStreamTask<Integer, ?> task = testHarness.getTask();
 
 		final long initialTime = 0L;
 
@@ -559,7 +559,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 
 		final OneInputStreamTaskTestHarness<Integer, Integer> restoredTaskHarness =
 				new OneInputStreamTaskTestHarness<>(
-						OneInputStreamTask::new,
+						MultiInputStreamTask::new,
 						BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO);
 
 		restoredTaskHarness.setTaskStateSnapshot(checkpointId, subtaskStates);
@@ -577,7 +577,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		restoredTaskHarness.invoke();
 		restoredTaskHarness.waitForTaskRunning();
 
-		final OneInputStreamTask<Integer, Integer> restoredTask = restoredTaskHarness.getTask();
+		final MultiInputStreamTask<Integer, ?> restoredTask = restoredTaskHarness.getTask();
 
 		restoredTaskHarness.processElement(new StreamRecord<>(5, initialTime + 5));
 		restoredTaskHarness.processElement(new StreamRecord<>(6, initialTime + 6));

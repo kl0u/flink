@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -136,9 +137,7 @@ public interface StreamOperator<OUT> extends CheckpointListener, KeyContext, Dis
 	//  miscellaneous
 	// ------------------------------------------------------------------------
 
-	void setKeyContextElement1(StreamRecord<?> record) throws Exception;
-
-	void setKeyContextElement2(StreamRecord<?> record) throws Exception;
+	<T> void setKeyContextElement(StreamRecord<T> record, KeySelector<T, ?> selector) throws Exception;
 
 	ChainingStrategy getChainingStrategy();
 

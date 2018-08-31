@@ -39,7 +39,7 @@ import java.util.concurrent.TimeUnit;
  * combination with {@link StreamIterationHead}.
  */
 @Internal
-public class StreamIterationTail<IN> extends OneInputStreamTask<IN, IN> {
+public class StreamIterationTail<IN> extends MultiInputStreamTask<IN, OneInputStreamOperator<IN, IN>> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StreamIterationTail.class);
 

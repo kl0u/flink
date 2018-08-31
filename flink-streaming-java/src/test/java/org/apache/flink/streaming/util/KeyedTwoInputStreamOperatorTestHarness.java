@@ -25,6 +25,8 @@ import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.util.Preconditions;
 
 /**
  * Extension of {@link TwoInputStreamOperatorTestHarness} that allows the operator to get
@@ -32,6 +34,10 @@ import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
  */
 public class KeyedTwoInputStreamOperatorTestHarness<K, IN1, IN2, OUT>
 		extends TwoInputStreamOperatorTestHarness<IN1, IN2, OUT> {
+
+	private final KeySelector<IN1, K> keySelector1;
+
+	private final KeySelector<IN2, K> keySelector2;
 
 	public KeyedTwoInputStreamOperatorTestHarness(
 			TwoInputStreamOperator<IN1, IN2, OUT> operator,
@@ -45,9 +51,12 @@ public class KeyedTwoInputStreamOperatorTestHarness<K, IN1, IN2, OUT>
 
 		ClosureCleaner.clean(keySelector1, false);
 		ClosureCleaner.clean(keySelector2, false);
-		config.setStatePartitioner(0, keySelector1);
-		config.setStatePartitioner(1, keySelector2);
-		config.setStateKeySerializer(keyType.createSerializer(executionConfig));
+
+		this.keySelector1 = keySelector1;
+		this.keySelector2 = keySelector2;
+
+		config.setStateKeySerializer(
+				Preconditions.checkNotNull(keyType).createSerializer(executionConfig));
 	}
 
 	public KeyedTwoInputStreamOperatorTestHarness(
@@ -56,6 +65,18 @@ public class KeyedTwoInputStreamOperatorTestHarness<K, IN1, IN2, OUT>
 			final KeySelector<IN2, K> keySelector2,
 			TypeInformation<K> keyType) throws Exception {
 		this(operator, keySelector1, keySelector2, keyType, 1, 1, 0);
+	}
+
+	@Override
+	public void processElement1(StreamRecord<IN1> element) throws Exception {
+		operator.setKeyContextElement(element, keySelector1);
+		twoInputOperator.processElement1(element);
+	}
+
+	@Override
+	public void processElement2(StreamRecord<IN2> element) throws Exception {
+		operator.setKeyContextElement(element, keySelector2);
+		twoInputOperator.processElement2(element);
 	}
 
 	public int numKeyedStateEntries() {

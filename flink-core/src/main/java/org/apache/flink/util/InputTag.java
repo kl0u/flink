@@ -40,7 +40,6 @@ public class InputTag implements Serializable {
 
 	private final String id;
 
-
 	private InputTag(final String id) {
 		Preconditions.checkArgument(id != null && !id.isEmpty());
 		this.id = id;

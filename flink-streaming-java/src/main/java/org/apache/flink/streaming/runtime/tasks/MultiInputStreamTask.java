@@ -17,16 +17,23 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.streaming.api.graph.SideInputEdgeInfo;
 import org.apache.flink.streaming.api.graph.StreamEdge;
-import org.apache.flink.streaming.api.operators.MultiInputStreamOperator;
+import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.io.InputProcessor;
-import org.apache.flink.streaming.runtime.io.MultiInputProcessorImpl;
+import org.apache.flink.streaming.runtime.io.InputProcessorImpl;
+import org.apache.flink.streaming.runtime.metrics.MinWatermarkGauge;
+import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.util.InputTag;
 import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nullable;
 
 import java.util.HashMap;
 import java.util.List;
@@ -36,15 +43,32 @@ import java.util.Objects;
 /**
  * Javadoc.
  */
-public class MultiInputStreamTask<OUT> extends StreamTask<OUT, MultiInputStreamOperator<OUT>> {
+@Internal
+public class MultiInputStreamTask<OUT, OP extends StreamOperator<OUT>> extends StreamTask<OUT, OP> {
 
-	// TODO: 8/24/18 also add the watermarkGauges
 	private InputProcessor inputProcessor;
 
 	private volatile boolean running = true;
 
 	public MultiInputStreamTask(Environment env) {
 		super(env);
+	}
+
+	/**
+	 * Constructor for initialization, possibly with initial state (recovery / savepoint / etc).
+	 *
+	 * <p>This constructor accepts a special {@link ProcessingTimeService}. By default (and if
+	 * null is passes for the time provider) a {@link SystemProcessingTimeService DefaultTimerService}
+	 * will be used.
+	 *
+	 * @param env The task environment for this task.
+	 * @param timeProvider Optionally, a specific time provider to use.
+	 */
+	@VisibleForTesting
+	public MultiInputStreamTask(
+			Environment env,
+			@Nullable ProcessingTimeService timeProvider) {
+		super(env, timeProvider);
 	}
 
 	@Override
@@ -77,8 +101,19 @@ public class MultiInputStreamTask<OUT> extends StreamTask<OUT, MultiInputStreamO
 			}
 			config.addInputGate(getEnvironment().getInputGate(i));
 		}
-		
-		this.inputProcessor = new MultiInputProcessorImpl<>(
+
+		final WatermarkGauge[] gauges = new WatermarkGauge[inputConfigs.size()];
+		int i = 0;
+		for (InputConfig config : inputConfigs.values()) {
+			final WatermarkGauge gauge = config.getWatermarkGauge();
+			gauges[i++] = gauge;
+			final String metricName = MetricNames.getInputWatermarkGaugeName(i);
+			headOperator.getMetricGroup().gauge(metricName, gauge);
+		}
+
+		final MinWatermarkGauge minInputWatermarkGauge = new MinWatermarkGauge(gauges);
+
+		this.inputProcessor = new InputProcessorImpl<>(
 				inputConfigs,
 				this,
 				configuration.getCheckpointMode(),
@@ -90,11 +125,8 @@ public class MultiInputStreamTask<OUT> extends StreamTask<OUT, MultiInputStreamO
 				headOperator,
 				getEnvironment().getMetricGroup().getIOMetricGroup());
 
-//		headOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, minInputWatermarkGauge);
-//		headOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_1_WATERMARK, input1WatermarkGauge);
-//		headOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_2_WATERMARK, input2WatermarkGauge);
-//		// wrap watermark gauge since registered metrics must be unique
-//		getEnvironment().getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, minInputWatermarkGauge::getValue);
+		headOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, minInputWatermarkGauge);
+		getEnvironment().getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, minInputWatermarkGauge::getValue);
 	}
 
 	@Override

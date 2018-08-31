@@ -62,7 +62,7 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
+import org.apache.flink.streaming.runtime.tasks.MultiInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
 import org.apache.flink.streaming.runtime.tasks.StreamMockEnvironment;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
@@ -126,16 +126,13 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 	public void testFullyAsyncSnapshot() throws Exception {
 
 		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(
-				OneInputStreamTask::new,
-				BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
-		testHarness.setupOutputForSingletonOperatorChain();
+				MultiInputStreamTask::new,
+				BasicTypeInfo.STRING_TYPE_INFO,
+				BasicTypeInfo.STRING_TYPE_INFO,
+				(KeySelector<String, String>) value -> value,
+				BasicTypeInfo.STRING_TYPE_INFO);
 
-		testHarness.configureForKeyedStream(new KeySelector<String, String>() {
-			@Override
-			public String getKey(String value) throws Exception {
-				return value;
-			}
-		}, BasicTypeInfo.STRING_TYPE_INFO);
+		testHarness.setupOutputForSingletonOperatorChain();
 
 		StreamConfig streamConfig = testHarness.getStreamConfig();
 
@@ -210,14 +207,14 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 
 		testHarness.invoke(mockEnv);
 
-		final OneInputStreamTask<String, String> task = testHarness.getTask();
+		final MultiInputStreamTask<String, ?> task = testHarness.getTask();
 
 		// wait for the task to be running
 		for (Field field: StreamTask.class.getDeclaredFields()) {
 			if (field.getName().equals("isRunning")) {
 				field.setAccessible(true);
 				while (!field.getBoolean(task)) {
-					Thread.sleep(10);
+					Thread.sleep(10L);
 				}
 			}
 		}
@@ -250,12 +247,13 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 	@Test
 	public void testCancelFullyAsyncCheckpoints() throws Exception {
 		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(
-				OneInputStreamTask::new,
-				BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+				MultiInputStreamTask::new,
+				BasicTypeInfo.STRING_TYPE_INFO,
+				BasicTypeInfo.STRING_TYPE_INFO,
+				(KeySelector<String, String>) value -> value,
+				BasicTypeInfo.STRING_TYPE_INFO);
 
 		testHarness.setupOutputForSingletonOperatorChain();
-
-		testHarness.configureForKeyedStream(value -> value, BasicTypeInfo.STRING_TYPE_INFO);
 
 		StreamConfig streamConfig = testHarness.getStreamConfig();
 
@@ -324,14 +322,14 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 
 		testHarness.invoke(mockEnv);
 
-		final OneInputStreamTask<String, String> task = testHarness.getTask();
+		final MultiInputStreamTask<String, ?> task = testHarness.getTask();
 
 		// wait for the task to be running
 		for (Field field: StreamTask.class.getDeclaredFields()) {
 			if (field.getName().equals("isRunning")) {
 				field.setAccessible(true);
 				while (!field.getBoolean(task)) {
-					Thread.sleep(10);
+					Thread.sleep(10L);
 				}
 			}
 		}

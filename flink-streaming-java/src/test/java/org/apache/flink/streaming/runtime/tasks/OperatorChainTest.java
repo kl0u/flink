@@ -78,7 +78,7 @@ public class OperatorChainTest {
 
 		try (MockEnvironment env = MockEnvironment.builder().build()) {
 
-		final StreamTask<?, ?> containingTask = new OneInputStreamTask<T, OneInputStreamOperator<T, T>>(env);
+		final StreamTask<?, ?> containingTask = new MultiInputStreamTask<>(env);
 
 			final StreamStatusProvider statusProvider = mock(StreamStatusProvider.class);
 			final StreamConfig cfg = new StreamConfig(new Configuration());
@@ -94,7 +94,7 @@ public class OperatorChainTest {
 			for (int i = 0; i < ops.length; i++) {
 				OneInputStreamOperator<T, T> op = operators[ops.length - i - 1];
 				op.setup(containingTask, cfg, lastWriter);
-				lastWriter = new ChainingOutput<>(op, statusProvider, null);
+				lastWriter = new ChainingOutput<>(op, statusProvider, null, null);
 				ops[i] = op;
 			}
 

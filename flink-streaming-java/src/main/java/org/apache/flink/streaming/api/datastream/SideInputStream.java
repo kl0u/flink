@@ -29,7 +29,11 @@ import org.apache.flink.util.Preconditions;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
+/**
+ * Javadoc.
+ */
 public class SideInputStream<T, O> {
 
 	private final StreamExecutionEnvironment environment;
@@ -42,8 +46,6 @@ public class SideInputStream<T, O> {
 		this.environment = Preconditions.checkNotNull(mainStream.getExecutionEnvironment());
 		this.mainStream = Preconditions.checkNotNull(mainStream);
 	}
-
-	//withState()
 
 	public StreamExecutionEnvironment getExecutionEnvironment() {
 		return environment;
@@ -70,18 +72,31 @@ public class SideInputStream<T, O> {
 
 		// put the main input in the list of inputs
 		withSideInput(InputTag.MAIN_INPUT_TAG, mainStream, processFunction);
-		validateKeySelectors();
+
+		Preconditions.checkState(
+				inputsAreCompatible(),
+				"Inputs can be keyed or non-keyed, but the keyed one should have the same type of key."
+		);
 
 		final Map<InputTag, SideInputProcessFunction<?, O>> sideInputFunctions =
 				getCleanProcessFunctionsPerSideInput();
 
-		// TODO: 8/28/18 can we pass everything here???
 		final MultiInputStreamOperator<O> operator = new MultiInputStreamOperator<>(sideInputFunctions);
 		return transform(getOperationName(), outputType, operator);
 	}
 
-	private void validateKeySelectors() {
-		// TODO: 8/28/18 implement this
+	// TODO: 9/1/18 write a test for this
+	private boolean inputsAreCompatible() {
+		TypeInformation<?> seenKeyTypeInfo = null;
+		for (SideInputInfo<?, ?, ?> info : inputStreamInfo.values()) {
+			final TypeInformation<?> currentKeyType = info.getKeyTypeInfo();
+			if (seenKeyTypeInfo == null) {
+				seenKeyTypeInfo = currentKeyType;
+			} else if (currentKeyType != null && !Objects.equals(currentKeyType, seenKeyTypeInfo)) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	private SingleOutputStreamOperator<O> transform(
@@ -110,7 +125,7 @@ public class SideInputStream<T, O> {
 	}
 
 	private String getOperationName() {
-		return inputStreamInfo.size() +"-Input-Processor";
+		return inputStreamInfo.size() + "-Input-Processor";
 	}
 
 	private Map<InputTag, SideInputProcessFunction<?, O>> getCleanProcessFunctionsPerSideInput() {
