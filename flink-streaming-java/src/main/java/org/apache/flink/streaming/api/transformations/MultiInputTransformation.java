@@ -19,7 +19,8 @@
 package org.apache.flink.streaming.api.transformations;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.streaming.api.datastream.SideInputInfo;
+import org.apache.flink.streaming.api.datastream.KeyedSideInputInfo;
+import org.apache.flink.streaming.api.datastream.NonKeyedSideInputInfo;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.MultiInputStreamOperator;
 import org.apache.flink.util.InputTag;
@@ -37,20 +38,26 @@ public class MultiInputTransformation<OUT> extends StreamTransformation<OUT> {
 
 	private final MultiInputStreamOperator<OUT> operator;
 
-	private final Map<InputTag, SideInputInfo<?, ?, OUT>> inputInfo;
+	private final Map<InputTag, NonKeyedSideInputInfo<?, OUT>> nonKeyedInputInfo;
+
+	private final Map<InputTag, KeyedSideInputInfo<?, ?, OUT>> keyedInputInfo;
 
 	public MultiInputTransformation(
 			final String name,
 			final MultiInputStreamOperator<OUT> operator,
-			final Map<InputTag, SideInputInfo<?, ?, OUT>> sideInputInfo,
+			final Map<InputTag, NonKeyedSideInputInfo<?, OUT>> nonKeyedInputInfo,
+			final Map<InputTag, KeyedSideInputInfo<?, ?, OUT>> keyedInputInfo,
 			final TypeInformation<OUT> outputType,
 			final int parallelism
 	) {
 		super(name, outputType, parallelism);
-		Preconditions.checkState(sideInputInfo != null && sideInputInfo.size() >= 1); // it has to have at least the main input
 
+		this.nonKeyedInputInfo = Preconditions.checkNotNull(nonKeyedInputInfo);
+		this.keyedInputInfo = Preconditions.checkNotNull(keyedInputInfo);
 		this.operator = Preconditions.checkNotNull(operator);
-		this.inputInfo = sideInputInfo;
+
+		// there must be at least one input stream (the main one)
+		Preconditions.checkState(nonKeyedInputInfo.size() + keyedInputInfo.size() >= 1);
 	}
 
 	/**
@@ -67,15 +74,30 @@ public class MultiInputTransformation<OUT> extends StreamTransformation<OUT> {
 		return operator;
 	}
 
-	public Map<InputTag, SideInputInfo<?, ?, OUT>> getInputInfo() {
-		return Collections.unmodifiableMap(inputInfo);
+	public Map<InputTag, NonKeyedSideInputInfo<?, OUT>> getNonKeyedInputInfo() {
+		return Collections.unmodifiableMap(nonKeyedInputInfo);
+	}
+
+	public Map<InputTag, KeyedSideInputInfo<?, ?, OUT>> getKeyedInputInfo() {
+		return Collections.unmodifiableMap(keyedInputInfo);
 	}
 
 	@Override
 	public Collection<StreamTransformation<?>> getTransitivePredecessors() {
 		final Collection<StreamTransformation<?>> result = new ArrayList<>();
+
+		// TODO: 9/10/18 is this correct??? should we add ourselves???
+
+		// we first add ourselves
 		result.add(this);
-		for (SideInputInfo<?, ?, OUT> input: inputInfo.values()) {
+
+		// and then we go on to add the non-keyed inputs
+		for (NonKeyedSideInputInfo<?, OUT> input: nonKeyedInputInfo.values()) {
+			result.addAll(input.getTransformation().getTransitivePredecessors());
+		}
+
+		// and finally the keyed inputs
+		for (KeyedSideInputInfo<?, ?, OUT> input: keyedInputInfo.values()) {
 			result.addAll(input.getTransformation().getTransitivePredecessors());
 		}
 		return result;

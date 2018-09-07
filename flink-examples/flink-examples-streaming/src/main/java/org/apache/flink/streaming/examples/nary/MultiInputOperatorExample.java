@@ -19,10 +19,13 @@
 package org.apache.flink.streaming.examples.nary;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.SideInputProcessFunction;
+import org.apache.flink.streaming.api.functions.KeyedSideInputProcessFunction;
+import org.apache.flink.streaming.api.functions.NonKeyedSideInputProcessFunction;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.InputTag;
 
@@ -60,6 +63,9 @@ public class MultiInputOperatorExample {
 		doubleInput.add(400.0);
 		doubleInput.add(500.0);
 
+		final ValueStateDescriptor<Integer> intState = new ValueStateDescriptor<>("testIntState", BasicTypeInfo.INT_TYPE_INFO);
+		final ValueStateDescriptor<String> stringState = new ValueStateDescriptor<>("testStringState", BasicTypeInfo.STRING_TYPE_INFO);
+
 		final DataStream<Integer> intStream = env.fromCollection(intInput);
 		final DataStream<String> stringStream = env.fromCollection(stringInput);
 		final DataStream<Double> doubleStream = env.fromCollection(doubleInput);
@@ -76,7 +82,14 @@ public class MultiInputOperatorExample {
 			}
 		});
 
-		final DataStream<Integer> unionedInt = intStream.union(intStreamProc);
+		final DataStream<Integer> unionedInt = intStream.union(intStreamProc).keyBy(new KeySelector<Integer, Integer>() {
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			public Integer getKey(Integer value) throws Exception {
+				return value;
+			}
+		});
 
 		// TODO: 8/29/18 how do we specify state???
 		// TODO: 8/29/18 maybe through the context
@@ -87,30 +100,33 @@ public class MultiInputOperatorExample {
 		// TODO: 8/30/18 test with side output
 
 		stringStream
-				.withSideInput(InputTag.withId("side1"), unionedInt, new SideInputProcessFunction<Integer, String>() {
+				.withSideInput(InputTag.withId("side1"), unionedInt, new KeyedSideInputProcessFunction<Integer, Integer, String>() {
 
 					private static final long serialVersionUID = 1L;
 
 					@Override
-					public void process(Integer value, Collector<String> out) throws Exception {
+					public void processElement(Integer value, Context<Integer> ctx, Collector<String> out) throws Exception {
+						System.out.println("SAW: " + getRuntimeContext().getState(intState).value() + " - PROCESSING: " + value);
+
+						getRuntimeContext().getState(intState).update(value);
 						out.collect("side1: " + value.toString());
 					}
 				})
-				.withSideInput(InputTag.withId("side2"), doubleStream, new SideInputProcessFunction<Double, String>() {
+				.withSideInput(InputTag.withId("side2"), doubleStream, new NonKeyedSideInputProcessFunction<Double, String>() {
 
 					private static final long serialVersionUID = 1L;
 
 					@Override
-					public void process(Double value, Collector<String> out) throws Exception {
+					public void processElement(Double value, Context ctx, Collector<String> out) throws Exception {
 						out.collect("side2: " + value.toString());
 					}
 				})
-				.process(new SideInputProcessFunction<String, String>() {
+				.process(new NonKeyedSideInputProcessFunction<String, String>() {
 
 					private static final long serialVersionUID = 1L;
 
 					@Override
-					public void process(String value, Collector<String> out) throws Exception {
+					public void processElement(String value, Context ctx, Collector<String> out) throws Exception {
 						out.collect("main: " + value);
 					}
 				}, BasicTypeInfo.STRING_TYPE_INFO)

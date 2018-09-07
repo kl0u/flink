@@ -50,8 +50,9 @@ import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
+import org.apache.flink.streaming.api.functions.KeyedSideInputProcessFunction;
+import org.apache.flink.streaming.api.functions.NonKeyedSideInputProcessFunction;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
-import org.apache.flink.streaming.api.functions.SideInputProcessFunction;
 import org.apache.flink.streaming.api.functions.TimestampExtractor;
 import org.apache.flink.streaming.api.functions.sink.OutputFormatSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
@@ -283,9 +284,23 @@ public class DataStream<T> {
 	public <I, O> SideInputStream<T, O> withSideInput(
 			final InputTag inputTag,
 			final DataStream<I> sideInput,
-			final SideInputProcessFunction<I, O> processFunction) {
+			final NonKeyedSideInputProcessFunction<I, O> processFunction) {
+
 		final SideInputStream<T, O> resultingStream = new SideInputStream<>(this);
 		resultingStream.withSideInput(inputTag, sideInput, processFunction);
+		return resultingStream;
+	}
+
+	@PublicEvolving
+	public <I, K, O> SideInputStream<T, O> withSideInput(
+			final InputTag inputTag,
+			final DataStream<I> sideInput,
+			final KeyedSideInputProcessFunction<I, K, O> processFunction) {
+
+		Preconditions.checkArgument(sideInput instanceof KeyedStream,
+				"A KeyedSideInputProcessFunction can only be applied to keyed streams.");
+		final SideInputStream<T, O> resultingStream = new SideInputStream<>(this);
+		resultingStream.withKeyedSideInput(inputTag, (KeyedStream<I, K>) sideInput, processFunction);
 		return resultingStream;
 	}
 

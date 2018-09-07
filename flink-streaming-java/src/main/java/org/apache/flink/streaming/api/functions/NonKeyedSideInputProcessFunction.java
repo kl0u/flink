@@ -24,10 +24,14 @@ import org.apache.flink.util.Collector;
 /**
  * Javadoc.
  */
-public abstract class SideInputProcessFunction<IN, OUT> extends AbstractRichFunction {
+public abstract class NonKeyedSideInputProcessFunction<I, O> extends AbstractRichFunction {
 
 	private static final long serialVersionUID = 1L;
 
-	// TODO: 8/29/18 also expose the TAG
-	public abstract void process(IN value, Collector<OUT> out) throws Exception;
+	public abstract void processElement(final I value, final Context ctx, final Collector<O> out) throws Exception;
+
+	/**
+	 * Javadoc.
+	 */
+	public interface Context extends BaseSideInputContext {}
 }

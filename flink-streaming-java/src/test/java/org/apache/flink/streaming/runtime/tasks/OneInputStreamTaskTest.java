@@ -807,7 +807,6 @@ public class OneInputStreamTaskTest extends TestLogger {
 					null,
 					null
 				),
-				0,
 				Collections.<String>emptyList(),
 				null,
 				null,

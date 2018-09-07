@@ -19,25 +19,40 @@
 package org.apache.flink.streaming.api.datastream;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.streaming.api.transformations.StreamTransformation;
+import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.streaming.api.functions.KeyedSideInputProcessFunction;
 import org.apache.flink.util.Preconditions;
 
 /**
  * Javadoc.
  */
-public class SideInputInfo<I> {
+public class KeyedSideInputInfo<I, K, O> extends SideInputInfo<I> {
 
-	private final DataStream<I> stream;
+	private final KeyedSideInputProcessFunction<I, K, O> function;
 
-	public SideInputInfo(final DataStream<I> stream) {
-		this.stream = Preconditions.checkNotNull(stream);
+	private final KeySelector<I, K> keySelector;
+
+	private final TypeInformation<K> keyTypeInfo;
+
+	public KeyedSideInputInfo(
+			final KeyedStream<I, K> stream,
+			final KeyedSideInputProcessFunction<I, K, O> function
+	) {
+		super(stream);
+		this.function = Preconditions.checkNotNull(function);
+		this.keySelector = stream.getKeySelector();
+		this.keyTypeInfo = stream.getKeyType();
 	}
 
-	public StreamTransformation<I> getTransformation() {
-		return stream.getTransformation();
+	public KeyedSideInputProcessFunction<I, K, O> getFunction() {
+		return function;
 	}
 
-	public TypeInformation<I> getInputTypeInfo() {
-		return stream.getType();
+	public KeySelector<I, K> getKeySelector() {
+		return keySelector;
+	}
+
+	public TypeInformation<K> getKeyTypeInfo() {
+		return keyTypeInfo;
 	}
 }

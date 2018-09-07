@@ -245,6 +245,10 @@ public abstract class AbstractStreamOperator<OUT>
 		}
 	}
 
+	public Output<StreamRecord<OUT>> getOutput() {
+		return output;
+	}
+
 	/**
 	 * This method is called immediately before any elements are processed, it should contain the
 	 * operator's initialization logic, e.g. state initialization.

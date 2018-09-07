@@ -19,7 +19,8 @@ package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.streaming.api.datastream.SideInputInfo;
+import org.apache.flink.streaming.api.datastream.KeyedSideInputInfo;
+import org.apache.flink.streaming.api.datastream.NonKeyedSideInputInfo;
 import org.apache.flink.util.InputTag;
 import org.apache.flink.util.Preconditions;
 
@@ -46,7 +47,18 @@ public class SideInputEdgeInfo<T, K, O> implements Serializable {
 
 	public SideInputEdgeInfo(
 			final InputTag inputTag,
-			final SideInputInfo<T, K, O> info
+			final NonKeyedSideInputInfo<T, O> info
+	) {
+		this(
+				Preconditions.checkNotNull(inputTag),
+				Preconditions.checkNotNull(info).getInputTypeInfo(),
+				null,
+				null);
+	}
+
+	public SideInputEdgeInfo(
+			final InputTag inputTag,
+			final KeyedSideInputInfo<T, K, O> info
 	) {
 		this(
 				Preconditions.checkNotNull(inputTag),

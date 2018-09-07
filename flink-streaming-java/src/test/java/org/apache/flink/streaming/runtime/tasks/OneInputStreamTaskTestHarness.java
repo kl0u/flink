@@ -151,7 +151,6 @@ public class OneInputStreamTaskTestHarness<IN, OUT> extends StreamTaskTestHarnes
 			final StreamEdge edge = new StreamEdge(
 					sourceVertexDummy,
 					targetVertexDummy,
-					0,
 					new ArrayList<>(),
 					new BroadcastPartitioner<>(),
 					null,

@@ -226,10 +226,11 @@ public class StreamGraph extends StreamingPlan {
 	public <IN, OUT, OP extends StreamOperator<OUT>> void addNaryOperator(
 			final Integer vertexID,
 			final String slotSharingGroup,
-			@Nullable String coLocationGroup,
+			@Nullable final String coLocationGroup,
 			final OP operator,
 			final TypeInformation<IN> inTypeInfo,
 			final TypeInformation<OUT> outTypeInfo,
+			@Nullable final TypeSerializer<?> stateKeySerializer,
 			final String operatorName
 	) {
 		// TODO: 8/27/18 check when the outTypeInfo == null or the input one or the InputTypeConfigurable also OutputTypeConfigurable
@@ -240,6 +241,7 @@ public class StreamGraph extends StreamingPlan {
 		StreamNode node = addNode(vertexID, slotSharingGroup, coLocationGroup, MultiInputStreamTask.class, operator, operatorName);
 		node.setSerializerIn1(inSerializer);
 		node.setSerializerOut(outSerializer);
+		node.setStateKeySerializer(stateKeySerializer);
 
 		if (operator instanceof OutputTypeConfigurable && outTypeInfo != null) {
 			@SuppressWarnings("unchecked")
@@ -380,21 +382,10 @@ public class StreamGraph extends StreamingPlan {
 		}
 	}
 
-	public void addEdge(Integer upStreamVertexID, Integer downStreamVertexID, int typeNumber) {
-		addEdgeInternal(upStreamVertexID,
-				downStreamVertexID,
-				typeNumber,
-				null,
-				new ArrayList<>(),
-				null,
-				null);
-
-	}
-
 	public void addEdge(Integer upStreamVertexID, Integer downStreamVertexID, SideInputEdgeInfo<?, ?, ?> inputInfo) {
-		addEdgeInternal(upStreamVertexID,
+		addEdgeInternal(
+				upStreamVertexID,
 				downStreamVertexID,
-				-1,
 				null,
 				new ArrayList<>(),
 				null,
@@ -405,7 +396,6 @@ public class StreamGraph extends StreamingPlan {
 	private void addEdgeInternal(
 			Integer upStreamVertexID,
 			Integer downStreamVertexID,
-			int typeNumber,
 			StreamPartitioner<?> partitioner,
 			List<String> outputNames,
 			OutputTag outputTag,
@@ -417,7 +407,7 @@ public class StreamGraph extends StreamingPlan {
 			if (outputTag == null) {
 				outputTag = virtualSideOutputNodes.get(virtualId).f1;
 			}
-			addEdgeInternal(upStreamVertexID, downStreamVertexID, typeNumber, partitioner, null, outputTag, inputInfo);
+			addEdgeInternal(upStreamVertexID, downStreamVertexID, partitioner, null, outputTag, inputInfo);
 		} else if (virtualSelectNodes.containsKey(upStreamVertexID)) {
 			int virtualId = upStreamVertexID;
 			upStreamVertexID = virtualSelectNodes.get(virtualId).f0;
@@ -425,14 +415,14 @@ public class StreamGraph extends StreamingPlan {
 				// selections that happen downstream override earlier selections
 				outputNames = virtualSelectNodes.get(virtualId).f1;
 			}
-			addEdgeInternal(upStreamVertexID, downStreamVertexID, typeNumber, partitioner, outputNames, outputTag, inputInfo);
+			addEdgeInternal(upStreamVertexID, downStreamVertexID, partitioner, outputNames, outputTag, inputInfo);
 		} else if (virtualPartitionNodes.containsKey(upStreamVertexID)) {
 			int virtualId = upStreamVertexID;
 			upStreamVertexID = virtualPartitionNodes.get(virtualId).f0;
 			if (partitioner == null) {
 				partitioner = virtualPartitionNodes.get(virtualId).f1;
 			}
-			addEdgeInternal(upStreamVertexID, downStreamVertexID, typeNumber, partitioner, outputNames, outputTag, inputInfo);
+			addEdgeInternal(upStreamVertexID, downStreamVertexID, partitioner, outputNames, outputTag, inputInfo);
 		} else {
 			StreamNode upstreamNode = getStreamNode(upStreamVertexID);
 			StreamNode downstreamNode = getStreamNode(downStreamVertexID);
@@ -454,7 +444,7 @@ public class StreamGraph extends StreamingPlan {
 				}
 			}
 
-			StreamEdge edge = new StreamEdge(upstreamNode, downstreamNode, typeNumber, outputNames, partitioner, outputTag, inputInfo);
+			StreamEdge edge = new StreamEdge(upstreamNode, downstreamNode, outputNames, partitioner, outputTag, inputInfo);
 
 			getStreamNode(edge.getSourceId()).addOutEdge(edge);
 			getStreamNode(edge.getTargetId()).addInEdge(edge);

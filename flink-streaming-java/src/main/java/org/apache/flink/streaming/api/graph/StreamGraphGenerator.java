@@ -19,10 +19,12 @@
 package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
-import org.apache.flink.streaming.api.datastream.SideInputInfo;
+import org.apache.flink.streaming.api.datastream.KeyedSideInputInfo;
+import org.apache.flink.streaming.api.datastream.NonKeyedSideInputInfo;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction;
 import org.apache.flink.streaming.api.transformations.CoFeedbackTransformation;
@@ -50,6 +52,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * A generator that generates a {@link StreamGraph} from a graph of
@@ -564,6 +567,7 @@ public class StreamGraphGenerator {
 				transform.getOperator(),
 				transform.getInputType(),
 				transform.getOutputType(),
+				null,
 				transform.getName());
 
 		if (transform.getStateKeySelector() != null) {
@@ -614,10 +618,9 @@ public class StreamGraphGenerator {
 				transform.getOperator(),
 				transform.getInputType1(),
 				transform.getOutputType(),
+				null,
 				transform.getName());
 
-		// TODO: 8/31/18 we may need to leave this because of legacy reasons: initialization of the keyedStateBackend. Look at AbstractStreamOperator line 217
-		// but we only need to find one keySelector and set it. No matter how many inputs.
 		if (transform.getStateKeySelector1() != null || transform.getStateKeySelector2() != null) {
 			TypeSerializer<?> keySerializer = transform.getStateKeyType().createSerializer(env.getConfig());
 			streamGraph.setTwoInputStateKey(transform.getId(), transform.getStateKeySelector1(), transform.getStateKeySelector2(), keySerializer);
@@ -658,14 +661,40 @@ public class StreamGraphGenerator {
 			return alreadyTransformed.get(multiInputTransformation);
 		}
 
-		final Map<InputTag, SideInputInfo<?, ?, O>> sideInputInfoMap = multiInputTransformation.getInputInfo();
+		final Map<InputTag, NonKeyedSideInputInfo<?, O>> nonKeyedInputs = multiInputTransformation.getNonKeyedInputInfo();
+		final Map<InputTag, KeyedSideInputInfo<?, ?, O>> keyedInputs = multiInputTransformation.getKeyedInputInfo();
 
-		final Map<InputTag, StreamTransformation<?>> inputTransformations = new HashMap<>(sideInputInfoMap.size());
-		for (Map.Entry<InputTag, SideInputInfo<?, ?, O>> entry : sideInputInfoMap.entrySet()) {
+		final Map<InputTag, StreamTransformation<?>> inputTransformations = new HashMap<>(nonKeyedInputs.size() + keyedInputs.size());
+
+		for (Map.Entry<InputTag, NonKeyedSideInputInfo<?, O>> entry : nonKeyedInputs.entrySet()) {
 			inputTransformations.put(entry.getKey(), entry.getValue().getTransformation());
 		}
 
-		// TODO: 8/30/18 here is where we see what we do with KeySelectors. E.g. do we allow keyed streams with non-keyed ones?
+		TypeSerializer<?> stateKeySerializer = null;
+		TypeInformation<?> lastSeenKeyTypeInfo = null;
+
+		for (Map.Entry<InputTag, KeyedSideInputInfo<?, ?, O>> entry : keyedInputs.entrySet()) {
+			final KeyedSideInputInfo<?, ?, O> info = entry.getValue();
+			final StreamTransformation<?> transformation = entry.getValue().getTransformation();
+
+			if (lastSeenKeyTypeInfo == null) {
+				lastSeenKeyTypeInfo = info.getKeyTypeInfo();
+			} else if (!Objects.equals(info.getKeyTypeInfo(), lastSeenKeyTypeInfo)) {
+				throw new IllegalArgumentException(
+						"Incompatible Keys Types detected:" +
+								" combining keyed with non-keyed inputs is allowed," +
+								" BUT all keyed inputs should have the same key type.");
+			}
+
+			// TODO: 9/10/18 here isn't it the same as the predecessors?
+			inputTransformations.put(entry.getKey(), transformation);
+
+			if (stateKeySerializer == null) {
+				stateKeySerializer = info.getKeyTypeInfo().createSerializer(env.getConfig());
+			}
+		}
+
+		// TODO: remove the nullables from the addNaryOperator
 		streamGraph.addNaryOperator(
 				multiInputTransformation.getId(),
 				determineSlotSharingGroup(multiInputTransformation, inputTransformations.values()),
@@ -673,28 +702,27 @@ public class StreamGraphGenerator {
 				multiInputTransformation.getOperator(),
 				multiInputTransformation.getInputType(),
 				multiInputTransformation.getOutputType(),
+				stateKeySerializer,
 				multiInputTransformation.getName()
 		);
-
-		// TODO: 8/31/18 we may need to leave this because of legacy reasons: initialization of the keyedStateBackend. Look at AbstractStreamOperator line 217
-		// but we only need to find one keySelector (and key serializer) and set it. No matter how many inputs.
-
-		// here I have to search for at least one keySelector and set it. If there is none, then we are non-keyed
-//		if (transform.getStateKeySelector1() != null || transform.getStateKeySelector2() != null) {
-//			TypeSerializer<?> keySerializer = transform.getStateKeyType().createSerializer(env.getConfig());
-//			streamGraph.setTwoInputStateKey(transform.getId(), transform.getStateKeySelector1(), transform.getStateKeySelector2(), keySerializer);
-//		}
 
 		streamGraph.setParallelism(multiInputTransformation.getId(), multiInputTransformation.getParallelism());
 		streamGraph.setMaxParallelism(multiInputTransformation.getId(), multiInputTransformation.getMaxParallelism());
 
-		// TODO: 8/31/18 encode the tags in the type number here
-		for (Map.Entry<InputTag, SideInputInfo<?, ?, O>> entry : sideInputInfoMap.entrySet()) {
-			final SideInputInfo<?, ?, O> info = entry.getValue();
+		for (Map.Entry<InputTag, NonKeyedSideInputInfo<?, O>> entry : nonKeyedInputs.entrySet()) {
+			final NonKeyedSideInputInfo<?, O> info = entry.getValue();
 			for (int inputId : transform(info.getTransformation())) {
 				streamGraph.addEdge(inputId, multiInputTransformation.getId(), new SideInputEdgeInfo<>(entry.getKey(), info));
 			}
 		}
+
+		for (Map.Entry<InputTag, KeyedSideInputInfo<?, ?, O>> entry : keyedInputs.entrySet()) {
+			final KeyedSideInputInfo<?, ?, O> info = entry.getValue();
+			for (int inputId : transform(info.getTransformation())) {
+				streamGraph.addEdge(inputId, multiInputTransformation.getId(), new SideInputEdgeInfo<>(entry.getKey(), info));
+			}
+		}
+
 		return Collections.singleton(multiInputTransformation.getId());
 	}
 

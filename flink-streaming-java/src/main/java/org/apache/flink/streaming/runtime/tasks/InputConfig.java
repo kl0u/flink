@@ -81,26 +81,32 @@ public class InputConfig {
 	}
 
 	public <OUT, OP extends StreamOperator<OUT>> GeneralValveOutputHandler.OperatorProxy createOperatorProxy(InputTag inputTag, OP operator) {
+
 		if (operator instanceof OneInputStreamOperator) {
 			final OneInputStreamOperator op = (OneInputStreamOperator) operator;
 			if (Objects.equals(inputTag, InputTag.MAIN_INPUT_TAG)) {
 				return new Proxy(op, keySelector);
 			} else {
-				throw new RuntimeException("Unknown Input \"" + inputTag + "\" for OneInputStreamOperator.");
+				throw new RuntimeException("Unknown Input \"" + inputTag + "\" in OneInputStreamOperator.");
 			}
-		} else if (operator instanceof TwoInputStreamOperator) {
+		}
+
+		if (operator instanceof TwoInputStreamOperator) {
 			final TwoInputStreamOperator op = (TwoInputStreamOperator) operator;
 			if (Objects.equals(inputTag, InputTag.MAIN_INPUT_TAG)) {
 				return new FirstOperatorProxy(op, keySelector);
 			} else if (Objects.equals(inputTag, InputTag.LEGACY_SECOND_INPUT_TAG)) {
 				return new SecondOperatorProxy(op, keySelector);
 			} else {
-				throw new RuntimeException("Unknown Input \"" + inputTag + "\" for TwoInputStreamOperator.");
+				throw new RuntimeException("Unknown Input \"" + inputTag + "\" in TwoInputStreamOperator.");
 			}
-		} else if (operator instanceof MultiInputStreamOperator) {
+		}
+
+		if (operator instanceof MultiInputStreamOperator) {
 			final MultiInputStreamOperator<OUT> op = (MultiInputStreamOperator) operator;
 			return new SingleInputOperatorProxy<>(op, inputTag, keySelector);
 		}
+
 		throw new RuntimeException("Unknown Operator Type \"" + operator.getClass().getName() + "\".");
 	}
 

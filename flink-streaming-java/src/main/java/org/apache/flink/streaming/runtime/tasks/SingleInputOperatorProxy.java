@@ -19,8 +19,8 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.streaming.api.operators.AbstractOneInputOperator;
 import org.apache.flink.streaming.api.operators.MultiInputStreamOperator;
-import org.apache.flink.streaming.api.operators.SideInputOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.GeneralValveOutputHandler;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
@@ -39,7 +39,7 @@ public class SingleInputOperatorProxy<OUT> implements GeneralValveOutputHandler.
 
 	private final InputTag inputTag;
 
-	private SideInputOperator<?, OUT> operator;
+	private AbstractOneInputOperator<?, OUT, ?> operator;
 
 	@Nullable
 	private final KeySelector<?, ?> keySelector;
@@ -50,14 +50,17 @@ public class SingleInputOperatorProxy<OUT> implements GeneralValveOutputHandler.
 			@Nullable final KeySelector<?, ?> keySelector) {
 		this.naryOperator = Preconditions.checkNotNull(operator);
 		this.inputTag = Preconditions.checkNotNull(inputTag);
-		// TODO: 8/29/18 there was a problem because op.open() is called after task.init(). this is why we do not initiate the operator here
 		this.keySelector = keySelector;
+
+		// TODO: 8/29/18 there was a problem because op.open() is called
+		// after task.init(). this is why we do not initiate the operator here
+
 	}
 
 	@Override
 	public void processLatencyMarker(LatencyMarker marker) throws Exception {
 		if (operator == null) {
-			this.operator = naryOperator.getTagOperator(inputTag); // TODO: 8/29/18 just for testing
+			this.operator = naryOperator.getOperatorForInput(inputTag); // TODO: 8/29/18 just for testing
 		}
 		operator.processLatencyMarker(marker);
 	}
@@ -65,8 +68,9 @@ public class SingleInputOperatorProxy<OUT> implements GeneralValveOutputHandler.
 	@Override
 	public void processElement(StreamRecord record) throws Exception {
 		if (operator == null) {
-			this.operator = naryOperator.getTagOperator(inputTag); // TODO: 8/29/18 just for testing
+			this.operator = naryOperator.getOperatorForInput(inputTag); // TODO: 8/29/18 just for testing
 		}
+		// TODO: 9/16/18 this can move to the keyedoneinputoperator
 		naryOperator.setKeyContextElement(record, keySelector);
 		operator.processElement(record);
 	}
@@ -74,7 +78,7 @@ public class SingleInputOperatorProxy<OUT> implements GeneralValveOutputHandler.
 	@Override
 	public void processWatermark(Watermark mark) throws Exception {
 		if (operator == null) {
-			this.operator = naryOperator.getTagOperator(inputTag); // TODO: 8/29/18 just for testing
+			this.operator = naryOperator.getOperatorForInput(inputTag); // TODO: 8/29/18 just for testing
 		}
 		operator.processWatermark(mark);
 	}

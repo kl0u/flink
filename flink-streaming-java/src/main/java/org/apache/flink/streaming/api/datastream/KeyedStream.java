@@ -38,6 +38,7 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
+import org.apache.flink.streaming.api.functions.KeyedSideInputProcessFunction;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction;
 import org.apache.flink.streaming.api.functions.aggregation.ComparableAggregator;
@@ -70,6 +71,7 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.partitioner.KeyGroupStreamPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
+import org.apache.flink.util.InputTag;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.commons.lang3.StringUtils;
@@ -592,6 +594,17 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 				.keyBy(keySelector1, keySelector2)
 				.transform("Interval Join", outputType, operator);
 		}
+	}
+
+	@PublicEvolving
+	public <I, O> SideInputStream<T, O> withKeyedSideInput(
+			final InputTag inputTag,
+			final KeyedStream<I, KEY> sideInput,
+			final KeyedSideInputProcessFunction<I, KEY, O> processFunction) {
+
+		final SideInputStream<T, O> resultingStream = new SideInputStream<>(this);
+		resultingStream.withKeyedSideInput(inputTag, sideInput, processFunction);
+		return resultingStream;
 	}
 
 	// ------------------------------------------------------------------------

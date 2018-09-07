@@ -42,11 +42,6 @@ public class StreamEdge implements Serializable {
 	private final StreamNode targetVertex;
 
 	/**
-	 * The type number of the input for co-tasks.
-	 */
-	private final int typeNumber;
-
-	/**
 	 * A list of output names that the target vertex listens to (if there is
 	 * output selection).
 	 */
@@ -67,20 +62,20 @@ public class StreamEdge implements Serializable {
 	public StreamEdge(
 			StreamNode sourceVertex,
 			StreamNode targetVertex,
-			int typeNumber,
 			List<String> selectedNames,
 			StreamPartitioner<?> outputPartitioner,
 			OutputTag outputTag,
 			@Nullable SideInputEdgeInfo<?, ?, ?> inputInfo) {
 		this.sourceVertex = sourceVertex;
 		this.targetVertex = targetVertex;
-		this.typeNumber = typeNumber;
 		this.selectedNames = selectedNames;
 		this.outputPartitioner = outputPartitioner;
 		this.outputTag = outputTag;
 		this.inputInfo = inputInfo;
 
-		this.edgeId = sourceVertex + "_" + targetVertex + "_" + typeNumber + "_" + selectedNames
+		final String inputName = inputInfo != null ? inputInfo.getInputTag().getId() : "legacy_op";
+
+		this.edgeId = sourceVertex + "_" + targetVertex + "_" + inputName + "_" + selectedNames
 				+ "_" + outputPartitioner;
 	}
 
@@ -98,10 +93,6 @@ public class StreamEdge implements Serializable {
 
 	public int getTargetId() {
 		return targetVertex.getId();
-	}
-
-	public int getTypeNumber() {
-		return typeNumber;
 	}
 
 	public List<String> getSelectedNames() {
@@ -146,7 +137,7 @@ public class StreamEdge implements Serializable {
 
 	@Override
 	public String toString() {
-		return "(" + sourceVertex + " -> " + targetVertex + ", typeNumber=" + typeNumber
+		return "(" + sourceVertex + " -> " + targetVertex + ", inputName=" + inputInfo.getInputTag().getId()
 				+ ", selectedNames=" + selectedNames + ", outputPartitioner=" + outputPartitioner
 				+ ", outputTag=" + outputTag + ')';
 	}
