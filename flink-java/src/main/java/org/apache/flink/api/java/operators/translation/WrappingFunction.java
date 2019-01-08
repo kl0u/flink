@@ -51,6 +51,11 @@ public abstract class WrappingFunction<T extends Function> extends AbstractRichF
 	}
 
 	@Override
+	public void dispose() throws Exception {
+		FunctionUtils.disposeFunction(this.wrappedFunction);
+	}
+
+	@Override
 	public void setRuntimeContext(RuntimeContext t) {
 		super.setRuntimeContext(t);
 

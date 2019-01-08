@@ -78,6 +78,19 @@ public interface RichFunction extends Function {
 	 */
 	void close() throws Exception;
 
+	/**
+	 * This method is called at the very end of a function's life, both in the case of a
+	 * successful completion and in the case of a failure and canceling.
+	 *
+	 * <p>This method is expected to make a thorough effort to release all resources
+	 * that the function has acquired.
+	 *
+	 * <p>By default this method simply calls {@link #close()}.
+	 */
+	default void dispose() throws Exception {
+		close();
+	}
+
 	// ------------------------------------------------------------------------
 	//  Runtime context
 	// ------------------------------------------------------------------------

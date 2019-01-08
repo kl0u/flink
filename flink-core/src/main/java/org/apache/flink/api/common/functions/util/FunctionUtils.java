@@ -44,6 +44,13 @@ public final class FunctionUtils {
 		}
 	}
 
+	public static void disposeFunction(Function function) throws Exception{
+		if (function instanceof RichFunction) {
+			RichFunction richFunction = (RichFunction) function;
+			richFunction.dispose();
+		}
+	}
+
 	public static void setFunctionRuntimeContext(Function function, RuntimeContext context){
 		if (function instanceof RichFunction) {
 			RichFunction richFunction = (RichFunction) function;

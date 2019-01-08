@@ -105,6 +105,9 @@ public class WindowOperatorTest extends TestLogger {
 	// For counting if close() is called the correct number of times on the SumReducer
 	private static AtomicInteger closeCalled = new AtomicInteger(0);
 
+	// For counting if dispose() is called the correct number of times on the SumReducer
+	private static AtomicInteger disposeCalled = new AtomicInteger(0);
+
 	// late arriving event OutputTag<StreamRecord<IN>>
 	private static final OutputTag<Tuple2<String, Integer>> lateOutputTag = new OutputTag<Tuple2<String, Integer>>("late-output") {};
 
@@ -187,6 +190,7 @@ public class WindowOperatorTest extends TestLogger {
 	@SuppressWarnings("unchecked")
 	public void testSlidingEventTimeWindowsReduce() throws Exception {
 		closeCalled.set(0);
+		disposeCalled.set(0);
 
 		final int windowSize = 3;
 		final int windowSlide = 1;
@@ -212,6 +216,7 @@ public class WindowOperatorTest extends TestLogger {
 	@Test
 	public void testSlidingEventTimeWindowsApply() throws Exception {
 		closeCalled.set(0);
+		disposeCalled.set(0);
 
 		final int windowSize = 3;
 		final int windowSlide = 1;
@@ -233,7 +238,8 @@ public class WindowOperatorTest extends TestLogger {
 		testSlidingEventTimeWindows(operator);
 
 		// we close once in the rest...
-		Assert.assertEquals("Close was not called.", 2, closeCalled.get());
+		Assert.assertEquals("Close was not called.", 1, closeCalled.get());
+		Assert.assertEquals("Dispose was not called.", 1, disposeCalled.get());
 	}
 
 	private void testTumblingEventTimeWindows(OneInputStreamOperator<Tuple2<String, Integer>, Tuple2<String, Integer>> operator) throws Exception {
@@ -309,6 +315,7 @@ public class WindowOperatorTest extends TestLogger {
 	@SuppressWarnings("unchecked")
 	public void testTumblingEventTimeWindowsReduce() throws Exception {
 		closeCalled.set(0);
+		disposeCalled.set(0);
 
 		final int windowSize = 3;
 
@@ -334,6 +341,7 @@ public class WindowOperatorTest extends TestLogger {
 	@SuppressWarnings("unchecked")
 	public void testTumblingEventTimeWindowsApply() throws Exception {
 		closeCalled.set(0);
+		disposeCalled.set(0);
 
 		final int windowSize = 3;
 
@@ -354,13 +362,15 @@ public class WindowOperatorTest extends TestLogger {
 		testTumblingEventTimeWindows(operator);
 
 		// we close once in the rest...
-		Assert.assertEquals("Close was not called.", 2, closeCalled.get());
+		Assert.assertEquals("Close was not called.", 1, closeCalled.get());
+		Assert.assertEquals("Dispose was not called.", 1, disposeCalled.get());
 	}
 
 	@Test
 	@SuppressWarnings("unchecked")
 	public void testSessionWindows() throws Exception {
 		closeCalled.set(0);
+		disposeCalled.set(0);
 
 		final int sessionSize = 3;
 
@@ -436,6 +446,7 @@ public class WindowOperatorTest extends TestLogger {
 	@SuppressWarnings("unchecked")
 	public void testSessionWindowsWithProcessFunction() throws Exception {
 		closeCalled.set(0);
+		disposeCalled.set(0);
 
 		final int sessionSize = 3;
 
@@ -511,6 +522,7 @@ public class WindowOperatorTest extends TestLogger {
 	@SuppressWarnings("unchecked")
 	public void testReduceSessionWindows() throws Exception {
 		closeCalled.set(0);
+		disposeCalled.set(0);
 
 		final int sessionSize = 3;
 
@@ -582,6 +594,7 @@ public class WindowOperatorTest extends TestLogger {
 	@SuppressWarnings("unchecked")
 	public void testReduceSessionWindowsWithProcessFunction() throws Exception {
 		closeCalled.set(0);
+		disposeCalled.set(0);
 
 		final int sessionSize = 3;
 
@@ -655,6 +668,7 @@ public class WindowOperatorTest extends TestLogger {
 	@Test
 	public void testSessionWindowsWithCountTrigger() throws Exception {
 		closeCalled.set(0);
+		disposeCalled.set(0);
 
 		final int sessionSize = 3;
 
@@ -725,6 +739,7 @@ public class WindowOperatorTest extends TestLogger {
 	@Test
 	public void testSessionWindowsWithContinuousEventTimeTrigger() throws Exception {
 		closeCalled.set(0);
+		disposeCalled.set(0);
 
 		final int sessionSize = 3;
 
@@ -803,6 +818,7 @@ public class WindowOperatorTest extends TestLogger {
 	@SuppressWarnings("unchecked")
 	public void testPointSessions() throws Exception {
 		closeCalled.set(0);
+		disposeCalled.set(0);
 
 		ListStateDescriptor<Tuple2<String, Integer>> stateDesc = new ListStateDescriptor<>("window-contents",
 				STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
@@ -863,6 +879,7 @@ public class WindowOperatorTest extends TestLogger {
 	@SuppressWarnings("unchecked")
 	public void testContinuousWatermarkTrigger() throws Exception {
 		closeCalled.set(0);
+		disposeCalled.set(0);
 
 		final int windowSize = 3;
 
@@ -947,6 +964,7 @@ public class WindowOperatorTest extends TestLogger {
 	@SuppressWarnings("unchecked")
 	public void testCountTrigger() throws Exception {
 		closeCalled.set(0);
+		disposeCalled.set(0);
 
 		final int windowSize = 4;
 
@@ -1226,6 +1244,7 @@ public class WindowOperatorTest extends TestLogger {
 	@SuppressWarnings("unchecked")
 	public void testDynamicEventTimeSessionWindows() throws Exception {
 		closeCalled.set(0);
+		disposeCalled.set(0);
 
 		SessionWindowTimeGapExtractor<Tuple2<String, Integer>> extractor = mock(SessionWindowTimeGapExtractor.class);
 		when(extractor.extract(any(Tuple2.class))).thenAnswer(invocation -> {
@@ -1308,6 +1327,7 @@ public class WindowOperatorTest extends TestLogger {
 	@SuppressWarnings("unchecked")
 	public void testDynamicProcessingTimeSessionWindows() throws Exception {
 		closeCalled.set(0);
+		disposeCalled.set(0);
 
 		SessionWindowTimeGapExtractor<Tuple2<String, Integer>> extractor = mock(SessionWindowTimeGapExtractor.class);
 		when(extractor.extract(any(Tuple2.class))).thenAnswer(invocation -> {
@@ -2579,6 +2599,12 @@ public class WindowOperatorTest extends TestLogger {
 		public void close() throws Exception {
 			super.close();
 			closeCalled.incrementAndGet();
+		}
+
+		@Override
+		public void dispose() throws Exception {
+			super.dispose();
+			disposeCalled.incrementAndGet();
 		}
 
 		@Override

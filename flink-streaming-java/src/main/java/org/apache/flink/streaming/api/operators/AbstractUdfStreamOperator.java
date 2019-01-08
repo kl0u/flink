@@ -53,12 +53,11 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
 
 	private static final long serialVersionUID = 1L;
 
-
-	/** The user function. */
 	protected final F userFunction;
 
-	/** Flag to prevent duplicate function.close() calls in close() and dispose(). */
 	private transient boolean functionsClosed = false;
+
+	private transient boolean functionsDisposed = false;
 
 	public AbstractUdfStreamOperator(F userFunction) {
 		this.userFunction = requireNonNull(userFunction);
@@ -104,17 +103,19 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
 
 	@Override
 	public void close() throws Exception {
-		super.close();
-		functionsClosed = true;
-		FunctionUtils.closeFunction(userFunction);
+		if (!functionsClosed) {
+			super.close();
+			functionsClosed = true;
+			FunctionUtils.closeFunction(userFunction);
+		}
 	}
 
 	@Override
 	public void dispose() throws Exception {
-		super.dispose();
-		if (!functionsClosed) {
-			functionsClosed = true;
-			FunctionUtils.closeFunction(userFunction);
+		if (!functionsDisposed) {
+			super.dispose();
+			functionsDisposed = true;
+			FunctionUtils.disposeFunction(userFunction);
 		}
 	}
 
