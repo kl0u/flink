@@ -323,6 +323,8 @@ public class BucketingSink<T>
 
 	private transient ProcessingTimeService processingTimeService;
 
+	private transient boolean isClosed;
+
 	/**
 	 * Creates a new {@code BucketingSink} that writes files to the given base directory.
 	 *
@@ -405,6 +407,7 @@ public class BucketingSink<T>
 	public void open(Configuration parameters) throws Exception {
 		super.open(parameters);
 
+		isClosed = false;
 		state = new State<>();
 
 		processingTimeService =
@@ -435,10 +438,11 @@ public class BucketingSink<T>
 
 	@Override
 	public void close() throws Exception {
-		if (state != null) {
+		if (!isClosed && state != null) {
 			for (Map.Entry<String, BucketState<T>> entry : state.bucketStates.entrySet()) {
 				closeCurrentPartFile(entry.getValue());
 			}
+			isClosed = true;
 		}
 	}
 

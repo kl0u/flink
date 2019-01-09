@@ -146,6 +146,16 @@ public class AsyncWaitOperatorTest extends TestLogger {
 			freeExecutor();
 		}
 
+		@Override
+		public void dispose() throws Exception {
+			// do nothing
+
+			// TODO previously the AbstractUDFStreamOperator was checking
+			// if close() was called and was making sure that it is not
+			// called more than once. Now we cannot do it, so the dispose()
+			// here does nothing, so that close() is not called twice.
+		}
+
 		private void freeExecutor() {
 			synchronized (MyAsyncFunction.class) {
 				--counter;

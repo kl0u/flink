@@ -74,6 +74,8 @@ public class EvictingWindowOperatorTest {
 	@Test
 	public void testCountEvictorEvictAfter() throws Exception {
 		AtomicInteger closeCalled = new AtomicInteger(0);
+		AtomicInteger disposeCalled = new AtomicInteger(0);
+
 		final int windowSize = 4;
 		final int triggerCount = 2;
 		final boolean evictAfter = true;
@@ -91,7 +93,7 @@ public class EvictingWindowOperatorTest {
 			new TupleKeySelector(),
 			BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
 			stateDesc,
-			new InternalIterableWindowFunction<>(new RichSumReducer<GlobalWindow>(closeCalled)),
+			new InternalIterableWindowFunction<>(new RichSumReducer<GlobalWindow>(closeCalled, disposeCalled)),
 			CountTrigger.of(triggerCount),
 			CountEvictor.of(windowSize, evictAfter),
 			0,
@@ -138,7 +140,8 @@ public class EvictingWindowOperatorTest {
 
 		testHarness.close();
 
-		Assert.assertEquals("Close was not called.", 1, closeCalled.get());
+		Assert.assertEquals("Close was not called.", 2, closeCalled.get());
+		Assert.assertEquals("Dispose was not called.", 1, disposeCalled.get());
 	}
 
 	/**
@@ -147,6 +150,8 @@ public class EvictingWindowOperatorTest {
 	@Test
 	public void testTimeEvictorEvictAfter() throws Exception {
 		AtomicInteger closeCalled = new AtomicInteger(0);
+		AtomicInteger disposeCalled = new AtomicInteger(0);
+
 		final int triggerCount = 2;
 		final boolean evictAfter = true;
 
@@ -163,7 +168,7 @@ public class EvictingWindowOperatorTest {
 			new TupleKeySelector(),
 			BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
 			stateDesc,
-			new InternalIterableWindowFunction<>(new RichSumReducer<GlobalWindow>(closeCalled)),
+			new InternalIterableWindowFunction<>(new RichSumReducer<GlobalWindow>(closeCalled, disposeCalled)),
 			CountTrigger.of(triggerCount),
 			TimeEvictor.of(Time.seconds(2), evictAfter),
 			0,
@@ -204,8 +209,8 @@ public class EvictingWindowOperatorTest {
 
 		testHarness.close();
 
-		Assert.assertEquals("Close was not called.", 1, closeCalled.get());
-
+		Assert.assertEquals("Close was not called.", 2, closeCalled.get());
+		Assert.assertEquals("Dispose was not called.", 1, disposeCalled.get());
 	}
 
 	/**
@@ -214,6 +219,8 @@ public class EvictingWindowOperatorTest {
 	@Test
 	public void testTimeEvictorEvictBefore() throws Exception {
 		AtomicInteger closeCalled = new AtomicInteger(0);
+		AtomicInteger disposeCalled = new AtomicInteger(0);
+
 		final int triggerCount = 2;
 		final int windowSize = 4;
 
@@ -230,7 +237,7 @@ public class EvictingWindowOperatorTest {
 			new TupleKeySelector(),
 			BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
 			stateDesc,
-			new InternalIterableWindowFunction<>(new RichSumReducer<TimeWindow>(closeCalled)),
+			new InternalIterableWindowFunction<>(new RichSumReducer<TimeWindow>(closeCalled, disposeCalled)),
 			CountTrigger.of(triggerCount),
 			TimeEvictor.of(Time.seconds(2)),
 			0,
@@ -272,7 +279,8 @@ public class EvictingWindowOperatorTest {
 
 		testHarness.close();
 
-		Assert.assertEquals("Close was not called.", 1, closeCalled.get());
+		Assert.assertEquals("Close was not called.", 2, closeCalled.get());
+		Assert.assertEquals("Dispose was not called.", 1, disposeCalled.get());
 	}
 
 	/**
@@ -282,6 +290,8 @@ public class EvictingWindowOperatorTest {
 	@Test
 	public void testTimeEvictorNoTimestamp() throws Exception {
 		AtomicInteger closeCalled = new AtomicInteger(0);
+		AtomicInteger disposeCalled = new AtomicInteger(0);
+
 		final int triggerCount = 2;
 		final boolean evictAfter = true;
 
@@ -298,7 +308,7 @@ public class EvictingWindowOperatorTest {
 			new TupleKeySelector(),
 			BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
 			stateDesc,
-			new InternalIterableWindowFunction<>(new RichSumReducer<GlobalWindow>(closeCalled)),
+			new InternalIterableWindowFunction<>(new RichSumReducer<GlobalWindow>(closeCalled, disposeCalled)),
 			CountTrigger.of(triggerCount),
 			TimeEvictor.of(Time.seconds(2), evictAfter),
 			0,
@@ -338,7 +348,8 @@ public class EvictingWindowOperatorTest {
 
 		testHarness.close();
 
-		Assert.assertEquals("Close was not called.", 1, closeCalled.get());
+		Assert.assertEquals("Close was not called.", 2, closeCalled.get());
+		Assert.assertEquals("Dispose was not called.", 1, disposeCalled.get());
 	}
 
 	/**
@@ -347,6 +358,8 @@ public class EvictingWindowOperatorTest {
 	@Test
 	public void testDeltaEvictorEvictBefore() throws Exception {
 		AtomicInteger closeCalled = new AtomicInteger(0);
+		AtomicInteger disposeCalled = new AtomicInteger(0);
+
 		final int triggerCount = 2;
 		final boolean evictAfter = false;
 		final int threshold = 2;
@@ -364,7 +377,7 @@ public class EvictingWindowOperatorTest {
 			new TupleKeySelector(),
 			BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
 			stateDesc,
-			new InternalIterableWindowFunction<>(new RichSumReducer<GlobalWindow>(closeCalled)),
+			new InternalIterableWindowFunction<>(new RichSumReducer<GlobalWindow>(closeCalled, disposeCalled)),
 			CountTrigger.of(triggerCount),
 			DeltaEvictor.of(threshold, new DeltaFunction<Tuple2<String, Integer>>() {
 				@Override
@@ -410,7 +423,8 @@ public class EvictingWindowOperatorTest {
 
 		testHarness.close();
 
-		Assert.assertEquals("Close was not called.", 1, closeCalled.get());
+		Assert.assertEquals("Close was not called.", 2, closeCalled.get());
+		Assert.assertEquals("Dispose was not called.", 1, disposeCalled.get());
 	}
 
 	/**
@@ -419,6 +433,8 @@ public class EvictingWindowOperatorTest {
 	@Test
 	public void testDeltaEvictorEvictAfter() throws Exception {
 		AtomicInteger closeCalled = new AtomicInteger(0);
+		AtomicInteger disposeCalled = new AtomicInteger(0);
+
 		final int triggerCount = 2;
 		final boolean evictAfter = true;
 		final int threshold = 2;
@@ -436,7 +452,7 @@ public class EvictingWindowOperatorTest {
 			new TupleKeySelector(),
 			BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
 			stateDesc,
-			new InternalIterableWindowFunction<>(new RichSumReducer<GlobalWindow>(closeCalled)),
+			new InternalIterableWindowFunction<>(new RichSumReducer<GlobalWindow>(closeCalled, disposeCalled)),
 			CountTrigger.of(triggerCount),
 			DeltaEvictor.of(threshold, new DeltaFunction<Tuple2<String, Integer>>() {
 				@Override
@@ -482,7 +498,8 @@ public class EvictingWindowOperatorTest {
 
 		testHarness.close();
 
-		Assert.assertEquals("Close was not called.", 1, closeCalled.get());
+		Assert.assertEquals("Close was not called.", 2, closeCalled.get());
+		Assert.assertEquals("Dispose was not called.", 1, disposeCalled.get());
 	}
 
 	@Test
@@ -558,6 +575,7 @@ public class EvictingWindowOperatorTest {
 	@SuppressWarnings("unchecked")
 	public void testCountTriggerWithApply() throws Exception {
 		AtomicInteger closeCalled = new AtomicInteger(0);
+		AtomicInteger disposeCalled = new AtomicInteger(0);
 
 		final int windowSize = 4;
 		final int windowSlide = 2;
@@ -575,7 +593,7 @@ public class EvictingWindowOperatorTest {
 			new TupleKeySelector(),
 			BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
 			stateDesc,
-			new InternalIterableWindowFunction<>(new RichSumReducer<GlobalWindow>(closeCalled)),
+			new InternalIterableWindowFunction<>(new RichSumReducer<GlobalWindow>(closeCalled, disposeCalled)),
 			CountTrigger.of(windowSlide),
 			CountEvictor.of(windowSize),
 			0,
@@ -619,13 +637,15 @@ public class EvictingWindowOperatorTest {
 
 		testHarness.close();
 
-		Assert.assertEquals("Close was not called.", 1, closeCalled.get());
+		Assert.assertEquals("Close was not called.", 2, closeCalled.get());
+		Assert.assertEquals("Dispose was not called.", 1, disposeCalled.get());
 	}
 
 	@Test
 	@SuppressWarnings("unchecked")
 	public void testTumblingWindowWithApply() throws Exception {
 		AtomicInteger closeCalled = new AtomicInteger(0);
+		AtomicInteger disposeCalled = new AtomicInteger(0);
 
 		final int windowSize = 4;
 
@@ -642,7 +662,7 @@ public class EvictingWindowOperatorTest {
 			new TupleKeySelector(),
 			BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
 			stateDesc,
-			new InternalIterableWindowFunction<>(new RichSumReducer<TimeWindow>(closeCalled)),
+			new InternalIterableWindowFunction<>(new RichSumReducer<TimeWindow>(closeCalled, disposeCalled)),
 			EventTimeTrigger.create(),
 			CountEvictor.of(windowSize),
 			0,
@@ -682,7 +702,7 @@ public class EvictingWindowOperatorTest {
 		testHarness.close();
 	}
 
-		// ------------------------------------------------------------------------
+	// ------------------------------------------------------------------------
 	//  UDFs
 	// ------------------------------------------------------------------------
 
@@ -701,10 +721,15 @@ public class EvictingWindowOperatorTest {
 
 		private boolean openCalled = false;
 
-		private AtomicInteger closeCalled = new AtomicInteger(0);
+		private AtomicInteger closeCalled;
+		private AtomicInteger disposeCalled;
 
-		public RichSumReducer(AtomicInteger closeCalled) {
+		RichSumReducer(
+				AtomicInteger closeCalled,
+				AtomicInteger disposeCalled
+		) {
 			this.closeCalled = closeCalled;
+			this.disposeCalled = disposeCalled;
 		}
 
 		@Override
@@ -717,6 +742,16 @@ public class EvictingWindowOperatorTest {
 		public void close() throws Exception {
 			super.close();
 			closeCalled.incrementAndGet();
+		}
+
+		@Override
+		public void dispose() throws Exception {
+			// super.dispose() will call also close() by default.
+			// we call it also here to verify that the default
+			// implementation actually calls close().
+
+			super.dispose();
+			disposeCalled.incrementAndGet();
 		}
 
 		@Override

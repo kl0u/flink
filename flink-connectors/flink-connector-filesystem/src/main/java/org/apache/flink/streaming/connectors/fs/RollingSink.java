@@ -287,6 +287,9 @@ public class RollingSink<T> extends RichSinkFunction<T>
 	 * The FileSystem reference.
 	 */
 	private transient FileSystem fs;
+
+	private transient boolean isClosed;
+
 	/**
 	 * Creates a new {@code RollingSink} that writes files to the given base directory.
 	 *
@@ -372,6 +375,8 @@ public class RollingSink<T> extends RichSinkFunction<T>
 	public void open(Configuration parameters) throws Exception {
 		super.open(parameters);
 
+		isClosed = false;
+
 		partCounter = 0;
 
 		this.writer = writerTemplate.duplicate();
@@ -392,7 +397,10 @@ public class RollingSink<T> extends RichSinkFunction<T>
 
 	@Override
 	public void close() throws Exception {
-		closeCurrentPartFile();
+		if (!isClosed) {
+			closeCurrentPartFile();
+			isClosed = true;
+		}
 	}
 
 	@Override
