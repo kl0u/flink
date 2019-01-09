@@ -769,7 +769,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 							if (transitionState(current, ExecutionState.FAILED, t)) {
 								// proper failure of the task. record the exception as the root cause
 								failureCause = t;
-								cancelInvokable(invokable); // TODO: 2019-01-09 this is called
+								cancelInvokable(invokable);
 
 								break;
 							}
