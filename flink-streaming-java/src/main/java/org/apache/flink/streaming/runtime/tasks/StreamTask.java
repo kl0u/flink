@@ -375,7 +375,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 			// if the operators were not disposed before, do a hard dispose
 			if (!disposed) {
-				disposeAllOperators();
+				disposeAllOperators(); // TODO: 2019-01-09 this calls dispose 
 			}
 
 			// release the output resources. this method should never fail.

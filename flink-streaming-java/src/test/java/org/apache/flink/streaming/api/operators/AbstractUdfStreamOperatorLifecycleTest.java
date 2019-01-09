@@ -94,7 +94,7 @@ public class AbstractUdfStreamOperatorLifecycleTest {
 			"UDF::run",
 			"OPERATOR::dispose",
 			"UDF::dispose",
-			"OPERATOR::cancel", // TODO: 2019-01-08 this does not seem ok
+			"OPERATOR::cancel", // This is strange but this is due to legacy reasons (the streamTask runs "within" a Task)
 			"UDF::cancel");
 
 	private static final String ALL_METHODS_STREAM_OPERATOR = "[" +
@@ -157,7 +157,7 @@ public class AbstractUdfStreamOperatorLifecycleTest {
 		StreamConfig cfg = new StreamConfig(new Configuration());
 		MockSourceFunction srcFun = new MockExceptionThrowingFunction();
 
-		cfg.setStreamOperator(new LifecycleTrackingFailingStreamSource<>(srcFun, true));
+		cfg.setStreamOperator(new LifecycleTrackingFailingStreamSource<>(srcFun));
 		cfg.setOperatorID(new OperatorID());
 		cfg.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
@@ -228,16 +228,12 @@ public class AbstractUdfStreamOperatorLifecycleTest {
 			extends StreamSource<OUT, SRC> implements Serializable {
 
 		private static final long serialVersionUID = 2431488948886850562L;
-		private transient Thread testCheckpointer;
-
-		private final boolean simulateCheckpointing;
 
 		static OneShotLatch runStarted;
 		static OneShotLatch runFinish;
 
-		LifecycleTrackingFailingStreamSource(SRC sourceFunction, boolean simulateCheckpointing) {
+		LifecycleTrackingFailingStreamSource(SRC sourceFunction) {
 			super(sourceFunction);
-			this.simulateCheckpointing = simulateCheckpointing;
 			runStarted = new OneShotLatch();
 			runFinish = new OneShotLatch();
 		}
@@ -300,9 +296,6 @@ public class AbstractUdfStreamOperatorLifecycleTest {
 		public void dispose() throws Exception {
 			ACTUAL_ORDER_TRACKING.add("OPERATOR::dispose");
 			super.dispose();
-			if (simulateCheckpointing) {
-				testCheckpointer.join();
-			}
 		}
 	}
 
