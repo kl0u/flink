@@ -72,4 +72,12 @@ public abstract class RichCompositeIterativeCondition<T> extends RichIterativeCo
 			FunctionUtils.closeFunction(nestedCondition);
 		}
 	}
+
+	@Override
+	public void dispose() throws Exception {
+		super.dispose();
+		for (IterativeCondition<T> nestedCondition : nestedConditions) {
+			FunctionUtils.disposeFunction(nestedCondition);
+		}
+	}
 }

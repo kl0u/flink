@@ -67,6 +67,12 @@ public class PatternTimeoutSelectAdapter<IN, OUT, T>
 	}
 
 	@Override
+	public void dispose() throws Exception {
+		super.dispose();
+		FunctionUtils.disposeFunction(timeoutFunction);
+	}
+
+	@Override
 	public void processTimedOutMatch(
 			final Map<String, List<IN>> match,
 			final Context ctx) throws Exception {

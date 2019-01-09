@@ -55,4 +55,8 @@ class FlatJoinRunner[IN1, IN2, OUT](
   override def close(): Unit = {
     FunctionUtils.closeFunction(function)
   }
+
+  override def dispose(): Unit = {
+    FunctionUtils.disposeFunction(function)
+  }
 }

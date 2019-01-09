@@ -48,6 +48,10 @@ final class ScalaRichAsyncFunctionWrapper[IN, OUT](func: RichAsyncFunction[IN, O
     func.close()
   }
 
+  override def dispose(): Unit = {
+    func.dispose()
+  }
+
   override def setRuntimeContext(runtimeContext: RuntimeContext): Unit = {
     super.setRuntimeContext(runtimeContext)
     func.setRuntimeContext(super.getRuntimeContext)

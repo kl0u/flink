@@ -58,4 +58,8 @@ class OutputRowtimeProcessFunction[OUT](
   override def close(): Unit = {
     FunctionUtils.closeFunction(function)
   }
+
+  override def dispose(): Unit = {
+    FunctionUtils.disposeFunction(function)
+  }
 }

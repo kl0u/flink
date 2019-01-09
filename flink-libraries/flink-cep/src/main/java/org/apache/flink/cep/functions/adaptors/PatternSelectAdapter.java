@@ -54,6 +54,11 @@ public class PatternSelectAdapter<IN, OUT> extends PatternProcessFunction<IN, OU
 	}
 
 	@Override
+	public void dispose() throws Exception {
+		FunctionUtils.disposeFunction(selectFunction);
+	}
+
+	@Override
 	public void processMatch(
 			final Map<String, List<IN>> match,
 			final Context ctx,

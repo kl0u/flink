@@ -54,6 +54,11 @@ public class PatternFlatSelectAdapter<IN, OUT> extends PatternProcessFunction<IN
 	}
 
 	@Override
+	public void dispose() throws Exception {
+		FunctionUtils.disposeFunction(flatSelectFunction);
+	}
+
+	@Override
 	public void processMatch(
 			final Map<String, List<IN>> match,
 			final Context ctx,

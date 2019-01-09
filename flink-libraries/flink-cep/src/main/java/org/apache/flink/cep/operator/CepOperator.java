@@ -230,6 +230,12 @@ public class CepOperator<IN, KEY, OUT>
 	}
 
 	@Override
+	public void dispose() throws Exception {
+		super.dispose();
+		nfa.dispose();
+	}
+
+	@Override
 	public void processElement(StreamRecord<IN> element) throws Exception {
 		if (isProcessingTime) {
 			if (comparator == null) {

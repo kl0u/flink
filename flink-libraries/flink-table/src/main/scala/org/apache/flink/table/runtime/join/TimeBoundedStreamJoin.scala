@@ -385,6 +385,10 @@ abstract class TimeBoundedStreamJoin(
     FunctionUtils.closeFunction(joinFunction)
   }
 
+  override def dispose(): Unit = {
+    FunctionUtils.disposeFunction(joinFunction)
+  }
+
   /**
     * Calculate the expiration time with the given operator time and relative window size.
     *

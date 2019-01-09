@@ -71,6 +71,17 @@ public class AbstractPythonUDF<F extends Function> extends AbstractRichFunction 
 		}
 	}
 
+	@Override
+	public void dispose() throws Exception {
+		if (this.fun instanceof RichFunction) {
+			try {
+				((RichFunction) this.fun).dispose();
+			} catch (PyException pe) {
+				throw createAndLogException(pe);
+			}
+		}
+	}
+
 	FlinkException createAndLogException(PyException pe) {
 		return createAndLogException(pe, log);
 	}

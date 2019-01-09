@@ -85,6 +85,11 @@ public class ReduceApplyProcessAllWindowFunction<W extends Window, T, R> extends
 	}
 
 	@Override
+	public void dispose() throws Exception {
+		FunctionUtils.disposeFunction(this.windowFunction);
+	}
+
+	@Override
 	public void setRuntimeContext(RuntimeContext t) {
 		super.setRuntimeContext(t);
 

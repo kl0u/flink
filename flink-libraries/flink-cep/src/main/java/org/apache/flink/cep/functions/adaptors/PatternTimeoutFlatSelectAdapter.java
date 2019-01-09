@@ -74,6 +74,12 @@ public class PatternTimeoutFlatSelectAdapter<IN, OUT, T>
 	}
 
 	@Override
+	public void dispose() throws Exception {
+		super.dispose();
+		FunctionUtils.disposeFunction(flatTimeoutFunction);
+	}
+
+	@Override
 	public void processTimedOutMatch(
 			Map<String, List<IN>> match,
 			Context ctx) throws Exception {

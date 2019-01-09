@@ -181,6 +181,10 @@ class TemporalRowtimeJoin(
     FunctionUtils.closeFunction(joinFunction)
   }
 
+  override def dispose(): Unit = {
+    FunctionUtils.disposeFunction(joinFunction)
+  }
+
   private def registerSmallestTimer(timestamp: Long): Unit = {
     val currentRegisteredTimer = registeredTimer.value()
     if (currentRegisteredTimer == null) {

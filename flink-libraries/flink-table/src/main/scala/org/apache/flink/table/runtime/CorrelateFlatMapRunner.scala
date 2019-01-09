@@ -71,4 +71,9 @@ class CorrelateFlatMapRunner[IN, OUT](
     FunctionUtils.closeFunction(collector)
     FunctionUtils.closeFunction(function)
   }
+
+  override def dispose(): Unit = {
+    FunctionUtils.disposeFunction(collector)
+    FunctionUtils.disposeFunction(function)
+  }
 }

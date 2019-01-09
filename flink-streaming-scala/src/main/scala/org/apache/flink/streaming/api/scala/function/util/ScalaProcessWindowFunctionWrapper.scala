@@ -103,6 +103,14 @@ final class ScalaProcessWindowFunctionWrapper[IN, OUT, KEY, W <: Window](
       case _ =>
     }
   }
+
+  override def dispose(): Unit = {
+    super.dispose()
+    func match {
+      case rfunc: ScalaProcessWindowFunction[IN, OUT, KEY, W] => rfunc.dispose()
+      case _ =>
+    }
+  }
 }
 
 /**
@@ -167,6 +175,14 @@ final class ScalaProcessAllWindowFunctionWrapper[IN, OUT, W <: Window](
     super.close()
     func match {
       case rfunc : ScalaProcessAllWindowFunction[IN, OUT, W] => rfunc.close()
+      case _ =>
+    }
+  }
+
+  override def dispose(): Unit = {
+    super.dispose()
+    func match {
+      case rfunc : ScalaProcessAllWindowFunction[IN, OUT, W] => rfunc.dispose()
       case _ =>
     }
   }

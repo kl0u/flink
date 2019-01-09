@@ -96,4 +96,8 @@ class TemporalProcessTimeJoin(
   override def close(): Unit = {
     FunctionUtils.closeFunction(joinFunction)
   }
+
+  override def dispose(): Unit = {
+    FunctionUtils.disposeFunction(joinFunction)
+  }
 }

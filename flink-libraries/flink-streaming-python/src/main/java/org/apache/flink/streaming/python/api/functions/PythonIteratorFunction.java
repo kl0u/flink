@@ -89,6 +89,17 @@ public class PythonIteratorFunction extends RichSourceFunction<Object> {
 	}
 
 	@Override
+	public void dispose() throws Exception {
+		if (this.fun instanceof RichFunction) {
+			try {
+				((RichFunction) this.fun).dispose();
+			} catch (PyException pe) {
+				throw AbstractPythonUDF.createAndLogException(pe, LOG);
+			}
+		}
+	}
+
+	@Override
 	public void cancel() {
 		isRunning = false;
 	}

@@ -91,6 +91,11 @@ public class FoldApplyProcessAllWindowFunction<W extends Window, T, ACC, R>
 	}
 
 	@Override
+	public void dispose() throws Exception {
+		FunctionUtils.disposeFunction(this.windowFunction);
+	}
+
+	@Override
 	public void setRuntimeContext(RuntimeContext t) {
 		super.setRuntimeContext(t);
 

@@ -63,4 +63,8 @@ abstract class MapSideJoinRunner[IN1, IN2, SINGLE_IN, MULTI_IN, OUT](
   override def close(): Unit = {
     FunctionUtils.closeFunction(function)
   }
+
+  override def dispose(): Unit = {
+    FunctionUtils.disposeFunction(function)
+  }
 }

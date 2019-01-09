@@ -200,6 +200,15 @@ public class NFA<T> {
 		}
 	}
 
+	public void dispose() throws Exception {
+		for (State<T> state : getStates()) {
+			for (StateTransition<T> transition : state.getStateTransitions()) {
+				IterativeCondition condition = transition.getCondition();
+				FunctionUtils.disposeFunction(condition);
+			}
+		}
+	}
+
 	/**
 	 * Processes the next input event. If some of the computations reach a final state then the
 	 * resulting event sequences are returned. If computations time out and timeout handling is

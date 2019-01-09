@@ -76,5 +76,7 @@ public abstract class AbstractRichFunction implements RichFunction, Serializable
 	public void close() throws Exception {}
 
 	@Override
-	public void dispose() throws Exception {}
+	public void dispose() throws Exception {
+		close();
+	}
 }
