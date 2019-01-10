@@ -100,6 +100,11 @@ public class OutputFormatSinkFunction<IN> extends RichSinkFunction<IN> implement
 		}
 	}
 
+	@Override
+	public void dispose() throws Exception {
+
+	}
+
 	private void cleanup() {
 		try {
 			if (!cleanupCalled && format instanceof CleanupWhenUnsuccessful) {

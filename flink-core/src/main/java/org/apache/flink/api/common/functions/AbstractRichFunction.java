@@ -38,6 +38,8 @@ public abstract class AbstractRichFunction implements RichFunction, Serializable
 	//  Runtime context access
 	// --------------------------------------------------------------------------------------------
 
+	private transient boolean isClosed;
+
 	private transient RuntimeContext runtimeContext;
 
 	@Override
@@ -79,4 +81,9 @@ public abstract class AbstractRichFunction implements RichFunction, Serializable
 	public void dispose() throws Exception {
 		close();
 	}
+
+	// TODO: 2019-01-10 with the current situation, some user code may break as shown by the AsyncOpTest and the OutputFormatSinkFunction.
+	// what we need to do is have an internalClose method in the abstract children classes of the rich function and call that one.
+	// the internalClose will have a flag isClosed which will be set to true the first time the close() is called and this
+	// will make sure that close() is not called twice.
 }

@@ -238,7 +238,7 @@ public class WindowOperatorTest extends TestLogger {
 		testSlidingEventTimeWindows(operator);
 
 		// we close once in the rest...
-		Assert.assertEquals("Close was not called.", 1, closeCalled.get());
+		Assert.assertEquals("Close was not called.", 2, closeCalled.get());
 		Assert.assertEquals("Dispose was not called.", 1, disposeCalled.get());
 	}
 
@@ -362,7 +362,7 @@ public class WindowOperatorTest extends TestLogger {
 		testTumblingEventTimeWindows(operator);
 
 		// we close once in the rest...
-		Assert.assertEquals("Close was not called.", 1, closeCalled.get());
+		Assert.assertEquals("Close was not called.", 2, closeCalled.get());
 		Assert.assertEquals("Dispose was not called.", 1, disposeCalled.get());
 	}
 
