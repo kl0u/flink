@@ -59,8 +59,8 @@ MVN_COMMON_OPTIONS="-nsu -Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -Dfa
 MVN_COMPILE_OPTIONS="-DskipTests"
 MVN_TEST_OPTIONS="$MVN_LOGGING_OPTIONS"
 
-MVN_COMPILE="mvn $MVN_COMMON_OPTIONS $MVN_COMPILE_OPTIONS $PROFILE $MVN_COMPILE_MODULES install"
-MVN_TEST="mvn $MVN_COMMON_OPTIONS $MVN_TEST_OPTIONS $PROFILE $MVN_TEST_MODULES verify"
+MVN_COMPILE="mvn $MVN_COMMON_OPTIONS $MVN_COMPILE_OPTIONS $PROFILE -Dcheckstyle.skip=true -pl flink-connectors/flink-connector-kafka-0.11 -am install"
+MVN_TEST="mvn $MVN_COMMON_OPTIONS $MVN_TEST_OPTIONS $PROFILE -pl flink-connectors/flink-connector-kafka-0.11 -Dtest=FlinkKafkaProducer011Test -DfailIfNoTests=false -Dcheckstyle.skip=true test"
 
 MVN_PID="${ARTIFACTS_DIR}/watchdog.mvn.pid"
 MVN_EXIT="${ARTIFACTS_DIR}/watchdog.mvn.exit"
@@ -284,23 +284,23 @@ upload_artifacts_s3
 cd ../../
 
 # only run end-to-end tests in misc because we only have flink-dist here
-case $TEST in
-	(misc)
-		if [ $EXIT_CODE == 0 ]; then
-			printf "\n\n==============================================================================\n"
-			printf "Running end-to-end tests\n"
-			printf "==============================================================================\n"
-
-			FLINK_DIR=build-target flink-end-to-end-tests/run-pre-commit-tests.sh
-
-			EXIT_CODE=$?
-		else
-			printf "\n==============================================================================\n"
-			printf "Previous build failure detected, skipping end-to-end tests.\n"
-			printf "==============================================================================\n"
-		fi
-	;;
-esac
+#case $TEST in
+#	(misc)
+#		if [ $EXIT_CODE == 0 ]; then
+#			printf "\n\n==============================================================================\n"
+#			printf "Running end-to-end tests\n"
+#			printf "==============================================================================\n"
+#
+#			FLINK_DIR=build-target flink-end-to-end-tests/run-pre-commit-tests.sh
+#
+#			EXIT_CODE=$?
+#		else
+#			printf "\n==============================================================================\n"
+#			printf "Previous build failure detected, skipping end-to-end tests.\n"
+#			printf "==============================================================================\n"
+#		fi
+#	;;
+#esac
 
 # Exit code for Travis build success/failure
 exit $EXIT_CODE
