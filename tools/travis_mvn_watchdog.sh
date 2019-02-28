@@ -237,7 +237,7 @@ rm $MVN_PID
 rm $MVN_EXIT
 
 # Run tests if compilation was successful
-if [ $EXIT_CODE == 0 ]; then
+while [ $EXIT_CODE == 0 ]; do
 
 	# Start watching $MVN_OUT
 	watchdog &
@@ -262,11 +262,7 @@ if [ $EXIT_CODE == 0 ]; then
 
 	rm $MVN_PID
 	rm $MVN_EXIT
-else
-	echo "=============================================================================="
-	echo "Compilation failure detected, skipping test execution."
-	echo "=============================================================================="
-fi
+done
 
 # Post
 
