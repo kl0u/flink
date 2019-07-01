@@ -57,6 +57,11 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
 	/** The user function. */
 	protected final F userFunction;
 
+	private transient boolean functionShutdown = false;
+
+	// TODO: 2019-07-01 this is not checkpointed.
+	private transient boolean functionPreparedToShutdown = false;
+
 	/** Flag to prevent duplicate function.close() calls in close() and dispose(). */
 	private transient boolean functionsClosed = false;
 
@@ -105,8 +110,26 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
 	@Override
 	public void close() throws Exception {
 		super.close();
-		functionsClosed = true;
-		FunctionUtils.closeFunction(userFunction);
+		prepareToShutdown();
+		shutdown();
+	}
+
+	@Override
+	public void prepareToShutdown() throws Exception {
+		super.prepareToShutdown();
+		if (!functionPreparedToShutdown) {
+			functionPreparedToShutdown = true;
+			FunctionUtils.prepareToShutdownFunction(userFunction);
+		}
+	}
+
+	@Override
+	public void shutdown() throws Exception {
+		super.shutdown();
+		if (!functionShutdown) {
+			functionShutdown = true;
+			FunctionUtils.shutdownFunction(userFunction);
+		}
 	}
 
 	@Override

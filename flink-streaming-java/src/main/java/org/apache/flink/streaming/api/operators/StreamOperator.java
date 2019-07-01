@@ -72,6 +72,10 @@ public interface StreamOperator<OUT> extends CheckpointListener, KeyContext, Dis
 	 */
 	void close() throws Exception;
 
+	void prepareToShutdown() throws Exception;
+
+	void shutdown() throws Exception;
+
 	/**
 	 * This method is called at the very end of the operator's life, both in the case of a successful
 	 * completion of the operation, and in the case of a failure and canceling.

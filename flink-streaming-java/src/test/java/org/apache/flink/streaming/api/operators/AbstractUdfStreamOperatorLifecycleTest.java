@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.functions.WithGracefulShutdown;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
@@ -68,8 +69,10 @@ public class AbstractUdfStreamOperatorLifecycleTest {
 			"OPERATOR::prepareSnapshotPreBarrier",
 			"OPERATOR::snapshotState",
 			"OPERATOR::close",
-			"UDF::close",
-			"OPERATOR::dispose");
+			"UDF::prepareToShutdown",
+			"UDF::shutdown",
+			"OPERATOR::dispose",
+			"UDF::close");
 
 	private static final List<String> EXPECTED_CALL_ORDER_CANCEL_RUNNING = Arrays.asList(
 			"OPERATOR::setup",
@@ -95,10 +98,12 @@ public class AbstractUdfStreamOperatorLifecycleTest {
 			"notifyCheckpointComplete[long], " +
 			"open[], " +
 			"prepareSnapshotPreBarrier[long], " +
+			"prepareToShutdown[], " +
 			"setChainingStrategy[class org.apache.flink.streaming.api.operators.ChainingStrategy], " +
 			"setCurrentKey[class java.lang.Object], " +
 			"setKeyContextElement1[class org.apache.flink.streaming.runtime.streamrecord.StreamRecord], " +
 			"setKeyContextElement2[class org.apache.flink.streaming.runtime.streamrecord.StreamRecord], " +
+			"shutdown[], " +
 			"snapshotState[long, long, class org.apache.flink.runtime.checkpoint.CheckpointOptions, interface org.apache.flink.runtime.state.CheckpointStreamFactory]]";
 
 	private static final String ALL_METHODS_RICH_FUNCTION = "[close[], getIterationRuntimeContext[], getRuntimeContext[]" +
@@ -178,7 +183,7 @@ public class AbstractUdfStreamOperatorLifecycleTest {
 		assertEquals(EXPECTED_CALL_ORDER_CANCEL_RUNNING, ACTUAL_ORDER_TRACKING);
 	}
 
-	private static class MockSourceFunction extends RichSourceFunction<Long> {
+	private static class MockSourceFunction extends RichSourceFunction<Long> implements WithGracefulShutdown {
 
 		private static final long serialVersionUID = 1L;
 
@@ -208,6 +213,16 @@ public class AbstractUdfStreamOperatorLifecycleTest {
 		public void close() throws Exception {
 			ACTUAL_ORDER_TRACKING.add("UDF::close");
 			super.close();
+		}
+
+		@Override
+		public void prepareToShutdown() throws Exception {
+			ACTUAL_ORDER_TRACKING.add("UDF::prepareToShutdown");
+		}
+
+		@Override
+		public void shutdown() throws Exception {
+			ACTUAL_ORDER_TRACKING.add("UDF::shutdown");
 		}
 	}
 

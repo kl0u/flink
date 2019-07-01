@@ -316,6 +316,18 @@ public abstract class AbstractStreamOperator<OUT>
 	@Override
 	public void close() throws Exception {}
 
+	@Override
+	public void prepareToShutdown() throws Exception {
+		// this is relevant for operators with UDFs
+		// TODO: 2019-07-01 eventually these methods can have default empty implementations
+	}
+
+	@Override
+	public void shutdown() throws Exception {
+		// this is relevant for operators with UDFs
+		// TODO: 2019-07-01 eventually these methods can have default empty implementations
+	}
+
 	/**
 	 * This method is called at the very end of the operator's life, both in the case of a successful
 	 * completion of the operation, and in the case of a failure and canceling.
