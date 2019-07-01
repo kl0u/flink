@@ -22,7 +22,10 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.functions.WithGracefulShutdown;
 import org.apache.flink.configuration.Configuration;
+
+import javax.annotation.Nonnull;
 
 /**
  * Utility class that contains helper methods to work with Flink {@link Function} class.
@@ -37,21 +40,35 @@ public final class FunctionUtils {
 		}
 	}
 
-	public static void closeFunction(Function function) throws Exception{
+	public static void prepareToShutdownFunction(@Nonnull final Function function) throws Exception {
+		if (function instanceof WithGracefulShutdown) {
+			final WithGracefulShutdown f = (WithGracefulShutdown) function;
+			f.prepareToShutdown();
+		}
+	}
+
+	public static void shutdownFunction(@Nonnull final Function function) throws Exception {
+		if (function instanceof WithGracefulShutdown) {
+			final WithGracefulShutdown f = (WithGracefulShutdown) function;
+			f.shutdown();
+		}
+	}
+
+	public static void closeFunction(Function function) throws Exception {
 		if (function instanceof RichFunction) {
 			RichFunction richFunction = (RichFunction) function;
 			richFunction.close();
 		}
 	}
 
-	public static void setFunctionRuntimeContext(Function function, RuntimeContext context){
+	public static void setFunctionRuntimeContext(Function function, RuntimeContext context) {
 		if (function instanceof RichFunction) {
 			RichFunction richFunction = (RichFunction) function;
 			richFunction.setRuntimeContext(context);
 		}
 	}
 
-	public static RuntimeContext getFunctionRuntimeContext(Function function, RuntimeContext defaultContext){
+	public static RuntimeContext getFunctionRuntimeContext(Function function, RuntimeContext defaultContext) {
 		if (function instanceof RichFunction) {
 			RichFunction richFunction = (RichFunction) function;
 			return richFunction.getRuntimeContext();
