@@ -176,6 +176,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	 */
 	private volatile boolean isRunning;
 
+	private volatile boolean isSuspended;
+
 	/** Flag to mark this task as canceled. */
 	private volatile boolean canceled;
 
@@ -224,6 +226,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		this.recordWriters = createRecordWriters(configuration, environment);
 		this.syncSavepointLatch = new SynchronousSavepointLatch();
 		this.mailbox = new MailboxImpl();
+		this.isSuspended = false;
 	}
 
 	// ------------------------------------------------------------------------
@@ -384,7 +387,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			// at the same time, this makes sure that during any "regular" exit where still
 			synchronized (lock) {
 				// this is part of the main logic, so if this fails, the task is considered failed
-				closeAllOperators();
+				if (!this.isSuspended) {
+					closeAllOperators();
+				}
+
 				// TODO: 2019-07-01 this could have both the prepareToShutdown and shutdown and they have to be idempotent.
 				// TODO: 2019-07-01 this will be called in case of finite sources
 				// TODO: 2019-07-01 but this may be also called in the case of suspend, which we do not want. SO we have to add a flag... (BAD ...really BAD)
@@ -515,6 +521,18 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			StreamOperator<?> operator = allOperators[i];
 			if (operator != null) {
 				operator.close();
+			}
+		}
+	}
+
+	private void prepareToShutdownAllOperators() throws Exception {
+		// We need to close them first to last, since upstream operators in the chain might emit
+		// elements in their close methods.
+		StreamOperator<?>[] allOperators = operatorChain.getAllOperators();
+		for (int i = allOperators.length - 1; i >= 0; i--) {
+			StreamOperator<?> operator = allOperators[i];
+			if (operator != null) {
+				operator.prepareToShutdown();
 			}
 		}
 	}
@@ -721,6 +739,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 						// TODO: 2019-07-01 here we prepareToShutdown() and the actual shutdown is called in close().
 						// in close, also the prepareToShutdown() is called but it is idempotent so we are good.
+						prepareToShutdownAllOperators();
+					} else {
+						this.isSuspended = true;
 					}
 				}
 
