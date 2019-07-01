@@ -385,6 +385,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			synchronized (lock) {
 				// this is part of the main logic, so if this fails, the task is considered failed
 				closeAllOperators();
+				// TODO: 2019-07-01 this could have both the prepareToShutdown and shutdown and they have to be idempotent.
+				// TODO: 2019-07-01 this will be called in case of finite sources
+				// TODO: 2019-07-01 but this may be also called in the case of suspend, which we do not want. SO we have to add a flag... (BAD ...really BAD)
 
 				// make sure no new timers can come
 				timerService.quiesce();
@@ -715,6 +718,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 					if (advanceToEndOfTime) {
 						advanceToEndOfEventTime();
+
+						// TODO: 2019-07-01 here we prepareToShutdown() and the actual shutdown is called in close().
+						// in close, also the prepareToShutdown() is called but it is idempotent so we are good.
 					}
 				}
 
