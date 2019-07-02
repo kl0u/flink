@@ -180,6 +180,8 @@ public class WindowOperatorTest extends TestLogger {
 
 		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple2ResultSortComparator());
 
+		// this will not call the function.close() a second time because we use the same function instance
+		// and the AbstractUdfStreamOperator.functionClosed flag is already set by the previous call.
 		testHarness.close();
 	}
 
@@ -233,7 +235,7 @@ public class WindowOperatorTest extends TestLogger {
 		testSlidingEventTimeWindows(operator);
 
 		// we close once in the rest...
-		Assert.assertEquals("Close was not called.", 2, closeCalled.get());
+		Assert.assertEquals("Close was not called.", 1, closeCalled.get());
 	}
 
 	private void testTumblingEventTimeWindows(OneInputStreamOperator<Tuple2<String, Integer>, Tuple2<String, Integer>> operator) throws Exception {
@@ -354,7 +356,7 @@ public class WindowOperatorTest extends TestLogger {
 		testTumblingEventTimeWindows(operator);
 
 		// we close once in the rest...
-		Assert.assertEquals("Close was not called.", 2, closeCalled.get());
+		Assert.assertEquals("Close was not called.", 1, closeCalled.get());
 	}
 
 	@Test
