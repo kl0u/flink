@@ -84,13 +84,13 @@ public class YarnApplicationClusterEntrypoint extends ClusterEntrypoint {
 			LOG.warn("Could not log YARN environment information.", e);
 		}
 
-		final YarnConfiguration yarnConfiguration = new YarnConfiguration();
 		final Configuration configuration = YarnEntrypointUtils.loadConfiguration(workingDirectory, env);
 
 		final YarnApplicationClusterEntrypoint yarnApplicationClusterEntrypoint =
 				new YarnApplicationClusterEntrypoint(configuration);
 		ClusterEntrypoint.runClusterEntrypoint(yarnApplicationClusterEntrypoint);
 
+		final YarnConfiguration yarnConfiguration = new YarnConfiguration();
 		final PackagedProgram executable = ProgramUtils.getExecutable(yarnConfiguration, configuration, env);
 
 		final PipelineExecutorServiceLoader executorServiceLoader = new YarnApplicationExecutorServiceLoader(
