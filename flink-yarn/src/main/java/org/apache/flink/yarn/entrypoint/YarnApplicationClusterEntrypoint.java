@@ -23,6 +23,7 @@ import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.dispatcher.ArchivedExecutionGraphStore;
@@ -34,8 +35,9 @@ import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.yarn.entrypoint.application.EmbeddedApplicationExecutor;
+import org.apache.flink.yarn.entrypoint.application.EmbeddedApplicationExecutorServiceLoader;
 import org.apache.flink.yarn.entrypoint.application.ProgramUtils;
-import org.apache.flink.yarn.executors.YarnApplicationExecutorServiceLoader;
 
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
@@ -92,8 +94,12 @@ public class YarnApplicationClusterEntrypoint extends ClusterEntrypoint {
 
 		final YarnConfiguration yarnConfiguration = new YarnConfiguration();
 		final PackagedProgram executable = ProgramUtils.getExecutable(yarnConfiguration, configuration, env);
+		configuration.set(DeploymentOptions.TARGET, EmbeddedApplicationExecutor.NAME);
 
-		final PipelineExecutorServiceLoader executorServiceLoader = new YarnApplicationExecutorServiceLoader(
+//		final PipelineExecutorServiceLoader executorServiceLoader = new YarnApplicationExecutorServiceLoader(
+//				yarnApplicationClusterEntrypoint.getDispatcherGatewayRetrieverFuture()
+//		);
+		final PipelineExecutorServiceLoader executorServiceLoader = new EmbeddedApplicationExecutorServiceLoader(
 				yarnApplicationClusterEntrypoint.getDispatcherGatewayRetrieverFuture()
 		);
 
