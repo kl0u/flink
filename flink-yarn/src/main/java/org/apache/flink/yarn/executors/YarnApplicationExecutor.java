@@ -22,7 +22,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.dag.Pipeline;
-import org.apache.flink.client.cli.ExecutionConfigAccessor;
 import org.apache.flink.client.deployment.executors.ExecutorUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.WebOptions;
@@ -32,7 +31,6 @@ import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.client.ClientUtils;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderGatewayRetriever;
 import org.apache.flink.util.FlinkException;
@@ -41,8 +39,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
-import java.net.URL;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
@@ -70,15 +66,7 @@ public class YarnApplicationExecutor implements PipelineExecutor {
 		checkNotNull(pipeline);
 		checkNotNull(configuration);
 
-		final ExecutionConfigAccessor configAccessor = ExecutionConfigAccessor.fromConfiguration(configuration);
-		final List<URL> classpathURLs = configAccessor.getClasspaths();
-		final List<URL> jarURLs = configAccessor.getJars();
-		final SavepointRestoreSettings savepointRestoreSettings = configAccessor.getSavepointRestoreSettings();
-
 		final JobGraph jobGraph = ExecutorUtils.getJobGraph(pipeline, configuration);
-		jobGraph.addJars(jarURLs);
-		jobGraph.setClasspaths(classpathURLs);
-		jobGraph.setSavepointRestoreSettings(savepointRestoreSettings);
 
 		final JobID jobID = jobGraph.getJobID();
 
