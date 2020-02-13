@@ -22,10 +22,12 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
+import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderGatewayRetriever;
 
 import javax.annotation.Nullable;
@@ -64,45 +66,55 @@ public class GatewayRetrieverJobClientAdapter implements JobClient {
 
 	@Override
 	public CompletableFuture<JobStatus> getJobStatus() {
-		return dispatcherGatewayRetrieverFuture.thenCompose(dispatcherRetriever ->
-				dispatcherRetriever.getFuture().thenCompose(dispatcher ->
-						dispatcher.requestJobStatus(jobID, timeout)));
+		return dispatcherGatewayRetrieverFuture
+				.thenCompose(LeaderGatewayRetriever::getFuture)
+				.thenCompose(dispatcher -> dispatcher.requestJobStatus(jobID, timeout));
 	}
 
 	@Override
 	public CompletableFuture<Void> cancel() {
-		return dispatcherGatewayRetrieverFuture.thenCompose(dispatcherRetriever ->
-				dispatcherRetriever.getFuture().thenCompose(dispatcher ->
-						dispatcher.cancelJob(jobID, timeout)))
+		return dispatcherGatewayRetrieverFuture
+				.thenCompose(LeaderGatewayRetriever::getFuture)
+				.thenCompose(dispatcher -> dispatcher.cancelJob(jobID, timeout))
 				.thenApply(ack -> null);
 	}
 
 	@Override
 	public CompletableFuture<String> stopWithSavepoint(boolean advanceToEndOfEventTime, @Nullable String savepointDirectory) {
-		return dispatcherGatewayRetrieverFuture.thenCompose(dispatcherRetriever ->
-				dispatcherRetriever.getFuture().thenCompose(dispatcher ->
-						dispatcher.stopWithSavepoint(jobID, savepointDirectory, advanceToEndOfEventTime, timeout)));
+		return  dispatcherGatewayRetrieverFuture
+				.thenCompose(LeaderGatewayRetriever::getFuture)
+				.thenCompose(dispatcher -> dispatcher.stopWithSavepoint(jobID, savepointDirectory, advanceToEndOfEventTime, timeout));
 	}
 
 	@Override
 	public CompletableFuture<String> triggerSavepoint(@Nullable String savepointDirectory) {
-		return dispatcherGatewayRetrieverFuture.thenCompose(dispatcherRetriever ->
-				dispatcherRetriever.getFuture().thenCompose(dispatcher ->
-						dispatcher.triggerSavepoint(jobID, savepointDirectory, false, timeout)));
+		return  dispatcherGatewayRetrieverFuture
+				.thenCompose(LeaderGatewayRetriever::getFuture)
+				.thenCompose(dispatcher -> dispatcher.triggerSavepoint(jobID, savepointDirectory, false, timeout));
 	}
 
 	@Override
 	public CompletableFuture<Map<String, Object>> getAccumulators(ClassLoader classLoader) {
-		// TODO: 06.02.20 fix before opening PR.
-		throw new UnsupportedOperationException("Not supported yet by the dispatcher.");
+		checkNotNull(classLoader);
+		return dispatcherGatewayRetrieverFuture
+				.thenCompose(LeaderGatewayRetriever::getFuture)
+				.thenCompose(dispatcherGateway -> dispatcherGateway.requestJob(jobID, timeout))
+				.thenApply(ArchivedExecutionGraph::getAccumulatorsSerialized)
+				.thenApply(accumulators -> {
+					try {
+						return AccumulatorHelper.deserializeAndUnwrapAccumulators(accumulators, classLoader);
+					} catch (Exception e) {
+						throw new CompletionException("Cannot deserialize and unwrap accumulators properly.", e);
+					}
+				});
 	}
 
 	@Override
 	public CompletableFuture<JobExecutionResult> getJobExecutionResult(ClassLoader userClassloader) {
 		checkNotNull(userClassloader);
-		return dispatcherGatewayRetrieverFuture.thenCompose(dispatcherRetriever ->
-				dispatcherRetriever.getFuture().thenCompose(dispatcher ->
-						dispatcher.requestJobResult(jobID, timeout)))
+		return dispatcherGatewayRetrieverFuture
+				.thenCompose(LeaderGatewayRetriever::getFuture)
+				.thenCompose(dispatcher -> dispatcher.requestJobResult(jobID, timeout))
 				.thenApply(result -> {
 					try {
 						return result.toJobExecutionResult(userClassloader);
