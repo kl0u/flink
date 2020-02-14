@@ -96,9 +96,6 @@ public class YarnApplicationClusterEntrypoint extends ClusterEntrypoint {
 		final PackagedProgram executable = ProgramUtils.getExecutable(yarnConfiguration, configuration, env);
 		configuration.set(DeploymentOptions.TARGET, EmbeddedApplicationExecutor.NAME);
 
-//		final PipelineExecutorServiceLoader executorServiceLoader = new YarnApplicationExecutorServiceLoader(
-//				yarnApplicationClusterEntrypoint.getDispatcherGatewayRetrieverFuture()
-//		);
 		final PipelineExecutorServiceLoader executorServiceLoader = new EmbeddedApplicationExecutorServiceLoader(
 				yarnApplicationClusterEntrypoint.getDispatcherGatewayRetrieverFuture()
 		);
@@ -108,6 +105,7 @@ public class YarnApplicationClusterEntrypoint extends ClusterEntrypoint {
 			ClientUtils.executeProgram(executorServiceLoader, configuration, executable);
 		} catch (Exception e) {
 			LOG.warn("Could not execute program: ", e);
+			// TODO: 14.02.20 here we should shutdown the cluster and also undernormal execution when the user code exits the main
 		}
 	}
 }
