@@ -27,6 +27,7 @@ import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.dispatcher.ArchivedExecutionGraphStore;
+import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.MemoryArchivedExecutionGraphStore;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
@@ -34,6 +35,8 @@ import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerCo
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
+import org.apache.flink.runtime.webmonitor.RestfulGateway;
+import org.apache.flink.runtime.webmonitor.retriever.LeaderGatewayRetriever;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.yarn.entrypoint.application.EmbeddedApplicationExecutor;
 import org.apache.flink.yarn.entrypoint.application.EmbeddedApplicationExecutorServiceLoader;
@@ -44,6 +47,7 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Javadoc.
@@ -96,16 +100,27 @@ public class YarnApplicationClusterEntrypoint extends ClusterEntrypoint {
 		final PackagedProgram executable = ProgramUtils.getExecutable(yarnConfiguration, configuration, env);
 		configuration.set(DeploymentOptions.TARGET, EmbeddedApplicationExecutor.NAME);
 
-		final PipelineExecutorServiceLoader executorServiceLoader = new EmbeddedApplicationExecutorServiceLoader(
-				yarnApplicationClusterEntrypoint.getDispatcherGatewayRetrieverFuture()
-		);
+		final CompletableFuture<LeaderGatewayRetriever<DispatcherGateway>> dispatcherRetrieverFuture =
+				yarnApplicationClusterEntrypoint.getDispatcherGatewayRetrieverFuture();
+
+		final PipelineExecutorServiceLoader executorServiceLoader =
+				new EmbeddedApplicationExecutorServiceLoader(dispatcherRetrieverFuture);
 
 		try {
 			// TODO: 05.02.20 rename clientUtils to submitUtils or sth...
 			ClientUtils.executeProgram(executorServiceLoader, configuration, executable);
 		} catch (Exception e) {
 			LOG.warn("Could not execute program: ", e);
-			// TODO: 14.02.20 here we should shutdown the cluster and also undernormal execution when the user code exits the main
+		} finally {
+
+			// We are out of the user's main, either due to a failure or
+			// due to finishing or cancelling the execution.
+			// In any case, it is time to shutdown the cluster
+
+			dispatcherRetrieverFuture
+					.thenCompose(LeaderGatewayRetriever::getFuture)
+					.thenCompose(RestfulGateway::shutDownCluster)
+					.thenRun(() -> LOG.warn("Cluster was shutdown."));
 		}
 	}
 }
