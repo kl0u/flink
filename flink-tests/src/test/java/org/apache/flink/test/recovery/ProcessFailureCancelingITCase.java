@@ -74,6 +74,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
@@ -156,6 +157,7 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 				NoOpMetricRegistry.INSTANCE,
 				new MemoryArchivedExecutionGraphStore(),
 				VoidMetricQueryServiceRetriever.INSTANCE,
+				new CompletableFuture<>(), // TODO: 14.02.20 for now
 				fatalErrorHandler);
 
 			final Map<String, String> keyValues = config.toMap();

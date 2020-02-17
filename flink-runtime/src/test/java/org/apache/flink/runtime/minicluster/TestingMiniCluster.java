@@ -118,6 +118,7 @@ public class TestingMiniCluster extends MiniCluster {
 					metricRegistry,
 					new MemoryArchivedExecutionGraphStore(),
 					metricQueryServiceRetriever,
+					new CompletableFuture<>(), // TODO: 14.02.20 for now
 					fatalErrorHandler));
 		}
 
