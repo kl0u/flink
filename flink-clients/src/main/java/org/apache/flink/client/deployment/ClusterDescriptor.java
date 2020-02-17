@@ -52,8 +52,7 @@ public interface ClusterDescriptor<T> extends AutoCloseable {
 	ClusterClientProvider<T> deploySessionCluster(ClusterSpecification clusterSpecification) throws ClusterDeploymentException;
 
 	/**
-	 * todo make it more accurate
-	 * Triggers deployment of an application cluster.
+	 * Triggers deployment of an application cluster which will run the main user method on the cluster entry point.
 	 * @param clusterSpecification Cluster specification defining the cluster to deploy
 	 * @return Client for the cluster
 	 * @throws ClusterDeploymentException if the cluster could not be deployed

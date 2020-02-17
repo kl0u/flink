@@ -23,7 +23,6 @@ import org.apache.flink.client.deployment.ClusterClientFactory;
 import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterSpecification;
-import org.apache.flink.client.program.ClusterClientProvider;
 import org.apache.flink.configuration.Configuration;
 
 import org.slf4j.Logger;
@@ -46,15 +45,16 @@ public class ProgramDeployerImpl implements ProgramDeployer {
 	}
 
 	@Override
-	public <ClusterID> void deploy(final Configuration configuration) throws Exception {
-		LOG.info("Submitting application with the following configuration: {}", configuration);
+	public <ClusterID> void runOnCluster(final Configuration configuration) throws Exception {
+		checkNotNull(configuration);
+
+		LOG.info("Submitting application for CLUSTER deployment with configuration: {}", configuration);
 
 		final ClusterClientFactory<ClusterID> clientFactory = clientServiceLoader.getClusterClientFactory(configuration);
 		try (final ClusterDescriptor<ClusterID> clusterDescriptor = clientFactory.createClusterDescriptor(configuration)) {
 			final ClusterSpecification clusterSpecification = clientFactory.getClusterSpecification(configuration);
 
-			// TODO: 29.01.20 the following call should change to return a different, application client.
-			final ClusterClientProvider<ClusterID> clusterClientProvider = clusterDescriptor.deployApplicationCluster(clusterSpecification);
+			clusterDescriptor.deployApplicationCluster(clusterSpecification);
 		}
 	}
 }
