@@ -109,6 +109,7 @@ public class DefaultDispatcherResourceManagerComponentFactory implements Dispatc
 			MetricRegistry metricRegistry,
 			ArchivedExecutionGraphStore archivedExecutionGraphStore,
 			MetricQueryServiceRetriever metricQueryServiceRetriever,
+			CompletableFuture<LeaderGatewayRetriever<DispatcherGateway>> leaderGatewayRetrieverCompletableFuture,
 			FatalErrorHandler fatalErrorHandler) throws Exception {
 
 		LeaderRetrievalService dispatcherLeaderRetrievalService = null;
@@ -206,6 +207,8 @@ public class DefaultDispatcherResourceManagerComponentFactory implements Dispatc
 
 			resourceManagerRetrievalService.start(resourceManagerGatewayRetriever);
 			dispatcherLeaderRetrievalService.start(dispatcherGatewayRetriever);
+
+			leaderGatewayRetrieverCompletableFuture.complete(dispatcherGatewayRetriever);
 
 			return new DispatcherResourceManagerComponent(
 				dispatcherRunner,
