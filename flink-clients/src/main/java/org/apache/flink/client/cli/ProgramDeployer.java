@@ -29,10 +29,10 @@ import org.apache.flink.configuration.Configuration;
 public interface ProgramDeployer {
 
 	/**
-	 * Submits a user program for execution.
+	 * Submits a user program for execution and runs the main user method on the cluster.
 	 *
 	 * @param configuration the configuration containing all the necessary
 	 *                        information about submitting the user program.
 	 */
-	<ClusterID> void deploy(final Configuration configuration) throws Exception;
+	<ClusterID> void runOnCluster(final Configuration configuration) throws Exception;
 }
