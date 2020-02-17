@@ -37,7 +37,6 @@ import org.apache.flink.client.program.ProgramParametrizationException;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
-import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
@@ -212,18 +211,16 @@ public class CliFrontend {
 		final Configuration effectiveConfiguration =
 				getEffectiveConfiguration(commandLine, programOptions, jobJars);
 
-		LOG.debug("Effective executor configuration: {}", effectiveConfiguration);
+		try {
+			if (commandLine.hasOption(REMOTE_DEPLOYMENT_OPTION.getOpt())) {
+				deployer.runOnCluster(effectiveConfiguration);
+			} else {
+				LOG.debug("Effective executor configuration: {}", effectiveConfiguration);
 
-		if (commandLine.hasOption(REMOTE_DEPLOYMENT_OPTION.getOpt())) {
-			effectiveConfiguration.set(DeploymentOptions.REMOTE_DEPLOYMENT, true);
-			deployer.deploy(effectiveConfiguration);
-		} else {
-			// TODO: 29.01.20 this can go to a different deployer or a different method of the same deployer
-			try {
 				executeProgram(effectiveConfiguration, program);
-			} finally {
-				program.deleteExtractedLibraries();
 			}
+		} finally {
+			program.deleteExtractedLibraries();
 		}
 	}
 
