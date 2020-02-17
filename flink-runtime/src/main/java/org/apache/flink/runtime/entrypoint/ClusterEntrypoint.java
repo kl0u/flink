@@ -37,7 +37,6 @@ import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.dispatcher.ArchivedExecutionGraphStore;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
-import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.dispatcher.MiniDispatcher;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponent;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
@@ -45,7 +44,6 @@ import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
-import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.ReporterSetup;
@@ -63,7 +61,6 @@ import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.runtime.util.Hardware;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderGatewayRetriever;
-import org.apache.flink.runtime.webmonitor.retriever.impl.RpcGatewayRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.impl.RpcMetricQueryServiceRetriever;
 import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ExceptionUtils;
@@ -233,20 +230,21 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 				metricRegistry,
 				archivedExecutionGraphStore,
 				new RpcMetricQueryServiceRetriever(metricRegistry.getMetricQueryServiceRpcService()),
+				dispatcherGatewayRetrieverFuture,
 				this);
 
-			// TODO: 05.02.20 this is the same code as in  the clusterComponent.
-			//  Should we get it from there? Here we also add a new (duplicate) service which may be inefficient
-			final LeaderRetrievalService dispatcherLeaderRetrievalService = haServices.getDispatcherLeaderRetriever();
-
-			final LeaderGatewayRetriever<DispatcherGateway> dispatcherGatewayRetriever = new RpcGatewayRetriever<>(
-					commonRpcService,
-					DispatcherGateway.class,
-					DispatcherId::fromUuid,
-					10,
-					Time.milliseconds(50L));
-
-			dispatcherLeaderRetrievalService.start(dispatcherGatewayRetriever);
+//			// TODO: 05.02.20 this is the same code as in  the clusterComponent.
+//			//  Should we get it from there? Here we also add a new (duplicate) service which may be inefficient
+//			final LeaderRetrievalService dispatcherLeaderRetrievalService = haServices.getDispatcherLeaderRetriever();
+//
+//			final LeaderGatewayRetriever<DispatcherGateway> dispatcherGatewayRetriever = new RpcGatewayRetriever<>(
+//					commonRpcService,
+//					DispatcherGateway.class,
+//					DispatcherId::fromUuid,
+//					10,
+//					Time.milliseconds(50L));
+//
+//			dispatcherLeaderRetrievalService.start(dispatcherGatewayRetriever);
 
 			clusterComponent.getShutDownFuture().whenComplete(
 				(ApplicationStatus applicationStatus, Throwable throwable) -> {
@@ -265,7 +263,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 					}
 				});
 
-			dispatcherGatewayRetrieverFuture.complete(dispatcherGatewayRetriever);
+//			dispatcherGatewayRetrieverFuture.complete(dispatcherGatewayRetriever);
 		}
 	}
 

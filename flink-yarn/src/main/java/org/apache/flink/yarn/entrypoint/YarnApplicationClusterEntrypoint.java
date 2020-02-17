@@ -98,7 +98,9 @@ public class YarnApplicationClusterEntrypoint extends ClusterEntrypoint {
 
 		final YarnConfiguration yarnConfiguration = new YarnConfiguration();
 		final PackagedProgram executable = ProgramUtils.getExecutable(yarnConfiguration, configuration, env);
+
 		configuration.set(DeploymentOptions.TARGET, EmbeddedApplicationExecutor.NAME);
+		configuration.set(DeploymentOptions.ATTACHED, true);
 
 		final CompletableFuture<LeaderGatewayRetriever<DispatcherGateway>> dispatcherRetrieverFuture =
 				yarnApplicationClusterEntrypoint.getDispatcherGatewayRetrieverFuture();
