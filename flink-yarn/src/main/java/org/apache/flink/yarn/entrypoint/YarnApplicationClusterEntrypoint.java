@@ -96,8 +96,7 @@ public class YarnApplicationClusterEntrypoint extends ClusterEntrypoint {
 				new YarnApplicationClusterEntrypoint(configuration);
 		ClusterEntrypoint.runClusterEntrypoint(yarnApplicationClusterEntrypoint);
 
-		final YarnConfiguration yarnConfiguration = new YarnConfiguration();
-		final PackagedProgram executable = ProgramUtils.getExecutable(yarnConfiguration, configuration, env);
+		final PackagedProgram executable = ProgramUtils.getExecutable(configuration, env);
 
 		configuration.set(DeploymentOptions.TARGET, EmbeddedApplicationExecutor.NAME);
 		configuration.set(DeploymentOptions.ATTACHED, true);
