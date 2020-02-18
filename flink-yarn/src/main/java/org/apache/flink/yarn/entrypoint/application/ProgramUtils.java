@@ -30,9 +30,6 @@ import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.yarn.YarnConfigKeys;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
@@ -80,6 +77,7 @@ public class ProgramUtils {
 			final Configuration configuration,
 			final Map<String, String> environment) throws IOException {
 
+		// TODO: 18.02.20 check the init FS in the TaskExec utils to also see if we use the right tmp dir
 		final Path tmpDirToUse = new Path(ConfigurationUtils.parseTempDirectories(configuration)[0]);
 
 		final List<Path> remotePathsToLocalize = jobGraphJarPathsToLocalize(environment);
