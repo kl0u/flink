@@ -43,7 +43,6 @@ import org.apache.flink.yarn.entrypoint.application.EmbeddedApplicationExecutorS
 import org.apache.flink.yarn.entrypoint.application.ProgramUtils;
 
 import org.apache.hadoop.yarn.api.ApplicationConstants;
-import org.apache.hadoop.yarn.conf.YarnConfiguration;
 
 import java.io.IOException;
 import java.util.Map;
