@@ -25,12 +25,13 @@ import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
+import org.apache.flink.util.FileUtils;
 import org.apache.flink.yarn.YarnConfigKeys;
 
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.yarn.conf.YarnConfiguration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -51,11 +52,10 @@ import static org.apache.flink.util.Preconditions.checkState;
 public class ProgramUtils {
 
 	public static PackagedProgram getExecutable(
-			final YarnConfiguration yarnConfig,
 			final Configuration config,
 			final Map<String, String> environment) throws IOException, ProgramInvocationException {
 
-		final Configuration effectiveConfig = getEffectiveConfiguration(yarnConfig, config, environment);
+		final Configuration effectiveConfig = getEffectiveConfiguration(config, environment);
 		final ExecutionConfigAccessor configAccessor = ExecutionConfigAccessor.fromConfiguration(effectiveConfig);
 
 		final List<URL> jars = configAccessor.getJars();
@@ -77,26 +77,22 @@ public class ProgramUtils {
 	}
 
 	private static Configuration getEffectiveConfiguration(
-			final YarnConfiguration yarnConfig,
 			final Configuration configuration,
 			final Map<String, String> environment) throws IOException {
 
-		final FileSystem fileSystem = FileSystem.get(yarnConfig);
 		final Path tmpDirToUse = new Path(ConfigurationUtils.parseTempDirectories(configuration)[0]);
 
 		final List<Path> remotePathsToLocalize = jobGraphJarPathsToLocalize(environment);
-		final List<URL> localJarPaths = localizeJobGraphJars(fileSystem, remotePathsToLocalize, tmpDirToUse);
+		final List<URL> localJarPaths = localizeJobGraphJars(remotePathsToLocalize, tmpDirToUse);
 
 		ConfigUtils.encodeCollectionToConfig(configuration, PipelineOptions.JARS, localJarPaths, URL::toString);
 		return configuration;
 	}
 
 	private static List<URL> localizeJobGraphJars(
-			final FileSystem fileSystem,
 			final List<Path> remotePathsToLocalize,
 			final Path localDestDir) throws IOException {
 
-		checkNotNull(fileSystem);
 		checkNotNull(remotePathsToLocalize);
 
 		// TODO: 05.02.20 NEW JIRA the relocator should become
@@ -105,7 +101,7 @@ public class ProgramUtils {
 		final List<URL> localJarURLs = new ArrayList<>();
 		for (Path srcPath : remotePathsToLocalize) {
 			final Path dstPath = new Path(localDestDir, srcPath.getName());
-			fileSystem.copyToLocalFile(srcPath, dstPath);
+			FileUtils.copy(srcPath, dstPath, true);
 
 			final URL url = new File(dstPath.toUri().getPath()).getAbsoluteFile().toURI().toURL();
 			localJarURLs.add(url);
