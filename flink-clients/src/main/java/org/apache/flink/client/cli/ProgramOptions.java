@@ -116,6 +116,10 @@ public class ProgramOptions extends CommandLineOptions {
 			jarFilePath = null;
 		}
 
+		if (!isPython && jarFilePath == null) {
+			throw new CliArgsException("Java program should be specified a JAR file.");
+		}
+
 		this.programArgs = args;
 
 		List<URL> classpaths = new ArrayList<URL>();

@@ -191,13 +191,6 @@ public class CliFrontend {
 			return;
 		}
 
-		if (!programOptions.isPython()) {
-			// Java program should be specified a JAR file
-			if (programOptions.getJarFilePath() == null) {
-				throw new CliArgsException("Java program should be specified a JAR file.");
-			}
-		}
-
 		final PackagedProgram program;
 		try {
 			LOG.info("Building program from JAR file");
