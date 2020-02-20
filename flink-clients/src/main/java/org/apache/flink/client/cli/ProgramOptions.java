@@ -161,7 +161,7 @@ public class ProgramOptions extends CommandLineOptions {
 	}
 
 	public String getEntryPointClassName() {
-		return entryPointClass;
+		return entryPointClass == null && isPython ? "org.apache.flink.client.python.PythonDriver" : entryPointClass;
 	}
 
 	public List<URL> getClasspaths() {
@@ -186,12 +186,5 @@ public class ProgramOptions extends CommandLineOptions {
 
 	public SavepointRestoreSettings getSavepointRestoreSettings() {
 		return savepointSettings;
-	}
-
-	/**
-	 * Indicates whether the job is a Python job.
-	 */
-	public boolean isPython() {
-		return isPython;
 	}
 }

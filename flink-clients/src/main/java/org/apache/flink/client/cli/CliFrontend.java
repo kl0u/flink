@@ -677,24 +677,7 @@ public class CliFrontend {
 
 		// Get assembler class
 		String entryPointClass = runOptions.getEntryPointClassName();
-		File jarFile = null;
-		if (runOptions.isPython()) {
-			// If the job is specified a jar file
-			if (jarFilePath != null) {
-				jarFile = getJarFile(jarFilePath);
-			}
-
-			// If the job is Python Shell job, the entry point class name is PythonGateWayServer.
-			// Otherwise, the entry point class of python job is PythonDriver
-			if (entryPointClass == null) {
-				entryPointClass = "org.apache.flink.client.python.PythonDriver";
-			}
-		} else {
-			if (jarFilePath == null) {
-				throw new IllegalArgumentException("Java program should be specified a JAR file.");
-			}
-			jarFile = getJarFile(jarFilePath);
-		}
+		File jarFile = jarFilePath != null ? getJarFile(jarFilePath) : null;
 
 		return PackagedProgram.newBuilder()
 			.setJarFile(jarFile)
