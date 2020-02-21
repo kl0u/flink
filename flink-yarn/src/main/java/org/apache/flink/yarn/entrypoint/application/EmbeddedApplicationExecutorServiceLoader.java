@@ -23,9 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.PipelineExecutorFactory;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
-import org.apache.flink.runtime.webmonitor.retriever.LeaderGatewayRetriever;
 
-import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -36,15 +34,15 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class EmbeddedApplicationExecutorServiceLoader implements PipelineExecutorServiceLoader {
 
-	private final CompletableFuture<LeaderGatewayRetriever<DispatcherGateway>> dispatcherGatewayRetrieverFuture;
+	private final DispatcherGateway dispatcherGateway;
 
-	public EmbeddedApplicationExecutorServiceLoader(final CompletableFuture<LeaderGatewayRetriever<DispatcherGateway>> dispatcherGatewayRetrieverFuture) {
-		this.dispatcherGatewayRetrieverFuture = checkNotNull(dispatcherGatewayRetrieverFuture);
+	public EmbeddedApplicationExecutorServiceLoader(final DispatcherGateway dispatcherGateway) {
+		this.dispatcherGateway = checkNotNull(dispatcherGateway);
 	}
 
 	@Override
 	public PipelineExecutorFactory getExecutorFactory(Configuration configuration) {
-		return new EmbeddedApplicationExecutorFactory(this.dispatcherGatewayRetrieverFuture);
+		return new EmbeddedApplicationExecutorFactory(this.dispatcherGateway);
 	}
 
 	@Override

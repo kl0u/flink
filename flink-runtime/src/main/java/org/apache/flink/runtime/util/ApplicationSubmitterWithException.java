@@ -16,21 +16,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.yarn.entrypoint.application;
+package org.apache.flink.runtime.util;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.client.deployment.executors.AbstractSessionClusterExecutor;
-import org.apache.flink.runtime.dispatcher.DispatcherGateway;
+import org.apache.flink.api.common.JobID;
 
 /**
  * Javadoc.
  */
 @Internal
-public class EmbeddedApplicationExecutor extends AbstractSessionClusterExecutor<String, EmbeddedClusterClientFactory> {
+public interface ApplicationSubmitterWithException<T> {
 
-	public static final String NAME = "Embedded";
+	JobID getJobId();
 
-	public EmbeddedApplicationExecutor(final DispatcherGateway dispatcherGateway) {
-		super(new EmbeddedClusterClientFactory(dispatcherGateway));
-	}
+	void accept(T t) throws Exception;
 }

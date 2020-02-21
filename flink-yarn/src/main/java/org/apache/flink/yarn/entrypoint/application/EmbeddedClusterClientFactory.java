@@ -25,11 +25,8 @@ import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
-import org.apache.flink.runtime.webmonitor.retriever.LeaderGatewayRetriever;
 
 import javax.annotation.Nullable;
-
-import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -39,10 +36,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class EmbeddedClusterClientFactory implements ClusterClientFactory<String> {
 
-	private final CompletableFuture<LeaderGatewayRetriever<DispatcherGateway>> dispatcherGatewayRetrieverFuture;
+	private final DispatcherGateway dispatcherGateway;
 
-	public EmbeddedClusterClientFactory(final CompletableFuture<LeaderGatewayRetriever<DispatcherGateway>> dispatcherGatewayRetrieverFuture) {
-		this.dispatcherGatewayRetrieverFuture = checkNotNull(dispatcherGatewayRetrieverFuture);
+	public EmbeddedClusterClientFactory(final DispatcherGateway dispatcherGateway) {
+		this.dispatcherGateway = checkNotNull(dispatcherGateway);
 	}
 
 	@Override
@@ -52,7 +49,7 @@ public class EmbeddedClusterClientFactory implements ClusterClientFactory<String
 
 	@Override
 	public ClusterDescriptor<String> createClusterDescriptor(final Configuration configuration) {
-		return new EmbeddedClusterDescriptor(configuration, dispatcherGatewayRetrieverFuture);
+		return new EmbeddedClusterDescriptor(configuration, dispatcherGateway);
 	}
 
 	@Nullable

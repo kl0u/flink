@@ -61,6 +61,7 @@ import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPre
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.PermanentlyFencedRpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.util.ApplicationSubmitterWithException;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -86,6 +87,8 @@ import java.util.concurrent.CompletionException;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Base class for the Dispatcher component. The Dispatcher component is responsible
@@ -126,6 +129,8 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 
 	private final Map<JobID, CompletableFuture<Void>> jobManagerTerminationFutures;
 
+	private final ApplicationSubmitterWithException<DispatcherGateway> applicationSubmitter;
+
 	protected final CompletableFuture<ApplicationStatus> shutDownFuture;
 
 	public Dispatcher(
@@ -134,8 +139,28 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 			DispatcherId fencingToken,
 			Collection<JobGraph> recoveredJobs,
 			DispatcherServices dispatcherServices) throws Exception {
+		this(rpcService, endpointId, fencingToken, recoveredJobs, new ApplicationSubmitterWithException<DispatcherGateway>() {
+			@Override
+			public JobID getJobId() {
+				return null;
+			}
+
+			@Override
+			public void accept(DispatcherGateway dispatcherGateway) throws Exception {
+
+			}
+		}, dispatcherServices);
+	}
+
+	public Dispatcher(
+			RpcService rpcService,
+			String endpointId,
+			DispatcherId fencingToken,
+			Collection<JobGraph> recoveredJobs,
+			ApplicationSubmitterWithException<DispatcherGateway> applicationSubmitter,
+			DispatcherServices dispatcherServices) throws Exception {
 		super(rpcService, endpointId, fencingToken);
-		Preconditions.checkNotNull(dispatcherServices);
+		checkNotNull(dispatcherServices);
 
 		this.configuration = dispatcherServices.getConfiguration();
 		this.highAvailabilityServices = dispatcherServices.getHighAvailabilityServices();
@@ -146,6 +171,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 		this.jobGraphWriter = dispatcherServices.getJobGraphWriter();
 		this.jobManagerMetricGroup = dispatcherServices.getJobManagerMetricGroup();
 		this.metricServiceQueryAddress = dispatcherServices.getMetricQueryServiceAddress();
+		this.applicationSubmitter = checkNotNull(applicationSubmitter);
 
 		this.jobManagerSharedServices = JobManagerSharedServices.fromConfiguration(
 			configuration,
@@ -201,13 +227,25 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 		}
 	}
 
-	private void startRecoveredJobs() {
+	private void startRecoveredJobs() throws Exception {
+		boolean submitApplication = true;
+
+		final JobID applicationToSubmit = applicationSubmitter.getJobId();
+
 		for (JobGraph recoveredJob : recoveredJobs) {
+			if (applicationToSubmit != null && applicationToSubmit.equals(recoveredJob.getJobID())) {
+				submitApplication = false;
+			}
+
 			FutureUtils.assertNoException(runJob(recoveredJob)
 				.handle(handleRecoveredJobStartError(recoveredJob.getJobID())));
 		}
 
 		recoveredJobs.clear();
+
+		if (submitApplication) {
+			applicationSubmitter.accept(this);
+		}
 	}
 
 	private BiFunction<Void, Throwable, Void> handleRecoveredJobStartError(JobID jobId) {

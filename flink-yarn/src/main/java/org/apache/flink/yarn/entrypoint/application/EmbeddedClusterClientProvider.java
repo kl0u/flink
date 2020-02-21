@@ -23,9 +23,6 @@ import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.ClusterClientProvider;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
-import org.apache.flink.runtime.webmonitor.retriever.LeaderGatewayRetriever;
-
-import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -37,17 +34,17 @@ public class EmbeddedClusterClientProvider implements ClusterClientProvider<Stri
 
 	private final Configuration configuration;
 
-	private final CompletableFuture<LeaderGatewayRetriever<DispatcherGateway>> dispatcherGatewayRetrieverFuture;
+	private final DispatcherGateway dispatcherGateway;
 
 	public EmbeddedClusterClientProvider(
 			final Configuration configuration,
-			final CompletableFuture<LeaderGatewayRetriever<DispatcherGateway>> dispatcherGatewayRetrieverFuture) {
+			final DispatcherGateway dispatcherGateway) {
 		this.configuration = checkNotNull(configuration);
-		this.dispatcherGatewayRetrieverFuture = checkNotNull(dispatcherGatewayRetrieverFuture);
+		this.dispatcherGateway = checkNotNull(dispatcherGateway);
 	}
 
 	@Override
 	public ClusterClient<String> getClusterClient() {
-		return new EmbeddedClusterClient(configuration, dispatcherGatewayRetrieverFuture);
+		return new EmbeddedClusterClient(configuration, dispatcherGateway);
 	}
 }

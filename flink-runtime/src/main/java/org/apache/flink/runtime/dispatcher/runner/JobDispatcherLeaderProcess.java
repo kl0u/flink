@@ -50,7 +50,8 @@ public class JobDispatcherLeaderProcess extends AbstractDispatcherLeaderProcess 
 		final DispatcherGatewayService dispatcherService = dispatcherGatewayServiceFactory.create(
 			DispatcherId.fromUuid(getLeaderSessionId()),
 			Collections.singleton(jobGraph),
-			ThrowingJobGraphWriter.INSTANCE);
+			ThrowingJobGraphWriter.INSTANCE,
+			null); // TODO: 21.02.20 replace with do-nothing
 
 		completeDispatcherSetup(dispatcherService);
 	}

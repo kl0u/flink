@@ -35,8 +35,6 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.RpcUtils;
-import org.apache.flink.runtime.webmonitor.RestfulGateway;
-import org.apache.flink.runtime.webmonitor.retriever.LeaderGatewayRetriever;
 import org.apache.flink.util.FlinkException;
 
 import org.slf4j.Logger;
@@ -64,15 +62,15 @@ public class EmbeddedClusterClient implements ClusterClient<String> {
 
 	private final Configuration configuration;
 
-	private final CompletableFuture<LeaderGatewayRetriever<DispatcherGateway>> dispatcherGatewayRetrieverFuture;
+	private final DispatcherGateway dispatcherGateway;
 
 	private final Time timeout;
 
 	public EmbeddedClusterClient(
 			final Configuration configuration,
-			final CompletableFuture<LeaderGatewayRetriever<DispatcherGateway>> dispatcherGatewayRetrieverFuture) {
+			final DispatcherGateway dispatcherGateway) {
 		this.configuration = checkNotNull(configuration);
-		this.dispatcherGatewayRetrieverFuture = checkNotNull(dispatcherGatewayRetrieverFuture);
+		this.dispatcherGateway = checkNotNull(dispatcherGateway);
 		this.timeout = Time.milliseconds(configuration.getLong(WebOptions.TIMEOUT));
 	}
 
@@ -93,9 +91,8 @@ public class EmbeddedClusterClient implements ClusterClient<String> {
 
 	@Override
 	public void shutDownCluster() {
-		dispatcherGatewayRetrieverFuture
-				.thenCompose(LeaderGatewayRetriever::getFuture)
-				.thenCompose(RestfulGateway::shutDownCluster)
+		dispatcherGateway
+				.shutDownCluster()
 				.thenRun(() -> LOG.info("Cluster was shutdown."));
 	}
 
@@ -106,9 +103,7 @@ public class EmbeddedClusterClient implements ClusterClient<String> {
 
 	@Override
 	public CompletableFuture<Collection<JobStatusMessage>> listJobs() {
-		return dispatcherGatewayRetrieverFuture
-				.thenCompose(LeaderGatewayRetriever::getFuture)
-				.thenCompose(dispatcherGateway -> dispatcherGateway.requestMultipleJobDetails(timeout))
+		return dispatcherGateway.requestMultipleJobDetails(timeout)
 				.thenApply(jobDetails ->
 						jobDetails.getJobs().stream().map(job ->
 								new JobStatusMessage(
@@ -123,9 +118,7 @@ public class EmbeddedClusterClient implements ClusterClient<String> {
 	@Override
 	public CompletableFuture<Acknowledge> disposeSavepoint(final String savepointPath) {
 		checkNotNull(savepointPath);
-		return dispatcherGatewayRetrieverFuture
-				.thenCompose(LeaderGatewayRetriever::getFuture)
-				.thenCompose(dispatcherGateway -> dispatcherGateway.disposeSavepoint(savepointPath, timeout));
+		return dispatcherGateway.disposeSavepoint(savepointPath, timeout);
 	}
 
 	@Override
@@ -134,9 +127,7 @@ public class EmbeddedClusterClient implements ClusterClient<String> {
 
 		LOG.info("Submitting Job with JobId={}.", jobGraph.getJobID());
 
-		return dispatcherGatewayRetrieverFuture
-				.thenCompose(LeaderGatewayRetriever::getFuture)
-				.thenCompose(dispatcherGateway -> dispatcherGateway
+		return dispatcherGateway
 						.getBlobServerPort(timeout)
 						.thenApply(blobServerPort -> new InetSocketAddress(dispatcherGateway.getHostname(), blobServerPort))
 						.thenCompose(blobServerAddress -> {
@@ -148,33 +139,27 @@ public class EmbeddedClusterClient implements ClusterClient<String> {
 							}
 
 							return dispatcherGateway.submitJob(jobGraph, timeout);
-						}))
+						})
 				.thenApply(ack -> jobGraph.getJobID());
 	}
 
 	@Override
 	public CompletableFuture<JobStatus> getJobStatus(final JobID jobId) {
 		checkNotNull(jobId);
-		return dispatcherGatewayRetrieverFuture
-				.thenCompose(LeaderGatewayRetriever::getFuture)
-				.thenCompose(dispatcherGateway -> dispatcherGateway.requestJobStatus(jobId, timeout));
+		return dispatcherGateway.requestJobStatus(jobId, timeout);
 	}
 
 	@Override
 	public CompletableFuture<JobResult> requestJobResult(final JobID jobId) {
 		checkNotNull(jobId);
-		return dispatcherGatewayRetrieverFuture
-				.thenCompose(LeaderGatewayRetriever::getFuture)
-				.thenCompose(dispatcherGateway -> dispatcherGateway.requestJobResult(jobId, RpcUtils.INF_TIMEOUT));
+		return dispatcherGateway.requestJobResult(jobId, RpcUtils.INF_TIMEOUT);
 	}
 
 	@Override
 	public CompletableFuture<Map<String, Object>> getAccumulators(final JobID jobId, final ClassLoader loader) {
 		checkNotNull(jobId);
 		checkNotNull(loader);
-		return dispatcherGatewayRetrieverFuture
-				.thenCompose(LeaderGatewayRetriever::getFuture)
-				.thenCompose(dispatcherGateway -> dispatcherGateway.requestJob(jobId, timeout))
+		return dispatcherGateway.requestJob(jobId, timeout)
 				.thenApply(ArchivedExecutionGraph::getAccumulatorsSerialized)
 				.thenApply(accumulators -> {
 					try {
@@ -188,32 +173,24 @@ public class EmbeddedClusterClient implements ClusterClient<String> {
 	@Override
 	public CompletableFuture<Acknowledge> cancel(final JobID jobId) {
 		checkNotNull(jobId);
-		return dispatcherGatewayRetrieverFuture
-				.thenCompose(LeaderGatewayRetriever::getFuture)
-				.thenCompose(dispatcherGateway -> dispatcherGateway.cancelJob(jobId, timeout));
+		return dispatcherGateway.cancelJob(jobId, timeout);
 	}
 
 	@Override
 	public CompletableFuture<String> cancelWithSavepoint(final JobID jobId, @Nullable String savepointDirectory) {
 		checkNotNull(jobId);
-		return dispatcherGatewayRetrieverFuture
-				.thenCompose(LeaderGatewayRetriever::getFuture)
-				.thenCompose(dispatcherGateway -> dispatcherGateway.triggerSavepoint(jobId, savepointDirectory, true, timeout));
+		return dispatcherGateway.triggerSavepoint(jobId, savepointDirectory, true, timeout);
 	}
 
 	@Override
 	public CompletableFuture<String> stopWithSavepoint(final JobID jobId, final boolean advanceToEndOfEventTime, @Nullable String savepointDirectory) {
 		checkNotNull(jobId);
-		return dispatcherGatewayRetrieverFuture
-				.thenCompose(LeaderGatewayRetriever::getFuture)
-				.thenCompose(dispatcherGateway -> dispatcherGateway.stopWithSavepoint(jobId, savepointDirectory, advanceToEndOfEventTime, timeout));
+		return dispatcherGateway.stopWithSavepoint(jobId, savepointDirectory, advanceToEndOfEventTime, timeout);
 	}
 
 	@Override
 	public CompletableFuture<String> triggerSavepoint(final JobID jobId, @Nullable String savepointDirectory) {
 		checkNotNull(jobId);
-		return dispatcherGatewayRetrieverFuture
-				.thenCompose(LeaderGatewayRetriever::getFuture)
-				.thenCompose(dispatcherGateway -> dispatcherGateway.triggerSavepoint(jobId, savepointDirectory, false, timeout));
+		return dispatcherGateway.triggerSavepoint(jobId, savepointDirectory, false, timeout);
 	}
 }
