@@ -109,6 +109,7 @@ public final class DefaultDispatcherRunner implements DispatcherRunner, LeaderCo
 	private void startNewDispatcherLeaderProcess(UUID leaderSessionID) {
 		stopDispatcherLeaderProcess();
 
+		LOG.info("I am the leader...");
 		dispatcherLeaderProcess = createNewDispatcherLeaderProcess(leaderSessionID);
 
 		final DispatcherLeaderProcess newDispatcherLeaderProcess = dispatcherLeaderProcess;

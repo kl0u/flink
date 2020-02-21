@@ -20,12 +20,14 @@ package org.apache.flink.runtime.minicluster;
 
 import org.apache.flink.runtime.dispatcher.DefaultJobManagerRunnerFactory;
 import org.apache.flink.runtime.dispatcher.DispatcherFactory;
+import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.dispatcher.DispatcherServices;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServicesWithJobGraphStore;
 import org.apache.flink.runtime.dispatcher.StandaloneDispatcher;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.util.ApplicationSubmitterWithException;
 
 import java.util.Collection;
 
@@ -41,6 +43,7 @@ public enum SessionDispatcherWithUUIDFactory implements DispatcherFactory {
 			RpcService rpcService,
 			DispatcherId fencingToken,
 			Collection<JobGraph> recoveredJobs,
+			ApplicationSubmitterWithException<DispatcherGateway> applicationSubmitter,
 			PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore) throws Exception {
 		// create the default dispatcher
 		return new StandaloneDispatcher(
@@ -48,6 +51,7 @@ public enum SessionDispatcherWithUUIDFactory implements DispatcherFactory {
 			generateEndpointIdWithUUID(),
 			fencingToken,
 			recoveredJobs,
+			applicationSubmitter,
 			DispatcherServices.from(partialDispatcherServicesWithJobGraphStore, DefaultJobManagerRunnerFactory.INSTANCE));
 	}
 }

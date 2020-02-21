@@ -20,6 +20,7 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.util.ApplicationSubmitterWithException;
 
 import java.util.Collection;
 
@@ -34,6 +35,7 @@ public enum SessionDispatcherFactory implements DispatcherFactory {
 			RpcService rpcService,
 			DispatcherId fencingToken,
 			Collection<JobGraph> recoveredJobs,
+			ApplicationSubmitterWithException<DispatcherGateway> applicationSubmitter,
 			PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore) throws Exception {
 		// create the default dispatcher
 		return new StandaloneDispatcher(
@@ -41,6 +43,7 @@ public enum SessionDispatcherFactory implements DispatcherFactory {
 			getEndpointId(),
 			fencingToken,
 			recoveredJobs,
+			applicationSubmitter,
 			DispatcherServices.from(partialDispatcherServicesWithJobGraphStore, DefaultJobManagerRunnerFactory.INSTANCE));
 	}
 }

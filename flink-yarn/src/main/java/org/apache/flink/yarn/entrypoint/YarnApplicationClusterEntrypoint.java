@@ -19,12 +19,10 @@
 package org.apache.flink.yarn.entrypoint;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
-import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.dispatcher.ArchivedExecutionGraphStore;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
@@ -32,21 +30,20 @@ import org.apache.flink.runtime.dispatcher.MemoryArchivedExecutionGraphStore;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
+import org.apache.flink.runtime.util.ApplicationSubmitterWithException;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
-import org.apache.flink.runtime.webmonitor.RestfulGateway;
-import org.apache.flink.runtime.webmonitor.retriever.LeaderGatewayRetriever;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.yarn.entrypoint.application.EmbeddedApplicationExecutor;
-import org.apache.flink.yarn.entrypoint.application.EmbeddedApplicationExecutorServiceLoader;
 import org.apache.flink.yarn.entrypoint.application.ProgramUtils;
 
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 
 import java.io.IOException;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Javadoc.
@@ -54,14 +51,19 @@ import java.util.concurrent.CompletableFuture;
 @Internal
 public class YarnApplicationClusterEntrypoint extends ClusterEntrypoint {
 
-	public YarnApplicationClusterEntrypoint(final Configuration configuration) {
+	private final ApplicationSubmitterWithException<DispatcherGateway> applicationSubmitter;
+
+	public YarnApplicationClusterEntrypoint(
+			final Configuration configuration,
+			final ApplicationSubmitterWithException<DispatcherGateway> applicationSubmitter) {
 		super(configuration);
+		this.applicationSubmitter = checkNotNull(applicationSubmitter);
 	}
 
 	@Override
 	protected DispatcherResourceManagerComponentFactory createDispatcherResourceManagerComponentFactory(Configuration configuration) {
 		return DefaultDispatcherResourceManagerComponentFactory
-				.createApplicationComponentFactory(YarnResourceManagerFactory.getInstance());
+				.createApplicationComponentFactory(YarnResourceManagerFactory.getInstance(), applicationSubmitter);
 	}
 
 	@Override
@@ -90,37 +92,16 @@ public class YarnApplicationClusterEntrypoint extends ClusterEntrypoint {
 		}
 
 		final Configuration configuration = YarnEntrypointUtils.loadConfiguration(workingDirectory, env);
-
-		final YarnApplicationClusterEntrypoint yarnApplicationClusterEntrypoint =
-				new YarnApplicationClusterEntrypoint(configuration);
-		ClusterEntrypoint.runClusterEntrypoint(yarnApplicationClusterEntrypoint);
-
 		final PackagedProgram executable = ProgramUtils.getExecutable(configuration, env);
-
 		configuration.set(DeploymentOptions.TARGET, EmbeddedApplicationExecutor.NAME);
 		configuration.set(DeploymentOptions.ATTACHED, true);
 
-		final CompletableFuture<LeaderGatewayRetriever<DispatcherGateway>> dispatcherRetrieverFuture =
-				yarnApplicationClusterEntrypoint.getDispatcherGatewayRetrieverFuture();
+		final EmbeddedApplicationSubmitter applicationSubmitter =
+				new EmbeddedApplicationSubmitter(configuration, executable);
 
-		final PipelineExecutorServiceLoader executorServiceLoader =
-				new EmbeddedApplicationExecutorServiceLoader(dispatcherRetrieverFuture);
+		final YarnApplicationClusterEntrypoint yarnApplicationClusterEntrypoint =
+				new YarnApplicationClusterEntrypoint(configuration, applicationSubmitter);
 
-		try {
-			// TODO: 05.02.20 rename clientUtils to submitUtils or sth...
-			ClientUtils.executeProgram(executorServiceLoader, configuration, executable);
-		} catch (Exception e) {
-			LOG.warn("Could not execute program: ", e);
-		} finally {
-
-			// We are out of the user's main, either due to a failure or
-			// due to finishing or cancelling the execution.
-			// In any case, it is time to shutdown the cluster
-
-			dispatcherRetrieverFuture
-					.thenCompose(LeaderGatewayRetriever::getFuture)
-					.thenCompose(RestfulGateway::shutDownCluster)
-					.thenRun(() -> LOG.warn("Cluster was shutdown."));
-		}
+		ClusterEntrypoint.runClusterEntrypoint(yarnApplicationClusterEntrypoint);
 	}
 }
