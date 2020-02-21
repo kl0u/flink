@@ -59,6 +59,7 @@ public class EmbeddedApplicationSubmitter implements ApplicationSubmitterWithExc
 	}
 
 	public void accept(final DispatcherGateway dispatcherGateway) throws ProgramInvocationException {
+
 		final PipelineExecutorServiceLoader executorServiceLoader =
 				new EmbeddedApplicationExecutorServiceLoader(dispatcherGateway);
 
