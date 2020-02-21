@@ -230,7 +230,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 	private void startRecoveredJobs() throws Exception {
 		boolean submitApplication = true;
 
-		final JobID applicationToSubmit = applicationSubmitter.getJobId();
+		final JobID applicationToSubmit = JobID.generate(); // applicationSubmitter.getJobId();
 
 		for (JobGraph recoveredJob : recoveredJobs) {
 			if (applicationToSubmit != null && applicationToSubmit.equals(recoveredJob.getJobID())) {
@@ -244,7 +244,13 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 		recoveredJobs.clear();
 
 		if (submitApplication) {
-			applicationSubmitter.accept(this);
+			new Thread(() -> {
+				try {
+					applicationSubmitter.accept(this);
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			}).start();
 		}
 	}
 

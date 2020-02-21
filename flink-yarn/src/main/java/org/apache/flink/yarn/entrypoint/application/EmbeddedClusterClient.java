@@ -128,19 +128,18 @@ public class EmbeddedClusterClient implements ClusterClient<String> {
 		LOG.info("Submitting Job with JobId={}.", jobGraph.getJobID());
 
 		return dispatcherGateway
-						.getBlobServerPort(timeout)
-						.thenApply(blobServerPort -> new InetSocketAddress(dispatcherGateway.getHostname(), blobServerPort))
-						.thenCompose(blobServerAddress -> {
+				.getBlobServerPort(timeout)
+				.thenApply(blobServerPort -> new InetSocketAddress(dispatcherGateway.getHostname(), blobServerPort))
+				.thenCompose(blobServerAddress -> {
 
-							try {
-								ClientUtils.extractAndUploadJobGraphFiles(jobGraph, () -> new BlobClient(blobServerAddress, configuration));
-							} catch (FlinkException e) {
-								throw new CompletionException(e);
-							}
+					try {
+						ClientUtils.extractAndUploadJobGraphFiles(jobGraph, () -> new BlobClient(blobServerAddress, configuration));
+					} catch (FlinkException e) {
+						throw new CompletionException(e);
+					}
 
-							return dispatcherGateway.submitJob(jobGraph, timeout);
-						})
-				.thenApply(ack -> jobGraph.getJobID());
+					return dispatcherGateway.submitJob(jobGraph, timeout);
+				}).thenApply(ack -> jobGraph.getJobID());
 	}
 
 	@Override
