@@ -146,7 +146,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 			}
 
 			@Override
-			public void accept(DispatcherGateway dispatcherGateway) throws Exception {
+			public void accept(DispatcherGateway dispatcherGateway) {
 
 			}
 		}, dispatcherServices);
@@ -227,7 +227,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 		}
 	}
 
-	private void startRecoveredJobs() throws Exception {
+	private void startRecoveredJobs() {
 		boolean submitApplication = true;
 
 		final JobID applicationToSubmit = JobID.generate(); // applicationSubmitter.getJobId();
@@ -242,16 +242,21 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 		}
 
 		recoveredJobs.clear();
-
 		if (submitApplication) {
-			new Thread(() -> {
-				try {
-					applicationSubmitter.accept(this);
-				} catch (Exception e) {
-					e.printStackTrace();
-				}
-			}).start();
+			submitApplication();
 		}
+	}
+
+	private void submitApplication() {
+		final RpcService rpcService = getRpcService();
+
+		CompletableFuture.runAsync(() -> {
+			try {
+				applicationSubmitter.accept(this);
+			} catch (Exception e) {
+				throw new RuntimeException(e);
+			}
+		}, rpcService.getExecutor());
 	}
 
 	private BiFunction<Void, Throwable, Void> handleRecoveredJobStartError(JobID jobId) {

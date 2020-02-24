@@ -41,7 +41,7 @@ public class EmbeddedApplicationExecutorServiceLoader implements PipelineExecuto
 	}
 
 	@Override
-	public PipelineExecutorFactory getExecutorFactory(Configuration configuration) {
+	public PipelineExecutorFactory getExecutorFactory(final Configuration configuration) {
 		return new EmbeddedApplicationExecutorFactory(this.dispatcherGateway);
 	}
 

@@ -101,7 +101,7 @@ public class ApplicationDispatcherLeaderProcess extends AbstractDispatcherLeader
 		runIfStateIs(State.RUNNING, () -> createDispatcher(jobGraphs));
 	}
 
-	private DispatcherGatewayService createDispatcher(Collection<JobGraph> jobGraphs) {
+	private void createDispatcher(Collection<JobGraph> jobGraphs) {
 
 		final DispatcherGatewayService dispatcherService = dispatcherGatewayServiceFactory.create(
 				DispatcherId.fromUuid(getLeaderSessionId()),
@@ -110,7 +110,6 @@ public class ApplicationDispatcherLeaderProcess extends AbstractDispatcherLeader
 				applicationSubmitter);
 
 		completeDispatcherSetup(dispatcherService);
-		return dispatcherService;
 	}
 
 	private CompletableFuture<Collection<JobGraph>> recoverJobsAsync() {

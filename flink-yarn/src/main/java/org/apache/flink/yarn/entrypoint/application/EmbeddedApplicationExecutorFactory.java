@@ -45,12 +45,12 @@ public class EmbeddedApplicationExecutorFactory implements PipelineExecutorFacto
 	}
 
 	@Override
-	public boolean isCompatibleWith(Configuration configuration) {
+	public boolean isCompatibleWith(final Configuration configuration) {
 		return EmbeddedApplicationExecutor.NAME.equalsIgnoreCase(configuration.get(DeploymentOptions.TARGET));
 	}
 
 	@Override
-	public PipelineExecutor getExecutor(Configuration configuration) {
-		return new EmbeddedApplicationExecutor(dispatcherGateway);
+	public PipelineExecutor getExecutor(final Configuration configuration) {
+		return new EmbeddedApplicationExecutor(configuration, dispatcherGateway);
 	}
 }
