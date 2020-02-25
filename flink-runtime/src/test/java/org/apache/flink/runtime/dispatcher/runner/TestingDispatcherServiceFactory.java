@@ -22,7 +22,7 @@ import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.JobGraphWriter;
-import org.apache.flink.runtime.util.ApplicationSubmitterWithException;
+import org.apache.flink.runtime.dispatcher.runner.application.ApplicationSubmitterWithException;
 import org.apache.flink.util.function.TriFunction;
 
 import java.util.Collection;

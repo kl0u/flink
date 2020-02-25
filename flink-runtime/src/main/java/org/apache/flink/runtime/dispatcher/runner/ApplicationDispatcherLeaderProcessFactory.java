@@ -22,7 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobmanager.JobGraphStoreFactory;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
-import org.apache.flink.runtime.util.ApplicationSubmitterWithException;
+import org.apache.flink.runtime.dispatcher.runner.application.ApplicationSubmitterWithException;
 
 import java.util.UUID;
 import java.util.concurrent.Executor;
