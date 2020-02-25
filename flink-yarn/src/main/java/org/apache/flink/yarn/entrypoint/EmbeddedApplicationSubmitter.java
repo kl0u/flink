@@ -25,8 +25,9 @@ import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
+import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
-import org.apache.flink.runtime.dispatcher.runner.application.ApplicationSubmitterWithException;
+import org.apache.flink.runtime.dispatcher.runner.application.ApplicationSubmitter;
 import org.apache.flink.runtime.dispatcher.runner.application.EmbeddedApplicationExecutorServiceLoader;
 
 import org.slf4j.Logger;
@@ -38,7 +39,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Javadoc.
  */
 @Internal
-public class EmbeddedApplicationSubmitter implements ApplicationSubmitterWithException<DispatcherGateway> {
+public class EmbeddedApplicationSubmitter implements ApplicationSubmitter {
 
 	private static final Logger LOG = LoggerFactory.getLogger(EmbeddedApplicationSubmitter.class);
 
@@ -62,7 +63,7 @@ public class EmbeddedApplicationSubmitter implements ApplicationSubmitterWithExc
 		return jobId;
 	}
 
-	public void accept(final DispatcherGateway dispatcherGateway) throws ProgramInvocationException {
+	public void accept(final DispatcherGateway dispatcherGateway) throws JobSubmissionException {
 
 		final PipelineExecutorServiceLoader executorServiceLoader =
 				new EmbeddedApplicationExecutorServiceLoader(jobId, dispatcherGateway);
@@ -71,7 +72,7 @@ public class EmbeddedApplicationSubmitter implements ApplicationSubmitterWithExc
 			ClientUtils.executeProgram(executorServiceLoader, configuration, executable);
 		} catch (ProgramInvocationException e) {
 			LOG.warn("Could not execute program: ", e);
-			throw e;
+			throw new JobSubmissionException(jobId, "Could not execute application (id= " + jobId + ")", e);
 		} finally {
 
 			// We are out of the user's main, either due to a failure or

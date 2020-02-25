@@ -19,10 +19,9 @@
 package org.apache.flink.runtime.dispatcher.runner;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.runtime.dispatcher.DispatcherGateway;
+import org.apache.flink.runtime.dispatcher.runner.application.ApplicationSubmitter;
 import org.apache.flink.runtime.jobmanager.JobGraphStoreFactory;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
-import org.apache.flink.runtime.dispatcher.runner.application.ApplicationSubmitterWithException;
 
 import java.util.UUID;
 import java.util.concurrent.Executor;
@@ -39,14 +38,14 @@ public class ApplicationDispatcherLeaderProcessFactory implements DispatcherLead
 	private final JobGraphStoreFactory jobGraphStoreFactory;
 	private final Executor ioExecutor;
 	private final FatalErrorHandler fatalErrorHandler;
-	private final ApplicationSubmitterWithException<DispatcherGateway> applicationSubmitter;
+	private final ApplicationSubmitter applicationSubmitter;
 
 	ApplicationDispatcherLeaderProcessFactory(
 			AbstractDispatcherLeaderProcess.DispatcherGatewayServiceFactory dispatcherGatewayServiceFactory,
 			JobGraphStoreFactory jobGraphStoreFactory,
 			Executor ioExecutor,
 			FatalErrorHandler fatalErrorHandler,
-			ApplicationSubmitterWithException<DispatcherGateway> applicationSubmitter) {
+			ApplicationSubmitter applicationSubmitter) {
 		this.dispatcherGatewayServiceFactory = dispatcherGatewayServiceFactory;
 		this.jobGraphStoreFactory = jobGraphStoreFactory;
 		this.ioExecutor = ioExecutor;

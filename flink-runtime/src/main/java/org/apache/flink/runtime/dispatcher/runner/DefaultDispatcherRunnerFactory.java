@@ -19,14 +19,13 @@
 package org.apache.flink.runtime.dispatcher.runner;
 
 import org.apache.flink.runtime.dispatcher.DispatcherFactory;
-import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
+import org.apache.flink.runtime.dispatcher.runner.application.ApplicationSubmitter;
 import org.apache.flink.runtime.entrypoint.component.JobGraphRetriever;
 import org.apache.flink.runtime.jobmanager.JobGraphStoreFactory;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.dispatcher.runner.application.ApplicationSubmitterWithException;
 
 import java.util.concurrent.Executor;
 
@@ -65,7 +64,7 @@ public class DefaultDispatcherRunnerFactory implements DispatcherRunnerFactory {
 
 	public static DefaultDispatcherRunnerFactory createApplicationRunner(
 			DispatcherFactory dispatcherFactory,
-			ApplicationSubmitterWithException<DispatcherGateway> applicationSubmitter) {
+			ApplicationSubmitter applicationSubmitter) {
 		return new DefaultDispatcherRunnerFactory(
 				ApplicationDispatcherLeaderProcessFactoryFactory.create(dispatcherFactory, applicationSubmitter));
 	}
