@@ -19,6 +19,7 @@
 package org.apache.flink.yarn.entrypoint;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
@@ -30,6 +31,7 @@ import org.apache.flink.runtime.dispatcher.MemoryArchivedExecutionGraphStore;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
+import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.util.ApplicationSubmitterWithException;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
@@ -50,6 +52,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 @Internal
 public class YarnApplicationClusterEntrypoint extends ClusterEntrypoint {
+
+	public static final JobID ZERO_JOB_ID = new JobID(0, 0);
 
 	private final ApplicationSubmitterWithException<DispatcherGateway> applicationSubmitter;
 
@@ -96,12 +100,21 @@ public class YarnApplicationClusterEntrypoint extends ClusterEntrypoint {
 		configuration.set(DeploymentOptions.TARGET, EmbeddedApplicationExecutor.NAME);
 		configuration.set(DeploymentOptions.ATTACHED, true);
 
+		final JobID jobID = createJobIdForCluster(configuration);
 		final EmbeddedApplicationSubmitter applicationSubmitter =
-				new EmbeddedApplicationSubmitter(configuration, executable);
+				new EmbeddedApplicationSubmitter(jobID, configuration, executable);
 
 		final YarnApplicationClusterEntrypoint yarnApplicationClusterEntrypoint =
 				new YarnApplicationClusterEntrypoint(configuration, applicationSubmitter);
 
 		ClusterEntrypoint.runClusterEntrypoint(yarnApplicationClusterEntrypoint);
+	}
+
+	private static JobID createJobIdForCluster(Configuration globalConfiguration) {
+		if (HighAvailabilityMode.isHighAvailabilityModeActivated(globalConfiguration)) {
+			return ZERO_JOB_ID;
+		} else {
+			return JobID.generate();
+		}
 	}
 }
