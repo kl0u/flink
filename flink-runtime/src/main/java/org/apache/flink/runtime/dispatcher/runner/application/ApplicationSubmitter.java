@@ -20,14 +20,36 @@ package org.apache.flink.runtime.dispatcher.runner.application;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.runtime.dispatcher.DispatcherGateway;
+import org.apache.flink.util.function.ConsumerWithException;
 
 /**
- * Javadoc.
+ * An interface to be implemented by the entities responsible for application submission
+ * for the different deployment environments.
+ *
+ * <p>This is only relevant for execution in {@code application mode}. Its logic
+ * will be executed by the leading {@link org.apache.flink.runtime.dispatcher.Dispatcher dispatchers}
+ * upon grant of leadership to it.
  */
 @Internal
-public interface ApplicationSubmitterWithException<T> {
+public interface ApplicationSubmitter extends ConsumerWithException<DispatcherGateway, JobExecutionException> {
 
+	/**
+	 * Get the job id of the submitted application.
+	 * @return the job id.
+	 */
 	JobID getJobId();
 
-	void accept(T t) throws Exception;
+	ApplicationSubmitter NO_SUBMISSION = new ApplicationSubmitter() {
+		@Override
+		public JobID getJobId() {
+			return null;
+		}
+
+		@Override
+		public void accept(DispatcherGateway dispatcherGateway) {
+
+		}
+	};
 }

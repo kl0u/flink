@@ -18,10 +18,10 @@
 
 package org.apache.flink.runtime.dispatcher;
 
+import org.apache.flink.runtime.dispatcher.runner.application.ApplicationSubmitter;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.dispatcher.runner.application.ApplicationSubmitterWithException;
 
 import java.util.Collection;
 
@@ -36,7 +36,7 @@ public class StandaloneDispatcher extends Dispatcher {
 			String endpointId,
 			DispatcherId fencingToken,
 			Collection<JobGraph> recoveredJobs,
-			ApplicationSubmitterWithException<DispatcherGateway> applicationSubmitter,
+			ApplicationSubmitter applicationSubmitter,
 			DispatcherServices dispatcherServices) throws Exception {
 		super(
 			rpcService,

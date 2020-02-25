@@ -18,11 +18,10 @@
 
 package org.apache.flink.runtime.dispatcher.runner;
 
-import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
+import org.apache.flink.runtime.dispatcher.runner.application.ApplicationSubmitter;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.JobGraphWriter;
-import org.apache.flink.runtime.dispatcher.runner.application.ApplicationSubmitterWithException;
 import org.apache.flink.util.function.TriFunction;
 
 import java.util.Collection;
@@ -37,9 +36,9 @@ class TestingDispatcherServiceFactory implements AbstractDispatcherLeaderProcess
 	@Override
 	public AbstractDispatcherLeaderProcess.DispatcherGatewayService create(
 			DispatcherId fencingToken,
+			ApplicationSubmitter applicationSubmitter,
 			Collection<JobGraph> recoveredJobs,
-			JobGraphWriter jobGraphWriter,
-			ApplicationSubmitterWithException<DispatcherGateway> applicationSubmitter) {
+			JobGraphWriter jobGraphWriter) {
 		return createFunction.apply(fencingToken, recoveredJobs, jobGraphWriter);
 	}
 

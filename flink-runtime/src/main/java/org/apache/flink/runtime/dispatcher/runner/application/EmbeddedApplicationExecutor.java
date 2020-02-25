@@ -66,11 +66,14 @@ public class EmbeddedApplicationExecutor implements PipelineExecutor {
 		checkNotNull(pipeline);
 		checkNotNull(configuration);
 
-		final JobGraph jobGraph = getJobGraph(pipeline, configuration);
-
-		return embeddedClient
-				.submitJob(jobGraph)
-				.thenApplyAsync(jobID -> embeddedClient);
+		final boolean retrieved = false;
+		if (!retrieved) {
+			final JobGraph jobGraph = getJobGraph(pipeline, configuration);
+			return embeddedClient
+					.submitJob(jobGraph)
+					.thenApplyAsync(jobID -> embeddedClient);
+		}
+		return CompletableFuture.completedFuture(embeddedClient);
 	}
 
 	private JobGraph getJobGraph(final Pipeline pipeline, final Configuration configuration) {

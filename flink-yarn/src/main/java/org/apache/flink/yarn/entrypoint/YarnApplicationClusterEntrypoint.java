@@ -26,9 +26,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.dispatcher.ArchivedExecutionGraphStore;
-import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.MemoryArchivedExecutionGraphStore;
-import org.apache.flink.runtime.dispatcher.runner.application.ApplicationSubmitterWithException;
+import org.apache.flink.runtime.dispatcher.runner.application.ApplicationSubmitter;
 import org.apache.flink.runtime.dispatcher.runner.application.EmbeddedApplicationExecutor;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
@@ -55,11 +54,11 @@ public class YarnApplicationClusterEntrypoint extends ClusterEntrypoint {
 
 	public static final JobID ZERO_JOB_ID = new JobID(0, 0);
 
-	private final ApplicationSubmitterWithException<DispatcherGateway> applicationSubmitter;
+	private final ApplicationSubmitter applicationSubmitter;
 
 	public YarnApplicationClusterEntrypoint(
 			final Configuration configuration,
-			final ApplicationSubmitterWithException<DispatcherGateway> applicationSubmitter) {
+			final ApplicationSubmitter applicationSubmitter) {
 		super(configuration);
 		this.applicationSubmitter = checkNotNull(applicationSubmitter);
 	}

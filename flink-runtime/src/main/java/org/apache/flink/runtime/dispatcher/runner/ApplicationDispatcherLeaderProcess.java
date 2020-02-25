@@ -24,11 +24,11 @@ import org.apache.flink.runtime.client.DuplicateJobSubmissionException;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
+import org.apache.flink.runtime.dispatcher.runner.application.ApplicationSubmitter;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcUtils;
-import org.apache.flink.runtime.dispatcher.runner.application.ApplicationSubmitterWithException;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.function.FunctionUtils;
@@ -56,7 +56,7 @@ public class ApplicationDispatcherLeaderProcess extends AbstractDispatcherLeader
 
 	private final Executor ioExecutor;
 
-	private final ApplicationSubmitterWithException<DispatcherGateway> applicationSubmitter;
+	private final ApplicationSubmitter applicationSubmitter;
 
 	private CompletableFuture<Void> onGoingRecoveryOperation = FutureUtils.completedVoidFuture();
 
@@ -66,7 +66,7 @@ public class ApplicationDispatcherLeaderProcess extends AbstractDispatcherLeader
 			JobGraphStore jobGraphStore,
 			Executor ioExecutor,
 			FatalErrorHandler fatalErrorHandler,
-			ApplicationSubmitterWithException<DispatcherGateway> applicationSubmitter) {
+			ApplicationSubmitter applicationSubmitter) {
 		super(leaderSessionId, fatalErrorHandler);
 
 		this.dispatcherGatewayServiceFactory = dispatcherGatewayServiceFactory;
@@ -105,9 +105,9 @@ public class ApplicationDispatcherLeaderProcess extends AbstractDispatcherLeader
 
 		final DispatcherGatewayService dispatcherService = dispatcherGatewayServiceFactory.create(
 				DispatcherId.fromUuid(getLeaderSessionId()),
+				applicationSubmitter,
 				jobGraphs,
-				jobGraphStore,
-				applicationSubmitter);
+				jobGraphStore);
 
 		completeDispatcherSetup(dispatcherService);
 	}
@@ -272,7 +272,7 @@ public class ApplicationDispatcherLeaderProcess extends AbstractDispatcherLeader
 			JobGraphStore jobGraphStore,
 			Executor ioExecutor,
 			FatalErrorHandler fatalErrorHandler,
-			ApplicationSubmitterWithException<DispatcherGateway> applicationSubmitter) {
+			ApplicationSubmitter applicationSubmitter) {
 		return new ApplicationDispatcherLeaderProcess(
 				leaderSessionId,
 				dispatcherFactory,

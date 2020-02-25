@@ -34,6 +34,7 @@ import org.apache.flink.runtime.dispatcher.SessionDispatcherFactory;
 import org.apache.flink.runtime.dispatcher.runner.DefaultDispatcherRunnerFactory;
 import org.apache.flink.runtime.dispatcher.runner.DispatcherRunner;
 import org.apache.flink.runtime.dispatcher.runner.DispatcherRunnerFactory;
+import org.apache.flink.runtime.dispatcher.runner.application.ApplicationSubmitter;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -55,7 +56,6 @@ import org.apache.flink.runtime.rest.handler.legacy.metrics.VoidMetricFetcher;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
-import org.apache.flink.runtime.dispatcher.runner.application.ApplicationSubmitterWithException;
 import org.apache.flink.runtime.webmonitor.WebMonitorEndpoint;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderGatewayRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
@@ -282,7 +282,7 @@ public class DefaultDispatcherResourceManagerComponentFactory implements Dispatc
 
 	public static DefaultDispatcherResourceManagerComponentFactory createApplicationComponentFactory(
 			ResourceManagerFactory<?> resourceManagerFactory,
-			ApplicationSubmitterWithException<DispatcherGateway> applicationSubmitter) {
+			ApplicationSubmitter applicationSubmitter) {
 		return new DefaultDispatcherResourceManagerComponentFactory(
 				DefaultDispatcherRunnerFactory.createApplicationRunner(SessionDispatcherFactory.INSTANCE, applicationSubmitter),
 				resourceManagerFactory,

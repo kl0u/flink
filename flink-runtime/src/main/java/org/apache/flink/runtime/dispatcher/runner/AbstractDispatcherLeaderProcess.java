@@ -24,10 +24,10 @@ import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
+import org.apache.flink.runtime.dispatcher.runner.application.ApplicationSubmitter;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.JobGraphWriter;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
-import org.apache.flink.runtime.dispatcher.runner.application.ApplicationSubmitterWithException;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.Preconditions;
@@ -241,9 +241,9 @@ abstract class AbstractDispatcherLeaderProcess implements DispatcherLeaderProces
 	interface DispatcherGatewayServiceFactory {
 		DispatcherGatewayService create(
 				DispatcherId fencingToken,
+				ApplicationSubmitter applicationSubmitter,
 				Collection<JobGraph> recoveredJobs,
-				JobGraphWriter jobGraphWriter,
-				ApplicationSubmitterWithException<DispatcherGateway> applicationSubmitter);
+				JobGraphWriter jobGraphWriter);
 	}
 
 	interface DispatcherGatewayService extends AutoCloseableAsync {
