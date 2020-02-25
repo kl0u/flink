@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.yarn.entrypoint.application;
+package org.apache.flink.runtime.dispatcher.runner.application;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;

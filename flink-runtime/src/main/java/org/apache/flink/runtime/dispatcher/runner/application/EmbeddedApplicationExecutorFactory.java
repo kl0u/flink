@@ -16,12 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.yarn.entrypoint.application;
+package org.apache.flink.runtime.dispatcher.runner.application;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.PipelineExecutor;
 import org.apache.flink.core.execution.PipelineExecutorFactory;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
@@ -50,7 +49,7 @@ public class EmbeddedApplicationExecutorFactory implements PipelineExecutorFacto
 
 	@Override
 	public boolean isCompatibleWith(final Configuration configuration) {
-		return EmbeddedApplicationExecutor.NAME.equalsIgnoreCase(configuration.get(DeploymentOptions.TARGET));
+		return true;
 	}
 
 	@Override
