@@ -27,7 +27,7 @@ import org.apache.flink.runtime.dispatcher.PartialDispatcherServicesWithJobGraph
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.JobGraphWriter;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.util.ApplicationSubmitterWithException;
+import org.apache.flink.runtime.dispatcher.runner.application.ApplicationSubmitterWithException;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import java.util.Collection;

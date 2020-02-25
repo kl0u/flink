@@ -61,7 +61,7 @@ import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPre
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.PermanentlyFencedRpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.util.ApplicationSubmitterWithException;
+import org.apache.flink.runtime.dispatcher.runner.application.ApplicationSubmitterWithException;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -230,7 +230,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 	private void startRecoveredJobs() {
 		boolean submitApplication = true;
 
-		final JobID applicationToSubmit = JobID.generate(); // applicationSubmitter.getJobId();
+		final JobID applicationToSubmit = applicationSubmitter.getJobId();
 
 		for (JobGraph recoveredJob : recoveredJobs) {
 			if (applicationToSubmit != null && applicationToSubmit.equals(recoveredJob.getJobID())) {
