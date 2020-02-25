@@ -27,7 +27,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.util.ApplicationSubmitterWithException;
-import org.apache.flink.yarn.entrypoint.application.EmbeddedApplicationExecutorServiceLoader;
+import org.apache.flink.runtime.dispatcher.runner.application.EmbeddedApplicationExecutorServiceLoader;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

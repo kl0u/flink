@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.yarn.entrypoint.application;
+package org.apache.flink.runtime.dispatcher.runner.application;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobExecutionResult;
@@ -24,14 +24,12 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.client.ClientUtils;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
-import org.apache.flink.runtime.dispatcher.runner.application.JobGraphDeployer;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.rpc.RpcUtils;
@@ -151,7 +149,7 @@ public class EmbeddedClient implements JobClient, JobGraphDeployer {
 						return jobResult.toJobExecutionResult(userClassloader);
 					} catch (Throwable t) {
 						throw new CompletionException(
-								new ProgramInvocationException("Job failed", jobId, t));
+								new Exception("Job " + jobId + " failed", t));
 					}
 				});
 	}
