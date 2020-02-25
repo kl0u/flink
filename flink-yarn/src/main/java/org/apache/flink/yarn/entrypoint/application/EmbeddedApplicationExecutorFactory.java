@@ -19,6 +19,7 @@
 package org.apache.flink.yarn.entrypoint.application;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.PipelineExecutor;
@@ -33,9 +34,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class EmbeddedApplicationExecutorFactory implements PipelineExecutorFactory {
 
+	private final JobID jobId;
+
 	private final DispatcherGateway dispatcherGateway;
 
-	public EmbeddedApplicationExecutorFactory(final DispatcherGateway dispatcherGateway) {
+	public EmbeddedApplicationExecutorFactory(final JobID jobId, final DispatcherGateway dispatcherGateway) {
+		this.jobId = checkNotNull(jobId);
 		this.dispatcherGateway = checkNotNull(dispatcherGateway);
 	}
 
@@ -51,6 +55,6 @@ public class EmbeddedApplicationExecutorFactory implements PipelineExecutorFacto
 
 	@Override
 	public PipelineExecutor getExecutor(final Configuration configuration) {
-		return new EmbeddedApplicationExecutor(configuration, dispatcherGateway);
+		return new EmbeddedApplicationExecutor(jobId, configuration, dispatcherGateway);
 	}
 }

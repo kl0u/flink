@@ -42,26 +42,30 @@ public class EmbeddedApplicationSubmitter implements ApplicationSubmitterWithExc
 
 	private static final Logger LOG = LoggerFactory.getLogger(EmbeddedApplicationSubmitter.class);
 
+	private final JobID jobId;
+
 	private final Configuration configuration;
 
 	private final PackagedProgram executable;
 
 	public EmbeddedApplicationSubmitter(
+			final JobID jobId,
 			final Configuration configuration,
 			final PackagedProgram executable) {
+		this.jobId = checkNotNull(jobId);
 		this.configuration = checkNotNull(configuration);
 		this.executable = checkNotNull(executable);
 	}
 
 	@Override
 	public JobID getJobId() {
-		throw new UnsupportedOperationException("Coming SOON");
+		return jobId;
 	}
 
 	public void accept(final DispatcherGateway dispatcherGateway) throws ProgramInvocationException {
 
 		final PipelineExecutorServiceLoader executorServiceLoader =
-				new EmbeddedApplicationExecutorServiceLoader(dispatcherGateway);
+				new EmbeddedApplicationExecutorServiceLoader(jobId, dispatcherGateway);
 
 		try {
 			ClientUtils.executeProgram(executorServiceLoader, configuration, executable);
