@@ -21,7 +21,7 @@ package org.apache.flink.runtime.dispatcher.runner;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.dispatcher.DispatcherFactory;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
-import org.apache.flink.runtime.dispatcher.runner.application.ApplicationSubmitter;
+import org.apache.flink.runtime.dispatcher.runner.application.ApplicationHandler;
 import org.apache.flink.runtime.jobmanager.JobGraphStoreFactory;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -36,13 +36,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class ApplicationDispatcherLeaderProcessFactoryFactory implements DispatcherLeaderProcessFactoryFactory {
 
-	private final ApplicationSubmitter applicationSubmitter;
+	private final ApplicationHandler applicationSubmitter;
 
 	private final DispatcherFactory dispatcherFactory;
 
 	private ApplicationDispatcherLeaderProcessFactoryFactory(
 			final DispatcherFactory dispatcherFactory,
-			final ApplicationSubmitter applicationSubmitter) {
+			final ApplicationHandler applicationSubmitter) {
 		this.dispatcherFactory = dispatcherFactory;
 		this.applicationSubmitter = checkNotNull(applicationSubmitter);
 	}
@@ -69,7 +69,7 @@ public class ApplicationDispatcherLeaderProcessFactoryFactory implements Dispatc
 
 	public static ApplicationDispatcherLeaderProcessFactoryFactory create(
 			final DispatcherFactory dispatcherFactory,
-			final ApplicationSubmitter applicationSubmitter) {
+			final ApplicationHandler applicationSubmitter) {
 		return new ApplicationDispatcherLeaderProcessFactoryFactory(dispatcherFactory, applicationSubmitter);
 	}
 }

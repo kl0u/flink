@@ -25,9 +25,10 @@ import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
+import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
-import org.apache.flink.runtime.dispatcher.runner.application.ApplicationSubmitter;
+import org.apache.flink.runtime.dispatcher.runner.application.ApplicationHandler;
 import org.apache.flink.runtime.dispatcher.runner.application.EmbeddedApplicationExecutorServiceLoader;
 
 import org.slf4j.Logger;
@@ -39,7 +40,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Javadoc.
  */
 @Internal
-public class EmbeddedApplicationSubmitter implements ApplicationSubmitter {
+public class EmbeddedApplicationSubmitter implements ApplicationHandler {
 
 	private static final Logger LOG = LoggerFactory.getLogger(EmbeddedApplicationSubmitter.class);
 
@@ -63,10 +64,19 @@ public class EmbeddedApplicationSubmitter implements ApplicationSubmitter {
 		return jobId;
 	}
 
-	public void accept(final DispatcherGateway dispatcherGateway) throws JobSubmissionException {
+	@Override
+	public void submit(final DispatcherGateway dispatcherGateway) throws JobSubmissionException {
+		applicationHandlerHelper(dispatcherGateway, false);
+	}
 
+	@Override
+	public void recover(DispatcherGateway dispatcherGateway) throws JobExecutionException {
+		applicationHandlerHelper(dispatcherGateway, true);
+	}
+
+	private void applicationHandlerHelper(final DispatcherGateway dispatcherGateway, final boolean onRecovery) throws JobSubmissionException {
 		final PipelineExecutorServiceLoader executorServiceLoader =
-				new EmbeddedApplicationExecutorServiceLoader(jobId, dispatcherGateway);
+				new EmbeddedApplicationExecutorServiceLoader(jobId, dispatcherGateway, onRecovery);
 
 		try {
 			ClientUtils.executeProgram(executorServiceLoader, configuration, executable);

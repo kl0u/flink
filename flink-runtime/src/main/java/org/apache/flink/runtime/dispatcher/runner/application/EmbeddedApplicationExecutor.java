@@ -33,6 +33,9 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobgraph.utils.FlinkPipelineTranslationUtil;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.List;
@@ -46,17 +49,26 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class EmbeddedApplicationExecutor implements PipelineExecutor {
 
+	private static final Logger LOG = LoggerFactory.getLogger(EmbeddedApplicationExecutor.class);
+
 	public static final String NAME = "Embedded";
 
+	private final JobID jobId;
+
 	private final EmbeddedClient embeddedClient;
+
+	private final boolean inRecovery;
 
 	public EmbeddedApplicationExecutor(
 			final JobID jobId,
 			final Configuration configuration,
-			final DispatcherGateway dispatcherGateway) {
+			final DispatcherGateway dispatcherGateway,
+			final boolean inRecovery) {
 
+		this.jobId = checkNotNull(jobId);
+		this.inRecovery = inRecovery;
 		this.embeddedClient = new EmbeddedClient(
-				checkNotNull(jobId),
+				jobId,
 				checkNotNull(configuration),
 				checkNotNull(dispatcherGateway));
 	}
@@ -66,24 +78,28 @@ public class EmbeddedApplicationExecutor implements PipelineExecutor {
 		checkNotNull(pipeline);
 		checkNotNull(configuration);
 
-		final boolean retrieved = false;
-		if (!retrieved) {
-			final JobGraph jobGraph = getJobGraph(pipeline, configuration);
-			return embeddedClient
-					.submitJob(jobGraph)
-					.thenApplyAsync(jobID -> embeddedClient);
+		if (inRecovery) {
+			LOG.info("Job {} is in recovery.", jobId);
+			return CompletableFuture.completedFuture(embeddedClient);
 		}
-		return CompletableFuture.completedFuture(embeddedClient);
+
+		final JobGraph jobGraph = getJobGraph(jobId, pipeline, configuration);
+
+		LOG.info("Job {} is submitted.", jobId);
+
+		return embeddedClient
+				.submitJob(jobGraph)
+				.thenApplyAsync(jobID -> embeddedClient);
 	}
 
-	private JobGraph getJobGraph(final Pipeline pipeline, final Configuration configuration) {
+	private JobGraph getJobGraph(final JobID jobId, final Pipeline pipeline, final Configuration configuration) {
+		final int parallelism = configuration.getInteger(CoreOptions.DEFAULT_PARALLELISM);
 		final List<URL> jars = decodeUrlList(configuration, PipelineOptions.JARS);
 		final List<URL> classpaths = decodeUrlList(configuration, PipelineOptions.CLASSPATHS);
 		final SavepointRestoreSettings savepointRestoreSettings = SavepointRestoreSettings.fromConfiguration(configuration);
 
-		final int parallelism = configuration.getInteger(CoreOptions.DEFAULT_PARALLELISM);
 		final JobGraph jobGraph = FlinkPipelineTranslationUtil.getJobGraph(pipeline, configuration, parallelism);
-
+		jobGraph.setJobID(jobId);
 		jobGraph.addJars(jars);
 		jobGraph.setClasspaths(classpaths);
 		jobGraph.setSavepointRestoreSettings(savepointRestoreSettings);

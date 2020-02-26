@@ -37,9 +37,15 @@ public class EmbeddedApplicationExecutorFactory implements PipelineExecutorFacto
 
 	private final DispatcherGateway dispatcherGateway;
 
-	public EmbeddedApplicationExecutorFactory(final JobID jobId, final DispatcherGateway dispatcherGateway) {
+	private final boolean inRecovery;
+
+	public EmbeddedApplicationExecutorFactory(
+			final JobID jobId,
+			final DispatcherGateway dispatcherGateway,
+			final boolean inRecovery) {
 		this.jobId = checkNotNull(jobId);
 		this.dispatcherGateway = checkNotNull(dispatcherGateway);
+		this.inRecovery = inRecovery;
 	}
 
 	@Override
@@ -54,6 +60,6 @@ public class EmbeddedApplicationExecutorFactory implements PipelineExecutorFacto
 
 	@Override
 	public PipelineExecutor getExecutor(final Configuration configuration) {
-		return new EmbeddedApplicationExecutor(jobId, configuration, dispatcherGateway);
+		return new EmbeddedApplicationExecutor(jobId, configuration, dispatcherGateway, inRecovery);
 	}
 }
