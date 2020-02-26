@@ -22,7 +22,8 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
-import org.apache.flink.util.function.ConsumerWithException;
+
+import javax.annotation.Nullable;
 
 /**
  * An interface to be implemented by the entities responsible for application submission
@@ -33,23 +34,32 @@ import org.apache.flink.util.function.ConsumerWithException;
  * upon grant of leadership to it.
  */
 @Internal
-public interface ApplicationSubmitter extends ConsumerWithException<DispatcherGateway, JobExecutionException> {
+public interface ApplicationHandler {
 
 	/**
 	 * Get the job id of the submitted application.
 	 * @return the job id.
 	 */
-	JobID getJobId();
+	@Nullable JobID getJobId();
 
-	ApplicationSubmitter NO_SUBMISSION = new ApplicationSubmitter() {
+	void submit(final DispatcherGateway dispatcherGateway) throws JobExecutionException;
+
+	void recover(final DispatcherGateway dispatcherGateway) throws JobExecutionException;
+
+	ApplicationHandler NO_SUBMISSION = new ApplicationHandler() {
 		@Override
 		public JobID getJobId() {
 			return null;
 		}
 
 		@Override
-		public void accept(DispatcherGateway dispatcherGateway) {
+		public void submit(DispatcherGateway dispatcherGateway) {
+			// do nothing
+		}
 
+		@Override
+		public void recover(DispatcherGateway dispatcherGateway) {
+			// do nothing
 		}
 	};
 }

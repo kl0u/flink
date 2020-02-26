@@ -24,7 +24,7 @@ import org.apache.flink.runtime.client.DuplicateJobSubmissionException;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
-import org.apache.flink.runtime.dispatcher.runner.application.ApplicationSubmitter;
+import org.apache.flink.runtime.dispatcher.runner.application.ApplicationHandler;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -56,7 +56,7 @@ public class ApplicationDispatcherLeaderProcess extends AbstractDispatcherLeader
 
 	private final Executor ioExecutor;
 
-	private final ApplicationSubmitter applicationSubmitter;
+	private final ApplicationHandler applicationSubmitter;
 
 	private CompletableFuture<Void> onGoingRecoveryOperation = FutureUtils.completedVoidFuture();
 
@@ -66,7 +66,7 @@ public class ApplicationDispatcherLeaderProcess extends AbstractDispatcherLeader
 			JobGraphStore jobGraphStore,
 			Executor ioExecutor,
 			FatalErrorHandler fatalErrorHandler,
-			ApplicationSubmitter applicationSubmitter) {
+			ApplicationHandler applicationSubmitter) {
 		super(leaderSessionId, fatalErrorHandler);
 
 		this.dispatcherGatewayServiceFactory = dispatcherGatewayServiceFactory;
@@ -272,7 +272,7 @@ public class ApplicationDispatcherLeaderProcess extends AbstractDispatcherLeader
 			JobGraphStore jobGraphStore,
 			Executor ioExecutor,
 			FatalErrorHandler fatalErrorHandler,
-			ApplicationSubmitter applicationSubmitter) {
+			ApplicationHandler applicationSubmitter) {
 		return new ApplicationDispatcherLeaderProcess(
 				leaderSessionId,
 				dispatcherFactory,

@@ -34,7 +34,7 @@ import org.apache.flink.runtime.dispatcher.SessionDispatcherFactory;
 import org.apache.flink.runtime.dispatcher.runner.DefaultDispatcherRunnerFactory;
 import org.apache.flink.runtime.dispatcher.runner.DispatcherRunner;
 import org.apache.flink.runtime.dispatcher.runner.DispatcherRunnerFactory;
-import org.apache.flink.runtime.dispatcher.runner.application.ApplicationSubmitter;
+import org.apache.flink.runtime.dispatcher.runner.application.ApplicationHandler;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -282,7 +282,7 @@ public class DefaultDispatcherResourceManagerComponentFactory implements Dispatc
 
 	public static DefaultDispatcherResourceManagerComponentFactory createApplicationComponentFactory(
 			ResourceManagerFactory<?> resourceManagerFactory,
-			ApplicationSubmitter applicationSubmitter) {
+			ApplicationHandler applicationSubmitter) {
 		return new DefaultDispatcherResourceManagerComponentFactory(
 				DefaultDispatcherRunnerFactory.createApplicationRunner(SessionDispatcherFactory.INSTANCE, applicationSubmitter),
 				resourceManagerFactory,

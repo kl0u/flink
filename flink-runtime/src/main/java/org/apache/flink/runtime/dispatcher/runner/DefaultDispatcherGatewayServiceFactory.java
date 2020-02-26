@@ -23,7 +23,7 @@ import org.apache.flink.runtime.dispatcher.DispatcherFactory;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServicesWithJobGraphStore;
-import org.apache.flink.runtime.dispatcher.runner.application.ApplicationSubmitter;
+import org.apache.flink.runtime.dispatcher.runner.application.ApplicationHandler;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.JobGraphWriter;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -54,7 +54,7 @@ class DefaultDispatcherGatewayServiceFactory implements AbstractDispatcherLeader
 	@Override
 	public AbstractDispatcherLeaderProcess.DispatcherGatewayService create(
 			DispatcherId fencingToken,
-			ApplicationSubmitter applicationSubmitter,
+			ApplicationHandler applicationSubmitter,
 			Collection<JobGraph> recoveredJobs,
 			JobGraphWriter jobGraphWriter) {
 		final Dispatcher dispatcher;

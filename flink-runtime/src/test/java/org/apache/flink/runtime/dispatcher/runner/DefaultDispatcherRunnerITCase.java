@@ -34,7 +34,7 @@ import org.apache.flink.runtime.dispatcher.SingleJobJobGraphStore;
 import org.apache.flink.runtime.dispatcher.StandaloneDispatcher;
 import org.apache.flink.runtime.dispatcher.TestingJobManagerRunnerFactory;
 import org.apache.flink.runtime.dispatcher.VoidHistoryServerArchivist;
-import org.apache.flink.runtime.dispatcher.runner.application.ApplicationSubmitter;
+import org.apache.flink.runtime.dispatcher.runner.application.ApplicationHandler;
 import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServicesBuilder;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -207,7 +207,7 @@ public class DefaultDispatcherRunnerITCase extends TestLogger {
 			RpcService rpcService,
 			DispatcherId fencingToken,
 			Collection<JobGraph> recoveredJobs,
-			ApplicationSubmitter applicationSubmitter,
+			ApplicationHandler applicationSubmitter,
 			PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore) throws Exception {
 			return new StandaloneDispatcher(
 				rpcService,
