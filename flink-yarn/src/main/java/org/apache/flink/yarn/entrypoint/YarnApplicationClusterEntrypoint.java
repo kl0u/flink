@@ -24,12 +24,10 @@ import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
-import org.apache.flink.runtime.concurrent.ScheduledExecutor;
-import org.apache.flink.runtime.dispatcher.ArchivedExecutionGraphStore;
-import org.apache.flink.runtime.dispatcher.MemoryArchivedExecutionGraphStore;
 import org.apache.flink.runtime.dispatcher.runner.application.ApplicationHandler;
 import org.apache.flink.runtime.dispatcher.runner.application.EmbeddedApplicationExecutor;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
+import org.apache.flink.runtime.entrypoint.SessionClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
@@ -50,7 +48,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Javadoc.
  */
 @Internal
-public class YarnApplicationClusterEntrypoint extends ClusterEntrypoint {
+public class YarnApplicationClusterEntrypoint extends SessionClusterEntrypoint {
 
 	public static final JobID ZERO_JOB_ID = new JobID(0, 0);
 
@@ -67,11 +65,6 @@ public class YarnApplicationClusterEntrypoint extends ClusterEntrypoint {
 	protected DispatcherResourceManagerComponentFactory createDispatcherResourceManagerComponentFactory(Configuration configuration) {
 		return DefaultDispatcherResourceManagerComponentFactory
 				.createApplicationComponentFactory(YarnResourceManagerFactory.getInstance(), applicationSubmitter);
-	}
-
-	@Override
-	protected ArchivedExecutionGraphStore createSerializableExecutionGraphStore(Configuration configuration, ScheduledExecutor scheduledExecutor) {
-		return new MemoryArchivedExecutionGraphStore(); // TODO: 30.01.20 think about the fault-tolerance in this case.
 	}
 
 	public static void main(String[] args) throws IOException, ProgramInvocationException {
