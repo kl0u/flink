@@ -20,9 +20,6 @@ package org.apache.flink.container.entrypoint;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.client.ClientUtils;
-import org.apache.flink.client.program.PackagedProgram;
-import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.runtime.client.JobExecutionException;
@@ -30,6 +27,8 @@ import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.runner.application.ApplicationHandler;
 import org.apache.flink.runtime.dispatcher.runner.application.EmbeddedApplicationExecutorServiceLoader;
+import org.apache.flink.runtime.entrypoint.component.Executable;
+import org.apache.flink.runtime.entrypoint.component.ExecutableExtractor;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -92,7 +91,7 @@ public class EmbeddedApplicationSubmitter implements ApplicationHandler {
 		applicationHandlerHelper(dispatcherGateway, false);
 	}
 
-	private PackagedProgram createExecutable(final ExecutableExtractor executableExtractor) throws JobSubmissionException {
+	private Executable createExecutable(final ExecutableExtractor executableExtractor) throws JobSubmissionException {
 		requireNonNull(executableExtractor, "executable extractor");
 		try {
 			return executableExtractor.createExecutable();
@@ -119,14 +118,14 @@ public class EmbeddedApplicationSubmitter implements ApplicationHandler {
 
 	private void applicationHandlerHelper(final DispatcherGateway dispatcherGateway, final boolean onRecovery) throws JobSubmissionException {
 		final ExecutableExtractor executableExtractor = getExecutableExtractor();
-		final PackagedProgram program = createExecutable(executableExtractor);
+		final Executable program = createExecutable(executableExtractor);
 
 		final PipelineExecutorServiceLoader executorServiceLoader =
 				new EmbeddedApplicationExecutorServiceLoader(jobId, dispatcherGateway, onRecovery);
 
 		try {
-			ClientUtils.executeProgram(executorServiceLoader, configuration, program);
-		} catch (ProgramInvocationException e) {
+			program.execute(executorServiceLoader, configuration);
+		} catch (Exception e) {
 			LOG.warn("Could not execute program: ", e);
 			throw new JobSubmissionException(jobId, "Could not execute application (id= " + jobId + ")", e);
 		} finally {

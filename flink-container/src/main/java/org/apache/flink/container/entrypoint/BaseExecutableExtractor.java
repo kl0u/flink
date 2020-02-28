@@ -19,6 +19,7 @@
 package org.apache.flink.container.entrypoint;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.entrypoint.component.ExecutableExtractor;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.function.FunctionUtils;
 
@@ -37,7 +38,7 @@ import java.util.stream.Collectors;
  * Javadoc.
  */
 @Internal
-public abstract class BaseExecutableExtractor implements  ExecutableExtractor {
+public abstract class BaseExecutableExtractor implements ExecutableExtractor {
 
 	/** User classpaths in relative form to the working directory. */
 	@Nonnull

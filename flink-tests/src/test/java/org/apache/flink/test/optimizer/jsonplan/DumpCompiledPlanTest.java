@@ -21,7 +21,6 @@ package org.apache.flink.test.optimizer.jsonplan;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.client.program.PackagedProgram;
-import org.apache.flink.client.program.PackagedProgramUtils;
 import org.apache.flink.examples.java.clustering.KMeans;
 import org.apache.flink.examples.java.graph.ConnectedComponents;
 import org.apache.flink.examples.java.graph.PageRank;
@@ -104,7 +103,7 @@ public class DumpCompiledPlanTest extends CompilerTestBase {
 			.setArguments(args)
 			.build();
 
-		final Pipeline pipeline = PackagedProgramUtils.getPipelineFromProgram(program, 1, true);
+		final Pipeline pipeline = program.getPipeline(1, true);
 
 		assertTrue(pipeline instanceof Plan);
 

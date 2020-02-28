@@ -16,16 +16,20 @@
  * limitations under the License.
  */
 
-package org.apache.flink.container.entrypoint;
+package org.apache.flink.runtime.entrypoint.component;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.client.program.PackagedProgram;
+import org.apache.flink.api.dag.Pipeline;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 
 /**
  * Javadoc.
  */
 @Internal
-public interface ExecutableExtractor {
+public interface Executable {
 
-	PackagedProgram createExecutable() throws Exception;
+	Pipeline getPipeline(final int parallelism, final boolean suppressOutput) throws Exception;
+
+	void execute(final PipelineExecutorServiceLoader executorLoader, final Configuration configuration) throws Exception;
 }
