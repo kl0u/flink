@@ -30,6 +30,7 @@ import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.SessionClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
+import org.apache.flink.runtime.entrypoint.component.EmbeddedApplicationHandler;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
@@ -93,8 +94,8 @@ public class YarnApplicationClusterEntrypoint extends SessionClusterEntrypoint {
 		configuration.set(DeploymentOptions.ATTACHED, true);
 
 		final JobID jobID = createJobIdForCluster(configuration);
-		final EmbeddedApplicationSubmitter applicationSubmitter =
-				new EmbeddedApplicationSubmitter(jobID, configuration, executable);
+		final EmbeddedApplicationHandler applicationSubmitter =
+				new EmbeddedApplicationHandler(jobID, configuration, executable);
 
 		final YarnApplicationClusterEntrypoint yarnApplicationClusterEntrypoint =
 				new YarnApplicationClusterEntrypoint(configuration, applicationSubmitter);

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.yarn.entrypoint;
+package org.apache.flink.runtime.entrypoint.component;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
@@ -27,7 +27,6 @@ import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.runner.application.ApplicationHandler;
 import org.apache.flink.runtime.dispatcher.runner.application.EmbeddedExecutorServiceLoader;
-import org.apache.flink.runtime.entrypoint.component.Executable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,9 +37,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Javadoc.
  */
 @Internal
-public class EmbeddedApplicationSubmitter implements ApplicationHandler {
+public class EmbeddedApplicationHandler implements ApplicationHandler {
 
-	private static final Logger LOG = LoggerFactory.getLogger(EmbeddedApplicationSubmitter.class);
+	private static final Logger LOG = LoggerFactory.getLogger(EmbeddedApplicationHandler.class);
 
 	private final JobID jobId;
 
@@ -48,7 +47,7 @@ public class EmbeddedApplicationSubmitter implements ApplicationHandler {
 
 	private final Executable executable;
 
-	public EmbeddedApplicationSubmitter(
+	public EmbeddedApplicationHandler(
 			final JobID jobId,
 			final Configuration configuration,
 			final Executable executable) {
