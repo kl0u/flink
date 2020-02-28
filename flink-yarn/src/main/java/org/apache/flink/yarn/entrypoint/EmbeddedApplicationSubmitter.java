@@ -26,7 +26,7 @@ import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.runner.application.ApplicationHandler;
-import org.apache.flink.runtime.dispatcher.runner.application.EmbeddedApplicationExecutorServiceLoader;
+import org.apache.flink.runtime.dispatcher.runner.application.EmbeddedExecutorServiceLoader;
 import org.apache.flink.runtime.entrypoint.component.Executable;
 
 import org.slf4j.Logger;
@@ -74,7 +74,7 @@ public class EmbeddedApplicationSubmitter implements ApplicationHandler {
 
 	private void applicationHandlerHelper(final DispatcherGateway dispatcherGateway, final boolean onRecovery) throws JobSubmissionException {
 		final PipelineExecutorServiceLoader executorServiceLoader =
-				new EmbeddedApplicationExecutorServiceLoader(jobId, dispatcherGateway, onRecovery);
+				new EmbeddedExecutorServiceLoader(jobId, dispatcherGateway, onRecovery);
 
 		try {
 			executable.execute(executorServiceLoader, configuration);

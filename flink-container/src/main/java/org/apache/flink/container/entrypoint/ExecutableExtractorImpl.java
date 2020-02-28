@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
+import org.apache.flink.runtime.entrypoint.component.AbstractExecutableExtractor;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FlinkException;
@@ -50,9 +51,9 @@ import static java.util.Objects.requireNonNull;
  * Javadoc.
  */
 @Internal
-public class ExecutableExtractorImpl extends BaseExecutableExtractor {
+public class ExecutableExtractorImpl extends AbstractExecutableExtractor {
 
-	private static final Logger LOG = LoggerFactory.getLogger(ClassPathJobGraphRetriever.class);
+	private static final Logger LOG = LoggerFactory.getLogger(ExecutableExtractorImpl.class);
 
 	private final String[] programArguments;
 
