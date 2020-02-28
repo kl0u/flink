@@ -23,10 +23,14 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
+import org.apache.flink.runtime.dispatcher.runner.application.EmbeddedApplicationExecutor;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.JobClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
+import org.apache.flink.runtime.entrypoint.component.EmbeddedApplicationHandler;
+import org.apache.flink.runtime.entrypoint.component.Executable;
+import org.apache.flink.runtime.entrypoint.component.ExecutableExtractor;
 import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.resourcemanager.StandaloneResourceManagerFactory;
@@ -36,6 +40,8 @@ import org.apache.flink.runtime.util.SignalHandler;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+
+import java.io.IOException;
 
 import static java.util.Objects.requireNonNull;
 import static org.apache.flink.runtime.util.ClusterEntrypointUtils.tryFindUserLibDirectory;
@@ -69,13 +75,25 @@ public class StandaloneApplicationClusterEntryPoint extends JobClusterEntrypoint
 	}
 
 	@Override
-	protected DispatcherResourceManagerComponentFactory createDispatcherResourceManagerComponentFactory(Configuration configuration) {
+	protected DispatcherResourceManagerComponentFactory createDispatcherResourceManagerComponentFactory(Configuration configuration) throws Exception {
+		final ExecutableExtractor executableExtractor = getExecutableExtractor();
+		final Executable executable = executableExtractor.createExecutable();
+
 		final EmbeddedApplicationHandler applicationSubmitter =
-				new EmbeddedApplicationHandler(configuration, jobId, programArguments, jobClassName, tryFindUserLibDirectory().orElse(null));
+				new EmbeddedApplicationHandler(jobId, configuration, executable);
 
 		return DefaultDispatcherResourceManagerComponentFactory.createApplicationComponentFactory(
 				StandaloneResourceManagerFactory.INSTANCE,
 				applicationSubmitter);
+	}
+
+	private ExecutableExtractor getExecutableExtractor() throws IOException {
+		final ExecutableExtractorImpl.Builder executableBuilder = ExecutableExtractorImpl
+				.newBuilder(programArguments)
+				.setJobClassName(jobClassName);
+
+		tryFindUserLibDirectory().ifPresent(executableBuilder::setUserLibDirectory);
+		return executableBuilder.build();
 	}
 
 	public static void main(String[] args) {
@@ -97,6 +115,8 @@ public class StandaloneApplicationClusterEntryPoint extends JobClusterEntrypoint
 
 		Configuration configuration = loadConfiguration(clusterConfiguration);
 		setDefaultExecutionModeIfNotConfigured(configuration);
+		configuration.set(DeploymentOptions.TARGET, EmbeddedApplicationExecutor.NAME);
+		configuration.set(DeploymentOptions.ATTACHED, true);
 
 		StandaloneApplicationClusterEntryPoint entrypoint = new StandaloneApplicationClusterEntryPoint(
 				configuration,
@@ -128,7 +148,6 @@ public class StandaloneApplicationClusterEntryPoint extends JobClusterEntrypoint
 			// In contrast to other places, the default for standalone job clusters is ExecutionMode.DETACHED
 			configuration.setString(ClusterEntrypoint.EXECUTION_MODE, ExecutionMode.DETACHED.toString());
 		}
-		configuration.set(DeploymentOptions.ATTACHED, true);
 	}
 
 	private static boolean isNoExecutionModeConfigured(Configuration configuration) {
