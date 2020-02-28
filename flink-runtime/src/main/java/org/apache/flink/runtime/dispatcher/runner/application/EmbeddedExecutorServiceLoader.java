@@ -33,7 +33,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Javadoc.
  */
 @Internal
-public class EmbeddedApplicationExecutorServiceLoader implements PipelineExecutorServiceLoader {
+public class EmbeddedExecutorServiceLoader implements PipelineExecutorServiceLoader {
 
 	private final JobID jobId;
 
@@ -41,7 +41,7 @@ public class EmbeddedApplicationExecutorServiceLoader implements PipelineExecuto
 
 	private final boolean inRecovery;
 
-	public EmbeddedApplicationExecutorServiceLoader(
+	public EmbeddedExecutorServiceLoader(
 			final JobID jobId,
 			final DispatcherGateway dispatcherGateway,
 			final boolean inRecovery) {

@@ -26,7 +26,7 @@ import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.runner.application.ApplicationHandler;
-import org.apache.flink.runtime.dispatcher.runner.application.EmbeddedApplicationExecutorServiceLoader;
+import org.apache.flink.runtime.dispatcher.runner.application.EmbeddedExecutorServiceLoader;
 import org.apache.flink.runtime.entrypoint.component.Executable;
 import org.apache.flink.runtime.entrypoint.component.ExecutableExtractor;
 
@@ -45,7 +45,7 @@ import static java.util.Objects.requireNonNull;
  * THIS IS SIMILAR TO CLASSPATHRETRIEVER
  */
 @Internal
-public class EmbeddedApplicationSubmitter implements ApplicationHandler {
+public class EmbeddedApplicationHandler implements ApplicationHandler {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ClassPathJobGraphRetriever.class);
 
@@ -61,7 +61,7 @@ public class EmbeddedApplicationSubmitter implements ApplicationHandler {
 	@Nullable
 	private final File userLibDirectory;
 
-	public EmbeddedApplicationSubmitter(
+	public EmbeddedApplicationHandler(
 			final Configuration configuration,
 			final JobID jobId,
 			final String[] programArguments,
@@ -91,40 +91,14 @@ public class EmbeddedApplicationSubmitter implements ApplicationHandler {
 		applicationHandlerHelper(dispatcherGateway, false);
 	}
 
-	private Executable createExecutable(final ExecutableExtractor executableExtractor) throws JobSubmissionException {
-		requireNonNull(executableExtractor, "executable extractor");
-		try {
-			return executableExtractor.createExecutable();
-		} catch (Exception e) {
-			LOG.error("Failed to create executable for job {}.", jobId, e);
-			throw new JobSubmissionException(jobId, "Failed to create executable.", e);
-		}
-	}
-
-	private ExecutableExtractor getExecutableExtractor() throws JobSubmissionException {
-		final ExecutableExtractorImpl.Builder executableBuilder = ExecutableExtractorImpl.newBuilder(programArguments)
-				.setJobClassName(jobClassName);
-		if (userLibDirectory != null) {
-			executableBuilder.setUserLibDirectory(userLibDirectory);
-		}
-
-		try {
-			return executableBuilder.build();
-		} catch (IOException e) {
-			LOG.error("Failed to find user lib dir for job {}.", jobId, e);
-			throw new JobSubmissionException(jobId, "Failed to find user lib dir.", e);
-		}
-	}
-
 	private void applicationHandlerHelper(final DispatcherGateway dispatcherGateway, final boolean onRecovery) throws JobSubmissionException {
 		final ExecutableExtractor executableExtractor = getExecutableExtractor();
-		final Executable program = createExecutable(executableExtractor);
-
+		final Executable executable = createExecutable(executableExtractor);
 		final PipelineExecutorServiceLoader executorServiceLoader =
-				new EmbeddedApplicationExecutorServiceLoader(jobId, dispatcherGateway, onRecovery);
+				new EmbeddedExecutorServiceLoader(jobId, dispatcherGateway, onRecovery);
 
 		try {
-			program.execute(executorServiceLoader, configuration);
+			executable.execute(executorServiceLoader, configuration);
 		} catch (Exception e) {
 			LOG.warn("Could not execute program: ", e);
 			throw new JobSubmissionException(jobId, "Could not execute application (id= " + jobId + ")", e);
@@ -137,6 +111,33 @@ public class EmbeddedApplicationSubmitter implements ApplicationHandler {
 			dispatcherGateway
 					.shutDownCluster()
 					.thenRun(() -> LOG.info("Cluster was shutdown."));
+		}
+	}
+
+	private Executable createExecutable(final ExecutableExtractor executableExtractor) throws JobSubmissionException {
+		requireNonNull(executableExtractor, "executable extractor");
+		try {
+			return executableExtractor.createExecutable();
+		} catch (Exception e) {
+			LOG.error("Failed to create executable for job {}.", jobId, e);
+			throw new JobSubmissionException(jobId, "Failed to create executable.", e);
+		}
+	}
+
+	private ExecutableExtractor getExecutableExtractor() throws JobSubmissionException {
+		final ExecutableExtractorImpl.Builder executableBuilder = ExecutableExtractorImpl
+				.newBuilder(programArguments)
+				.setJobClassName(jobClassName);
+
+		if (userLibDirectory != null) {
+			executableBuilder.setUserLibDirectory(userLibDirectory);
+		}
+
+		try {
+			return executableBuilder.build();
+		} catch (IOException e) {
+			LOG.error("Failed to find user lib dir for job {}.", jobId, e);
+			throw new JobSubmissionException(jobId, "Failed to find user lib dir.", e);
 		}
 	}
 }

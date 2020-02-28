@@ -16,10 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.container.entrypoint;
+package org.apache.flink.runtime.entrypoint.component;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.runtime.entrypoint.component.ExecutableExtractor;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.function.FunctionUtils;
 
@@ -38,13 +37,13 @@ import java.util.stream.Collectors;
  * Javadoc.
  */
 @Internal
-public abstract class BaseExecutableExtractor implements ExecutableExtractor {
+public abstract class AbstractExecutableExtractor implements ExecutableExtractor {
 
 	/** User classpaths in relative form to the working directory. */
 	@Nonnull
 	private final Collection<URL> userClassPaths;
 
-	protected BaseExecutableExtractor(@Nullable File jobDir) throws IOException {
+	protected AbstractExecutableExtractor(@Nullable File jobDir) throws IOException {
 		if (jobDir == null) {
 			userClassPaths = Collections.emptyList();
 		} else {

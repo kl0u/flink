@@ -70,8 +70,8 @@ public class StandaloneApplicationClusterEntryPoint extends JobClusterEntrypoint
 
 	@Override
 	protected DispatcherResourceManagerComponentFactory createDispatcherResourceManagerComponentFactory(Configuration configuration) {
-		final EmbeddedApplicationSubmitter applicationSubmitter =
-				new EmbeddedApplicationSubmitter(configuration, jobId, programArguments, jobClassName, tryFindUserLibDirectory().orElse(null));
+		final EmbeddedApplicationHandler applicationSubmitter =
+				new EmbeddedApplicationHandler(configuration, jobId, programArguments, jobClassName, tryFindUserLibDirectory().orElse(null));
 
 		return DefaultDispatcherResourceManagerComponentFactory.createApplicationComponentFactory(
 				StandaloneResourceManagerFactory.INSTANCE,
