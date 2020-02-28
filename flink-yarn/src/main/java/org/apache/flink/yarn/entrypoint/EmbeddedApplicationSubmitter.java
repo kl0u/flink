@@ -20,9 +20,6 @@ package org.apache.flink.yarn.entrypoint;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.client.ClientUtils;
-import org.apache.flink.client.program.PackagedProgram;
-import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.runtime.client.JobExecutionException;
@@ -30,6 +27,7 @@ import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.runner.application.ApplicationHandler;
 import org.apache.flink.runtime.dispatcher.runner.application.EmbeddedApplicationExecutorServiceLoader;
+import org.apache.flink.runtime.entrypoint.component.Executable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,12 +46,12 @@ public class EmbeddedApplicationSubmitter implements ApplicationHandler {
 
 	private final Configuration configuration;
 
-	private final PackagedProgram executable;
+	private final Executable executable;
 
 	public EmbeddedApplicationSubmitter(
 			final JobID jobId,
 			final Configuration configuration,
-			final PackagedProgram executable) {
+			final Executable executable) {
 		this.jobId = checkNotNull(jobId);
 		this.configuration = checkNotNull(configuration);
 		this.executable = checkNotNull(executable);
@@ -79,8 +77,8 @@ public class EmbeddedApplicationSubmitter implements ApplicationHandler {
 				new EmbeddedApplicationExecutorServiceLoader(jobId, dispatcherGateway, onRecovery);
 
 		try {
-			ClientUtils.executeProgram(executorServiceLoader, configuration, executable);
-		} catch (ProgramInvocationException e) {
+			executable.execute(executorServiceLoader, configuration);
+		} catch (Exception e) {
 			LOG.warn("Could not execute program: ", e);
 			throw new JobSubmissionException(jobId, "Could not execute application (id= " + jobId + ")", e);
 		} finally {

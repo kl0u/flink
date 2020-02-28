@@ -1374,7 +1374,7 @@ public class ExecutionEnvironment {
 	 *
 	 * @param ctx The context environment factory.
 	 */
-	protected static void initializeContextEnvironment(ExecutionEnvironmentFactory ctx) {
+	public static void initializeContextEnvironment(ExecutionEnvironmentFactory ctx) {
 		contextEnvironmentFactory = Preconditions.checkNotNull(ctx);
 		threadLocalContextEnvironmentFactory.set(contextEnvironmentFactory);
 	}

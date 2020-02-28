@@ -19,12 +19,20 @@
 package org.apache.flink.client.program;
 
 import org.apache.flink.api.common.ProgramDescription;
+import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.client.ClientUtils;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.DeploymentOptions;
+import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
+import org.apache.flink.optimizer.CompilerException;
+import org.apache.flink.runtime.entrypoint.component.Executable;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.JarUtils;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
@@ -65,7 +73,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * functionality to extract nested libraries, search for the program entry point, and extract
  * a program plan.
  */
-public class PackagedProgram {
+public class PackagedProgram implements Executable {
+
+	private static final Logger LOG = LoggerFactory.getLogger(ClientUtils.class);
 
 	/**
 	 * Property name of the entry in JAR manifest file that describes the Flink specific entry point.
@@ -531,6 +541,54 @@ public class PackagedProgram {
 			throw new ProgramInvocationException(e.getMessage(), e);
 		} catch (Throwable t) {
 			throw new ProgramInvocationException("Cannot access jar file" + (t.getMessage() == null ? "." : ": " + t.getMessage()), t);
+		}
+	}
+
+	@Override
+	public Pipeline getPipeline(int parallelism, boolean suppressOutput) throws CompilerException, ProgramInvocationException {
+		final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
+		try {
+			Thread.currentThread().setContextClassLoader(getUserCodeClassLoader());
+
+			// temporary hack to support the optimizer plan preview
+			OptimizerPlanEnvironment env = new OptimizerPlanEnvironment();
+			if (parallelism > 0) {
+				env.setParallelism(parallelism);
+			}
+			return env.getPipeline(this, suppressOutput);
+		} finally {
+			Thread.currentThread().setContextClassLoader(contextClassLoader);
+		}
+	}
+
+	@Override
+	public void execute(
+			final PipelineExecutorServiceLoader executorLoader,
+			final Configuration configuration) throws ProgramInvocationException {
+
+		checkNotNull(executorLoader);
+		checkNotNull(configuration);
+
+		final ClassLoader userCodeClassLoader = getUserCodeClassLoader();
+		final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
+		try {
+			Thread.currentThread().setContextClassLoader(userCodeClassLoader);
+
+			LOG.info("Starting program (detached: {})", !configuration.getBoolean(DeploymentOptions.ATTACHED));
+
+			ContextEnvironmentFactory factory = new ContextEnvironmentFactory(
+					executorLoader,
+					configuration,
+					userCodeClassLoader);
+			ContextEnvironment.setAsContext(factory);
+
+			try {
+				callMainMethod(mainClass, args);
+			} finally {
+				ContextEnvironment.unsetContext();
+			}
+		} finally {
+			Thread.currentThread().setContextClassLoader(contextClassLoader);
 		}
 	}
 
