@@ -20,7 +20,6 @@ package org.apache.flink.yarn.entrypoint;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
@@ -31,6 +30,7 @@ import org.apache.flink.runtime.entrypoint.SessionClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.component.EmbeddedApplicationHandler;
+import org.apache.flink.runtime.entrypoint.component.Executable;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
@@ -89,7 +89,7 @@ public class YarnApplicationClusterEntrypoint extends SessionClusterEntrypoint {
 		}
 
 		final Configuration configuration = YarnEntrypointUtils.loadConfiguration(workingDirectory, env);
-		final PackagedProgram executable = ProgramUtils.getExecutable(configuration, env);
+		final Executable executable = ProgramUtils.getExecutable(configuration, env);
 		configuration.set(DeploymentOptions.TARGET, EmbeddedApplicationExecutor.NAME);
 		configuration.set(DeploymentOptions.ATTACHED, true);
 

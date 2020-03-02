@@ -38,7 +38,6 @@ import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
@@ -54,13 +53,10 @@ public class StandaloneApplicationClusterEntryPoint extends JobClusterEntrypoint
 
 	public static final JobID ZERO_JOB_ID = new JobID(0, 0);
 
-	@Nonnull
 	private final JobID jobId;
 
-	@Nonnull
 	private final String[] programArguments;
 
-	@Nullable
 	private final String jobClassName;
 
 	public StandaloneApplicationClusterEntryPoint(
@@ -128,12 +124,10 @@ public class StandaloneApplicationClusterEntryPoint extends JobClusterEntrypoint
 	}
 
 	@VisibleForTesting
-	@Nonnull
 	static JobID resolveJobIdForCluster(@Nullable JobID jobId, Configuration configuration) {
 		return jobId == null ? createJobIdForCluster(configuration) : jobId;
 	}
 
-	@Nonnull
 	private static JobID createJobIdForCluster(Configuration globalConfiguration) {
 		if (HighAvailabilityMode.isHighAvailabilityModeActivated(globalConfiguration)) {
 			return ZERO_JOB_ID;

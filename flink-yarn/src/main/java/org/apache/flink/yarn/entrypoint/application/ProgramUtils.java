@@ -26,6 +26,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.entrypoint.component.Executable;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.yarn.YarnConfigKeys;
@@ -48,7 +49,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 @Internal
 public class ProgramUtils {
 
-	public static PackagedProgram getExecutable(
+	public static Executable getExecutable(
 			final Configuration config,
 			final Map<String, String> environment) throws IOException, ProgramInvocationException {
 
