@@ -1122,6 +1122,10 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 							1));
 		}
 
+		int yarnFileReplication = yarnConfiguration.getInt(DFSConfigKeys.DFS_REPLICATION_KEY, DFSConfigKeys.DFS_REPLICATION_DEFAULT);
+		int fileReplication = flinkConfiguration.getInteger(YarnConfigOptions.FILE_REPLICATION);
+		fileReplication = fileReplication > 0 ? fileReplication : yarnFileReplication;
+
 		// The files need to be shipped and added to classpath.
 		final Set<File> filesForClasspath = retrieveFilesForClasspath(configuration);
 		final Set<File> shipOnlyFiles = retrieveFilesToShip();
@@ -1142,7 +1146,8 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 				paths,
 				localResources,
 				Path.CUR_DIR,
-				envShipFileList);
+				envShipFileList,
+				fileReplication);
 
 		// upload and register ship-only files
 		uploadAndRegisterFiles(
@@ -1153,30 +1158,54 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 				paths,
 				localResources,
 				Path.CUR_DIR,
-				envShipFileList);
+				envShipFileList,
+				fileReplication);
 
 		// TODO: 06.02.20  the following is a hack just for the PoC.
 		final List<String> jarUrls = configuration.get(PipelineOptions.JARS);
 		final StringBuilder jarFileList = new StringBuilder();
 
-		List<String> jarPaths = new ArrayList<>();
-		if (jarUrls != null && YarnApplicationClusterEntrypoint.class.getName().equals(yarnClusterEntrypoint)) {
+//		List<String> jarPaths = new ArrayList<>();
+		//if (jarUrls != null && YarnApplicationClusterEntrypoint.class.getName().equals(yarnClusterEntrypoint)) {
 			final List<File> jars = jarUrls.stream()
 					.map(path -> new File(new Path(path).toUri()).getAbsoluteFile())
 					.collect(Collectors.toList());
 
-			List<String> jarRemotes = uploadAndRegisterFiles(
-					jars,
-					fs,
-					homeDir,
-					appId,
-					paths,
-					localResources,
-					Path.CUR_DIR,
-					jarFileList);
-			jarPaths.addAll(jarRemotes);
+			/*
+			if (jobGraph != null) {
+			File tmpJobGraphFile = null;
+			try {
+				tmpJobGraphFile = File.createTempFile(appId.toString(), null);
+				try (FileOutputStream output = new FileOutputStream(tmpJobGraphFile);
+					ObjectOutputStream obOutput = new ObjectOutputStream(output);){
+					obOutput.writeObject(jobGraph);
+				}
 
+				final String jobGraphFilename = "job.graph";
+				flinkConfiguration.setString(JOB_GRAPH_FILE_PATH, jobGraphFilename);
+
+				Path pathFromYarnURL = setupSingleLocalResource(
+						jobGraphFilename,
+						fs,
+						appId,
+						new Path(tmpJobGraphFile.toURI()),
+						localResources,
+						homeDir,
+						"");
+				paths.add(pathFromYarnURL);
+				classPathBuilder.append(jobGraphFilename).append(File.pathSeparator);
+			} catch (Exception e) {
+				LOG.warn("Add job graph to local resource fail");
+				throw e;
+			} finally {
+				if (tmpJobGraphFile != null && !tmpJobGraphFile.delete()) {
+					LOG.warn("Fail to delete temporary file {}.", tmpConfigurationFile.toPath());
+				}
+			}
 		}
+			*/
+
+//		}
 
 		// normalize classpath by sorting
 		Collections.sort(systemClassPaths);
@@ -1187,9 +1216,24 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 			classPathBuilder.append(classPath).append(File.pathSeparator);
 		}
 
-		for (String p : jarPaths) {
-			classPathBuilder.append(p).append(File.pathSeparator);
-		}
+//		for (String p : jarPaths) {
+//			classPathBuilder.append(p).append(File.pathSeparator);
+//		}
+
+		Path jarPathFromYarnURL = setupSingleLocalResource(
+				"user-jar",
+				fs,
+				appId,
+				new Path(jars.get(0).toURI()),
+				localResources,
+				homeDir,
+				"",
+				fileReplication);
+
+		paths.add(jarPathFromYarnURL);
+		classPathBuilder.append("user-jar").append(File.pathSeparator);
+		ConfigUtils.encodeCollectionToConfig(configuration, PipelineOptions.JARS, Collections.singletonList("user-jar"), t -> t);
+//		jarPaths.addAll(jarRemotes);
 
 		// Setup jar for ApplicationMaster
 		Path remotePathJar = setupSingleLocalResource(
@@ -1199,7 +1243,8 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 				flinkJarPath,
 				localResources,
 				homeDir,
-				"");
+				"",
+				fileReplication);
 
 		paths.add(remotePathJar);
 		classPathBuilder.append(flinkJarPath.getName()).append(File.pathSeparator);
@@ -1219,7 +1264,8 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 					new Path(tmpConfigurationFile.getAbsolutePath()),
 					localResources,
 					homeDir,
-					"");
+					"",
+					fileReplication);
 			envShipFileList.append(flinkConfigKey).append("=").append(remotePathConf).append(",");
 			paths.add(remotePathConf);
 			classPathBuilder.append("flink-conf.yaml").append(File.pathSeparator);
@@ -1251,7 +1297,8 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 					yarnSitePath,
 					localResources,
 					homeDir,
-					"");
+					"",
+					fileReplication);
 
 			String krb5Config = System.getProperty("java.security.krb5.conf");
 			if (krb5Config != null && krb5Config.length() != 0) {
@@ -1265,7 +1312,8 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 						krb5ConfPath,
 						localResources,
 						homeDir,
-						"");
+						"",
+						fileReplication);
 				hasKrb5 = true;
 			}
 		}
@@ -1282,7 +1330,8 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 					new Path(keytab),
 					localResources,
 					homeDir,
-					"");
+					"",
+					fileReplication);
 		}
 
 		final String logConfigFilePath = configuration.getString(YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE);
@@ -1320,7 +1369,6 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		appMasterEnv.put(YarnConfigKeys.ENV_CLIENT_SHIP_FILES, envShipFileList.toString());
 		appMasterEnv.put(YarnConfigKeys.ENV_ZOOKEEPER_NAMESPACE, getZookeeperNamespace());
 		appMasterEnv.put(YarnConfigKeys.FLINK_YARN_FILES, yarnFilesDir.toUri().toString());
-		appMasterEnv.put(YarnConfigKeys.ENV_JAR_FILES, jarFileList.toString());
 
 		// https://github.com/apache/hadoop/blob/trunk/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-site/src/site/markdown/YarnApplicationSecurity.md#identity-on-an-insecure-cluster-hadoop_user_name
 		appMasterEnv.put(YarnConfigKeys.ENV_HADOOP_USER_NAME, UserGroupInformation.getCurrentUser().getUserName());

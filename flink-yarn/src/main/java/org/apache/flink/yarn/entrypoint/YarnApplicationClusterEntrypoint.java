@@ -20,30 +20,43 @@ package org.apache.flink.yarn.entrypoint;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
+import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
-import org.apache.flink.runtime.dispatcher.runner.application.ApplicationHandler;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.runtime.dispatcher.runner.application.EmbeddedApplicationExecutor;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.SessionClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.component.EmbeddedApplicationHandler;
+import org.apache.flink.runtime.entrypoint.component.Executable;
+import org.apache.flink.runtime.entrypoint.component.ExecutableExtractor;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.yarn.entrypoint.application.ProgramUtils;
+import org.apache.flink.yarn.YarnConfigKeys;
+import org.apache.flink.yarn.configuration.YarnConfigOptions;
+import org.apache.flink.yarn.entrypoint.application.ExecutableExtractorImpl;
 
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 
-import java.io.IOException;
-import java.util.Map;
+import javax.annotation.Nullable;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
+import java.io.File;
+import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+import static java.util.Objects.requireNonNull;
+import static org.apache.flink.runtime.util.ClusterEntrypointUtils.tryFindUserLibDirectory;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Javadoc.
@@ -53,22 +66,43 @@ public class YarnApplicationClusterEntrypoint extends SessionClusterEntrypoint {
 
 	public static final JobID ZERO_JOB_ID = new JobID(0, 0);
 
-	private final ApplicationHandler applicationSubmitter;
+	private final JobID jobId;
 
 	public YarnApplicationClusterEntrypoint(
 			final Configuration configuration,
-			final ApplicationHandler applicationSubmitter) {
+			final JobID jobId) {
 		super(configuration);
-		this.applicationSubmitter = checkNotNull(applicationSubmitter);
+		this.jobId = requireNonNull(jobId);
 	}
 
 	@Override
-	protected DispatcherResourceManagerComponentFactory createDispatcherResourceManagerComponentFactory(Configuration configuration) {
+	protected DispatcherResourceManagerComponentFactory createDispatcherResourceManagerComponentFactory(final Configuration configuration) throws Exception {
+		final ExecutableExtractor executableExtractor = new ExecutableExtractorImpl(configuration, getUsrLibDir(configuration));
+		final Executable executable = executableExtractor.createExecutable();
+
+		final EmbeddedApplicationHandler applicationSubmitter =
+				new EmbeddedApplicationHandler(jobId, configuration, executable);
+
 		return DefaultDispatcherResourceManagerComponentFactory
 				.createApplicationComponentFactory(YarnResourceManagerFactory.getInstance(), applicationSubmitter);
 	}
 
-	public static void main(String[] args) throws IOException, ProgramInvocationException {
+	@Nullable
+	private static File getUsrLibDir(final Configuration configuration) {
+		final YarnConfigOptions.UserJarInclusion userJarInclusion = configuration
+				.getEnum(YarnConfigOptions.UserJarInclusion.class, YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR);
+		final Optional<File> userLibDir = tryFindUserLibDirectory();
+
+		checkState(
+				userJarInclusion != YarnConfigOptions.UserJarInclusion.DISABLED || userLibDir.isPresent(),
+				"The %s is set to %s. But the usrlib directory does not exist.",
+				YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR.key(),
+				YarnConfigOptions.UserJarInclusion.DISABLED);
+
+		return userJarInclusion == YarnConfigOptions.UserJarInclusion.DISABLED ? userLibDir.get() : null;
+	}
+
+	public static void main(String[] args) throws ProgramInvocationException {
 		// startup checks and logging
 		EnvironmentInformation.logEnvironmentInfo(LOG, YarnApplicationClusterEntrypoint.class.getSimpleName(), args);
 		SignalHandler.register(LOG);
@@ -89,17 +123,15 @@ public class YarnApplicationClusterEntrypoint extends SessionClusterEntrypoint {
 		}
 
 		final Configuration configuration = YarnEntrypointUtils.loadConfiguration(workingDirectory, env);
-		final PackagedProgram executable = ProgramUtils.getExecutable(configuration, env);
-		configuration.set(DeploymentOptions.TARGET, EmbeddedApplicationExecutor.NAME);
-		configuration.set(DeploymentOptions.ATTACHED, true);
+		overwriteDetachedModeAndExecutor(configuration);
+		updateConfigWithInterpretedJarURLs(configuration);
 
-		final JobID jobID = createJobIdForCluster(configuration);
-		final EmbeddedApplicationHandler applicationSubmitter =
-				new EmbeddedApplicationHandler(jobID, configuration, executable);
+		final JobID jobId = createJobIdForCluster(configuration);
 
 		final YarnApplicationClusterEntrypoint yarnApplicationClusterEntrypoint =
-				new YarnApplicationClusterEntrypoint(configuration, applicationSubmitter);
+				new YarnApplicationClusterEntrypoint(configuration, jobId);
 
+		LOG.info("CLASSPATH: {}", env.get(YarnConfigKeys.ENV_FLINK_CLASSPATH));
 		ClusterEntrypoint.runClusterEntrypoint(yarnApplicationClusterEntrypoint);
 	}
 
@@ -109,5 +141,28 @@ public class YarnApplicationClusterEntrypoint extends SessionClusterEntrypoint {
 		} else {
 			return JobID.generate();
 		}
+	}
+
+	private static void overwriteDetachedModeAndExecutor(final Configuration configuration) {
+		requireNonNull(configuration);
+		configuration.set(DeploymentOptions.ATTACHED, true);
+		configuration.setString(ClusterEntrypoint.EXECUTION_MODE, ExecutionMode.NORMAL.toString());
+		configuration.set(DeploymentOptions.TARGET, EmbeddedApplicationExecutor.NAME);
+	}
+
+	private static void updateConfigWithInterpretedJarURLs(final Configuration configuration) throws ProgramInvocationException {
+		requireNonNull(configuration);
+		ConfigUtils.encodeCollectionToConfig(configuration, PipelineOptions.JARS, interpretJarURLs(configuration), URL::toString);
+	}
+
+	private static List<URL> interpretJarURLs(final Configuration configuration) throws ProgramInvocationException {
+		requireNonNull(configuration);
+		return ConfigUtils.decodeListFromConfig(configuration, PipelineOptions.JARS, path -> {
+			try {
+				return new File(path).getAbsoluteFile().toURI().toURL();
+			} catch (MalformedURLException e) {
+				throw new ProgramInvocationException(e);
+			}
+		});
 	}
 }

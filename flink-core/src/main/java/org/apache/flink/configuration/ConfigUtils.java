@@ -19,6 +19,7 @@
 package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.util.function.FunctionWithException;
 
 import javax.annotation.Nullable;
 
@@ -109,20 +110,28 @@ public class ConfigUtils {
 	 * @param key the {@link ConfigOption option} to serve as the key for the list in the configuration
 	 * @param mapper the transformation function from {@code IN} to {@code OUT}.
 	 * @return the transformed values in a list of type {@code OUT}.
+	 * @throws E if something goes wrong during the application of the mapper on the parsed elements.
 	 */
-	public static <IN, OUT> List<OUT> decodeListFromConfig(
+	public static <IN, OUT, E extends Throwable> List<OUT> decodeListFromConfig(
 			final ReadableConfig configuration,
 			final ConfigOption<List<IN>> key,
-			final Function<IN, OUT> mapper) {
+			final FunctionWithException<IN, OUT, E> mapper) throws E {
 
 		checkNotNull(configuration);
 		checkNotNull(key);
 		checkNotNull(mapper);
 
 		final List<IN> encodedString = configuration.get(key);
-		return encodedString != null
-				? encodedString.stream().map(mapper).collect(Collectors.toList())
-				: Collections.emptyList();
+		if (encodedString == null) {
+			return Collections.emptyList();
+		}
+
+		final List<OUT> result = new ArrayList<>(encodedString.size());
+		for (IN el: encodedString) {
+			final OUT transformedEl = mapper.apply(el);
+			result.add(transformedEl);
+		}
+		return result;
 	}
 
 	private ConfigUtils() {
