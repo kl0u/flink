@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.client.DuplicateJobSubmissionException;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.dispatcher.runner.application.ApplicationHandler;
@@ -45,7 +46,8 @@ import java.util.concurrent.Executor;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * This is almost an exact copy of the session dispatcher.
+ * Process which encapsulates the job recovery logic and life cycle management of a
+ * {@link Dispatcher} for an application cluster.
  */
 @Internal
 public class ApplicationDispatcherLeaderProcess extends AbstractDispatcherLeaderProcess implements JobGraphStore.JobGraphListener {
@@ -60,7 +62,7 @@ public class ApplicationDispatcherLeaderProcess extends AbstractDispatcherLeader
 
 	private CompletableFuture<Void> onGoingRecoveryOperation = FutureUtils.completedVoidFuture();
 
-	private ApplicationDispatcherLeaderProcess(
+	protected ApplicationDispatcherLeaderProcess(
 			UUID leaderSessionId,
 			DispatcherGatewayServiceFactory dispatcherGatewayServiceFactory,
 			JobGraphStore jobGraphStore,
@@ -80,8 +82,8 @@ public class ApplicationDispatcherLeaderProcess extends AbstractDispatcherLeader
 		startServices();
 
 		onGoingRecoveryOperation = recoverJobsAsync()
-				.thenAccept(this::createDispatcherIfRunning)
-				.handle(this::onErrorIfRunning);
+			.thenAccept(this::createDispatcherIfRunning)
+			.handle(this::onErrorIfRunning);
 	}
 
 	private void startServices() {
@@ -89,11 +91,11 @@ public class ApplicationDispatcherLeaderProcess extends AbstractDispatcherLeader
 			jobGraphStore.start(this);
 		} catch (Exception e) {
 			throw new FlinkRuntimeException(
-					String.format(
-							"Could not start %s when trying to start the %s.",
-							jobGraphStore.getClass().getSimpleName(),
-							getClass().getSimpleName()),
-					e);
+				String.format(
+					"Could not start %s when trying to start the %s.",
+					jobGraphStore.getClass().getSimpleName(),
+					getClass().getSimpleName()),
+				e);
 		}
 	}
 
@@ -104,18 +106,18 @@ public class ApplicationDispatcherLeaderProcess extends AbstractDispatcherLeader
 	private void createDispatcher(Collection<JobGraph> jobGraphs) {
 
 		final DispatcherGatewayService dispatcherService = dispatcherGatewayServiceFactory.create(
-				DispatcherId.fromUuid(getLeaderSessionId()),
-				applicationSubmitter,
-				jobGraphs,
-				jobGraphStore);
+			DispatcherId.fromUuid(getLeaderSessionId()),
+			applicationSubmitter,
+			jobGraphs,
+			jobGraphStore);
 
 		completeDispatcherSetup(dispatcherService);
 	}
 
 	private CompletableFuture<Collection<JobGraph>> recoverJobsAsync() {
 		return CompletableFuture.supplyAsync(
-				this::recoverJobsIfRunning,
-				ioExecutor);
+			this::recoverJobsIfRunning,
+			ioExecutor);
 	}
 
 	private Collection<JobGraph> recoverJobsIfRunning() {
@@ -142,8 +144,8 @@ public class ApplicationDispatcherLeaderProcess extends AbstractDispatcherLeader
 			return jobGraphStore.getJobIds();
 		} catch (Exception e) {
 			throw new FlinkRuntimeException(
-					"Could not retrieve job ids of persisted jobs.",
-					e);
+				"Could not retrieve job ids of persisted jobs.",
+				e);
 		}
 	}
 
@@ -153,16 +155,16 @@ public class ApplicationDispatcherLeaderProcess extends AbstractDispatcherLeader
 			return jobGraphStore.recoverJobGraph(jobId);
 		} catch (Exception e) {
 			throw new FlinkRuntimeException(
-					String.format("Could not recover job with job id %s.", jobId),
-					e);
+				String.format("Could not recover job with job id %s.", jobId),
+				e);
 		}
 	}
 
 	@Override
 	protected CompletableFuture<Void> onClose() {
 		return CompletableFuture.runAsync(
-				this::stopServices,
-				ioExecutor);
+			this::stopServices,
+			ioExecutor);
 	}
 
 	private void stopServices() {
