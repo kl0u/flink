@@ -22,14 +22,15 @@ import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.dispatcher.runner.application.ApplicationHandler;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.JobGraphWriter;
-import org.apache.flink.util.function.TriFunction;
+import org.apache.flink.util.function.QuadFunction;
 
 import java.util.Collection;
 
 class TestingDispatcherServiceFactory implements AbstractDispatcherLeaderProcess.DispatcherGatewayServiceFactory {
-	private final TriFunction<DispatcherId, Collection<JobGraph>, JobGraphWriter, AbstractDispatcherLeaderProcess.DispatcherGatewayService> createFunction;
 
-	private TestingDispatcherServiceFactory(TriFunction<DispatcherId, Collection<JobGraph>, JobGraphWriter, AbstractDispatcherLeaderProcess.DispatcherGatewayService> createFunction) {
+	private final QuadFunction<DispatcherId, ApplicationHandler, Collection<JobGraph>, JobGraphWriter, AbstractDispatcherLeaderProcess.DispatcherGatewayService> createFunction;
+
+	private TestingDispatcherServiceFactory(QuadFunction<DispatcherId, ApplicationHandler, Collection<JobGraph>, JobGraphWriter, AbstractDispatcherLeaderProcess.DispatcherGatewayService> createFunction) {
 		this.createFunction = createFunction;
 	}
 
@@ -39,7 +40,7 @@ class TestingDispatcherServiceFactory implements AbstractDispatcherLeaderProcess
 			ApplicationHandler applicationSubmitter,
 			Collection<JobGraph> recoveredJobs,
 			JobGraphWriter jobGraphWriter) {
-		return createFunction.apply(fencingToken, recoveredJobs, jobGraphWriter);
+		return createFunction.apply(fencingToken, applicationSubmitter, recoveredJobs, jobGraphWriter);
 	}
 
 	public static Builder newBuilder() {
@@ -47,11 +48,12 @@ class TestingDispatcherServiceFactory implements AbstractDispatcherLeaderProcess
 	}
 
 	public static class Builder {
-		private TriFunction<DispatcherId, Collection<JobGraph>, JobGraphWriter, AbstractDispatcherLeaderProcess.DispatcherGatewayService> createFunction = (ignoredA, ignoredB, ignoredC) -> TestingDispatcherGatewayService.newBuilder().build();
+		private QuadFunction<DispatcherId, ApplicationHandler, Collection<JobGraph>, JobGraphWriter, AbstractDispatcherLeaderProcess.DispatcherGatewayService> createFunction  =
+				(ignoredA, ignoredB, ignoredC, ignoredD) -> TestingDispatcherGatewayService.newBuilder().build();
 
 		private Builder() {}
 
-		Builder setCreateFunction(TriFunction<DispatcherId, Collection<JobGraph>, JobGraphWriter, AbstractDispatcherLeaderProcess.DispatcherGatewayService> createFunction) {
+		Builder setCreateFunction(QuadFunction<DispatcherId, ApplicationHandler, Collection<JobGraph>, JobGraphWriter, AbstractDispatcherLeaderProcess.DispatcherGatewayService> createFunction) {
 			this.createFunction = createFunction;
 			return this;
 		}
