@@ -29,7 +29,6 @@ import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.PipelineExecutor;
-import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 
@@ -38,10 +37,11 @@ import org.slf4j.LoggerFactory;
 
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
+import static java.util.Objects.requireNonNull;
 
 /**
  * Javadoc.
@@ -53,39 +53,33 @@ public class EmbeddedApplicationExecutor implements PipelineExecutor {
 
 	public static final String NAME = "Embedded";
 
-	private final JobID jobId;
+	private final Collection<JobID> recoveredJobIds;
+
+	private final JobID jobIdToExecute;
 
 	private final EmbeddedClient embeddedClient;
 
-	private final boolean inRecovery;
-
 	public EmbeddedApplicationExecutor(
-			final JobID jobId,
-			final Configuration configuration,
-			final DispatcherGateway dispatcherGateway,
-			final boolean inRecovery) {
-
-		this.jobId = checkNotNull(jobId);
-		this.inRecovery = inRecovery;
-		this.embeddedClient = new EmbeddedClient(
-				jobId,
-				checkNotNull(configuration),
-				checkNotNull(dispatcherGateway));
+			final Collection<JobID> recoveredJobIds,
+			final JobID jobIdToExecute,
+			final EmbeddedClient client) {
+		this.jobIdToExecute = requireNonNull(jobIdToExecute);
+		this.recoveredJobIds = requireNonNull(recoveredJobIds);
+		this.embeddedClient = requireNonNull(client);
 	}
 
 	@Override
 	public CompletableFuture<JobClient> execute(final Pipeline pipeline, final Configuration configuration) {
-		checkNotNull(pipeline);
-		checkNotNull(configuration);
+		requireNonNull(pipeline);
+		requireNonNull(configuration);
 
-		if (inRecovery) {
-			LOG.info("Job {} is in recovery.", jobId);
+		if (recoveredJobIds.contains(jobIdToExecute)) {
+			LOG.info("Job {} was recovered successfully.", jobIdToExecute);
 			return CompletableFuture.completedFuture(embeddedClient);
 		}
 
-		final JobGraph jobGraph = getJobGraph(jobId, pipeline, configuration);
-
-		LOG.info("Job {} is submitted.", jobId);
+		final JobGraph jobGraph = getJobGraph(jobIdToExecute, pipeline, configuration);
+		LOG.info("Job {} is submitted.", jobIdToExecute);
 
 		return embeddedClient
 				.submitJob(jobGraph)

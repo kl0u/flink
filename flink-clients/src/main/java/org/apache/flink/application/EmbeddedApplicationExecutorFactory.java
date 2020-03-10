@@ -24,8 +24,11 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.PipelineExecutor;
 import org.apache.flink.core.execution.PipelineExecutorFactory;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
+import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
+import java.util.Collection;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * Javadoc.
@@ -33,19 +36,19 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class EmbeddedApplicationExecutorFactory implements PipelineExecutorFactory {
 
-	private final JobID jobId;
+	private final Collection<JobID> applicationJobIds;
+
+	private final Collection<JobID> recoveredJobIds;
 
 	private final DispatcherGateway dispatcherGateway;
 
-	private final boolean inRecovery;
-
 	public EmbeddedApplicationExecutorFactory(
-			final JobID jobId,
-			final DispatcherGateway dispatcherGateway,
-			final boolean inRecovery) {
-		this.jobId = checkNotNull(jobId);
-		this.dispatcherGateway = checkNotNull(dispatcherGateway);
-		this.inRecovery = inRecovery;
+			final Collection<JobID> applicationJobIds,
+			final Collection<JobID> recoveredJobIds,
+			final DispatcherGateway dispatcherGateway) {
+		this.applicationJobIds = requireNonNull(applicationJobIds);
+		this.recoveredJobIds = requireNonNull(recoveredJobIds);
+		this.dispatcherGateway = requireNonNull(dispatcherGateway);
 	}
 
 	@Override
@@ -60,6 +63,34 @@ public class EmbeddedApplicationExecutorFactory implements PipelineExecutorFacto
 
 	@Override
 	public PipelineExecutor getExecutor(final Configuration configuration) {
-		return new EmbeddedApplicationExecutor(jobId, configuration, dispatcherGateway, inRecovery);
+		requireNonNull(configuration);
+
+		final JobID jobId = getOrCreateJobId(configuration);
+		this.applicationJobIds.add(jobId);
+
+		final EmbeddedClient client = new EmbeddedClient(jobId, configuration, dispatcherGateway);
+		return new EmbeddedApplicationExecutor(recoveredJobIds, jobId, client);
+	}
+
+	private static JobID getOrCreateJobId(final Configuration configuration) {
+		requireNonNull(configuration);
+
+		return configuration
+				.getOptional(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID)
+				.map(JobID::fromHexString)
+				.orElse(createJobIdForCluster(configuration));
+	}
+
+	/**
+	 * This method assumes that there is only one job in the application, and in the case of HA
+	 * it assigns the {@link JobID#ZERO_JOB_ID}.
+	 * todo this has to change in the future and maybe throw an exception.
+	 */
+	private static JobID createJobIdForCluster(Configuration configuration) {
+		if (HighAvailabilityMode.isHighAvailabilityModeActivated(configuration)) {
+			return JobID.ZERO_JOB_ID;
+		} else {
+			return JobID.generate();
+		}
 	}
 }

@@ -18,22 +18,24 @@
 
 package org.apache.flink.application;
 
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.dispatcher.DispatcherGateway;
-
-import java.util.Collection;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.util.FlinkException;
 
 /**
- * An interface to be implemented by the entities responsible for application submission
- * for the different deployment environments.
- *
- * <p>This is only relevant for execution in {@code application mode}. Its logic
- * will be executed by the leading {@link org.apache.flink.runtime.dispatcher.Dispatcher dispatchers}
- * upon grant of leadership to it.
+ * Javadoc.
  */
-@Internal
-public interface ApplicationHandler {
+@PublicEvolving
+public class ApplicationSubmissionException extends FlinkException {
 
-	void launch(final Collection<JobID> recoveredJobIds, final DispatcherGateway dispatcherGateway);
+	public ApplicationSubmissionException(String message) {
+		super(message);
+	}
+
+	public ApplicationSubmissionException(Throwable cause) {
+		super(cause);
+	}
+
+	public ApplicationSubmissionException(String message, Throwable cause) {
+		super(message, cause);
+	}
 }

@@ -20,7 +20,6 @@ package org.apache.flink.container.entrypoint;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.application.ApplicationDispatcherFactory;
 import org.apache.flink.application.ApplicationDispatcherLeaderProcessFactoryFactory;
 import org.apache.flink.application.EmbeddedApplicationExecutor;
@@ -35,7 +34,6 @@ import org.apache.flink.runtime.entrypoint.JobClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
-import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.resourcemanager.StandaloneResourceManagerFactory;
 import org.apache.flink.runtime.rest.JobRestEndpointFactory;
 import org.apache.flink.runtime.util.EnvironmentInformation;
@@ -55,21 +53,15 @@ import static org.apache.flink.runtime.util.ClusterEntrypointUtils.tryFindUserLi
 @Internal
 public class StandaloneApplicationClusterEntryPoint extends JobClusterEntrypoint {
 
-	public static final JobID ZERO_JOB_ID = new JobID(0, 0);
-
-	private final JobID jobId;
-
 	private final String[] programArguments;
 
 	private final String jobClassName;
 
 	public StandaloneApplicationClusterEntryPoint(
 			final Configuration configuration,
-			final JobID jobId,
 			final String[] programArguments,
 			@Nullable String jobClassName) {
 		super(configuration);
-		this.jobId = requireNonNull(jobId, "jobId");
 		this.programArguments = requireNonNull(programArguments, "programArguments");
 		this.jobClassName = jobClassName;
 	}
@@ -79,11 +71,13 @@ public class StandaloneApplicationClusterEntryPoint extends JobClusterEntrypoint
 		final ExecutableExtractor executableExtractor = getExecutableExtractor();
 		final PackagedProgram executable = executableExtractor.createExecutable();
 
-		final EmbeddedApplicationHandler applicationSubmitter =
-				new EmbeddedApplicationHandler(jobId, configuration, executable);
+		final EmbeddedApplicationHandler applicationHandler =
+				new EmbeddedApplicationHandler(configuration, executable);
 
 		return new DefaultDispatcherResourceManagerComponentFactory(
-				new DefaultDispatcherRunnerFactory(ApplicationDispatcherLeaderProcessFactoryFactory.create(ApplicationDispatcherFactory.INSTANCE, applicationSubmitter)),
+				new DefaultDispatcherRunnerFactory(
+						ApplicationDispatcherLeaderProcessFactoryFactory
+								.create(ApplicationDispatcherFactory.INSTANCE, applicationHandler)),
 				StandaloneResourceManagerFactory.INSTANCE,
 				JobRestEndpointFactory.INSTANCE);
 	}
@@ -121,24 +115,10 @@ public class StandaloneApplicationClusterEntryPoint extends JobClusterEntrypoint
 
 		StandaloneApplicationClusterEntryPoint entrypoint = new StandaloneApplicationClusterEntryPoint(
 				configuration,
-				resolveJobIdForCluster(clusterConfiguration.getJobId(), configuration),
 				clusterConfiguration.getArgs(),
 				clusterConfiguration.getJobClassName());
 
 		ClusterEntrypoint.runClusterEntrypoint(entrypoint);
-	}
-
-	@VisibleForTesting
-	static JobID resolveJobIdForCluster(@Nullable JobID jobId, Configuration configuration) {
-		return jobId == null ? createJobIdForCluster(configuration) : jobId;
-	}
-
-	private static JobID createJobIdForCluster(Configuration globalConfiguration) {
-		if (HighAvailabilityMode.isHighAvailabilityModeActivated(globalConfiguration)) {
-			return ZERO_JOB_ID;
-		} else {
-			return JobID.generate();
-		}
 	}
 
 	@VisibleForTesting

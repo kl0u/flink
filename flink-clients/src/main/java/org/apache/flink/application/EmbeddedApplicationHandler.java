@@ -23,18 +23,19 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.PackagedProgram;
+import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
-import org.apache.flink.runtime.client.JobExecutionException;
-import org.apache.flink.runtime.client.JobSubmissionException;
-import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
-import org.apache.flink.runtime.jobmaster.JobResult;
+import org.apache.flink.util.SerializedThrowable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import static java.util.Objects.requireNonNull;
@@ -47,67 +48,102 @@ public class EmbeddedApplicationHandler implements ApplicationHandler {
 
 	private static final Logger LOG = LoggerFactory.getLogger(EmbeddedApplicationHandler.class);
 
-	private final JobID jobId;
-
 	private final Configuration configuration;
 
 	private final PackagedProgram executable;
 
 	public EmbeddedApplicationHandler(
-			final JobID jobId,
 			final Configuration configuration,
 			final PackagedProgram executable) {
-		this.jobId = requireNonNull(jobId);
 		this.configuration = requireNonNull(configuration);
 		this.executable = requireNonNull(executable);
 	}
 
 	@Override
-	public JobID getJobId() {
-		return jobId;
+	public void launch(final Collection<JobID> recoveredJobIds, final DispatcherGateway dispatcherGateway) {
+		requireNonNull(recoveredJobIds);
+		requireNonNull(dispatcherGateway);
+
+		tryExecuteApplication(recoveredJobIds, dispatcherGateway)
+					.whenComplete((r, t) -> dispatcherGateway.shutDownCluster());
 	}
 
-	@Override
-	public void submit(final DispatcherGateway dispatcherGateway) throws JobSubmissionException {
-		applicationHandlerHelper(dispatcherGateway, false);
+	private CompletableFuture<Void> tryExecuteApplication(
+			final Collection<JobID> recoveredJobIds,
+			final DispatcherGateway dispatcherGateway) {
+		final CompletableFuture<Void> terminationFuture = new CompletableFuture<>();
+
+		final List<JobID> applicationJobIds = tryExecuteJobs(recoveredJobIds, dispatcherGateway, terminationFuture);
+		monitorApplicationStatus(dispatcherGateway, applicationJobIds, terminationFuture);
+		return terminationFuture;
 	}
 
-	@Override
-	public void recover(DispatcherGateway dispatcherGateway) throws JobExecutionException {
-		applicationHandlerHelper(dispatcherGateway, true);
-	}
+	private List<JobID> tryExecuteJobs(
+			final Collection<JobID> recoveredJobIds,
+			final DispatcherGateway dispatcherGateway,
+			final CompletableFuture<Void> terminationFuture) {
 
-	private void applicationHandlerHelper(final DispatcherGateway dispatcherGateway, final boolean onRecovery) throws JobSubmissionException {
+		final List<JobID> applicationJobIds = new ArrayList<>(recoveredJobIds);
 		final PipelineExecutorServiceLoader executorServiceLoader =
-				new EmbeddedExecutorServiceLoader(jobId, dispatcherGateway, onRecovery);
+				new EmbeddedExecutorServiceLoader(applicationJobIds, recoveredJobIds, dispatcherGateway);
 
 		try {
 			ClientUtils.executeProgram(executorServiceLoader, configuration, executable);
-		} catch (Exception e) {
-			LOG.warn("Could not execute program: ", e);
-			throw new JobSubmissionException(jobId, "Could not execute application (id= " + jobId + ")", e);
-		} finally {
+		} catch (ProgramInvocationException e) {
+			LOG.warn("Could not execute application: ", e);
 
-			// We are out of the user's main, either due to a failure or
-			// due to finishing or cancelling the execution.
-			// In any case, it is time to shutdown the cluster
-
-			handleJobExecutionResult(dispatcherGateway);
+			terminationFuture.completeExceptionally(
+					new ApplicationSubmissionException("Could not execute application.", e));
 		}
+
+		return applicationJobIds;
 	}
 
-	private CompletableFuture<Void> handleJobExecutionResult(final DispatcherGateway dispatcherGateway) {
-		requireNonNull(dispatcherGateway);
+	private void monitorApplicationStatus(
+			final DispatcherGateway dispatcherGateway,
+			final List<JobID> applicationIds,
+			final CompletableFuture<Void> terminationFuture) {
+		if (applicationIds.isEmpty()) {
+			LOG.warn("Submitted application with no execute() calls.");
+
+			terminationFuture.completeExceptionally(
+					new ApplicationSubmissionException("Submitted application with no execute() calls."));
+		}
+
+		final CompletableFuture<?>[] allTerminationFutures = applicationIds
+				.stream()
+				.map(jobId -> monitorJobStatus(dispatcherGateway, jobId, terminationFuture))
+				.toArray(CompletableFuture<?>[]::new);
+
+		CompletableFuture.allOf(allTerminationFutures)
+				.whenComplete((r, t) -> {
+					if (t != null) {
+						LOG.info("Application FAILED: ", t);
+						terminationFuture.completeExceptionally(t);
+					} else {
+						LOG.info("Application SUCCEEDED.");
+						terminationFuture.complete(null);
+					}
+				});
+	}
+
+	private CompletableFuture<Void> monitorJobStatus(
+			final DispatcherGateway dispatcherGateway,
+			final JobID jobId,
+			final CompletableFuture<Void> terminationFuture) {
 
 		final Time timeout = Time.milliseconds(configuration.getLong(WebOptions.TIMEOUT));
-		final CompletableFuture<JobResult> jobResultFuture = dispatcherGateway.requestJobResult(jobId, timeout);
 
-		return jobResultFuture.thenAccept((JobResult result) -> {
-			ApplicationStatus status = result.getSerializedThrowable().isPresent() ?
-					ApplicationStatus.FAILED : ApplicationStatus.SUCCEEDED;
-
-			LOG.debug("Shutting down application cluster because the application finished with status={}.", status);
-			dispatcherGateway.shutDownCluster();
-		});
+		return dispatcherGateway
+				.requestJobResult(jobId, timeout)
+				.thenAccept(result -> {
+					if (result.getSerializedThrowable().isPresent()) {
+						SerializedThrowable t = result.getSerializedThrowable().get();
+						LOG.info("Job {} FAILED: ", jobId, t);
+						terminationFuture.completeExceptionally(t);
+					} else {
+						LOG.info("Job {} SUCCEEDED.", jobId);
+					}
+				});
 	}
 }

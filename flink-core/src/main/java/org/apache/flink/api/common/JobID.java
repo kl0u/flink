@@ -37,6 +37,8 @@ public final class JobID extends AbstractID {
 
 	private static final long serialVersionUID = 1L;
 
+	public static final JobID ZERO_JOB_ID = new JobID(0, 0);
+
 	/**
 	 * Creates a new (statistically) random JobID.
 	 */

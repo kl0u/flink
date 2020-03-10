@@ -25,9 +25,10 @@ import org.apache.flink.core.execution.PipelineExecutorFactory;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 
+import java.util.Collection;
 import java.util.stream.Stream;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
+import static java.util.Objects.requireNonNull;
 
 /**
  * Javadoc.
@@ -35,24 +36,24 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class EmbeddedExecutorServiceLoader implements PipelineExecutorServiceLoader {
 
-	private final JobID jobId;
+	private final Collection<JobID> applicationJobIds;
+
+	private final Collection<JobID> recoveredJobIds;
 
 	private final DispatcherGateway dispatcherGateway;
 
-	private final boolean inRecovery;
-
 	public EmbeddedExecutorServiceLoader(
-			final JobID jobId,
-			final DispatcherGateway dispatcherGateway,
-			final boolean inRecovery) {
-		this.jobId = checkNotNull(jobId);
-		this.dispatcherGateway = checkNotNull(dispatcherGateway);
-		this.inRecovery = inRecovery;
+			final Collection<JobID> applicationJobIds,
+			final Collection<JobID> recoveredJobIds,
+			final DispatcherGateway dispatcherGateway) {
+		this.applicationJobIds = requireNonNull(applicationJobIds);
+		this.recoveredJobIds = requireNonNull(recoveredJobIds);
+		this.dispatcherGateway = requireNonNull(dispatcherGateway);
 	}
 
 	@Override
 	public PipelineExecutorFactory getExecutorFactory(final Configuration configuration) {
-		return new EmbeddedApplicationExecutorFactory(jobId, dispatcherGateway, inRecovery);
+		return new EmbeddedApplicationExecutorFactory(applicationJobIds, recoveredJobIds, dispatcherGateway);
 	}
 
 	@Override

@@ -19,7 +19,6 @@
 package org.apache.flink.yarn.entrypoint;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.application.ApplicationDispatcherFactory;
 import org.apache.flink.application.ApplicationDispatcherLeaderProcessFactoryFactory;
 import org.apache.flink.application.EmbeddedApplicationExecutor;
@@ -36,13 +35,11 @@ import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.SessionClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
-import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.rest.JobRestEndpointFactory;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.yarn.YarnConfigKeys;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.entrypoint.application.ExecutableExtractorImpl;
 
@@ -68,15 +65,8 @@ import static org.apache.flink.util.Preconditions.checkState;
 @Internal
 public class YarnApplicationClusterEntrypoint extends SessionClusterEntrypoint {
 
-	public static final JobID ZERO_JOB_ID = new JobID(0, 0);
-
-	private final JobID jobId;
-
-	public YarnApplicationClusterEntrypoint(
-			final Configuration configuration,
-			final JobID jobId) {
+	public YarnApplicationClusterEntrypoint(final Configuration configuration) {
 		super(configuration);
-		this.jobId = requireNonNull(jobId);
 	}
 
 	@Override
@@ -84,11 +74,13 @@ public class YarnApplicationClusterEntrypoint extends SessionClusterEntrypoint {
 		final ExecutableExtractor executableExtractor = new ExecutableExtractorImpl(configuration, getUsrLibDir(configuration));
 		final PackagedProgram executable = executableExtractor.createExecutable();
 
-		final EmbeddedApplicationHandler applicationSubmitter =
-				new EmbeddedApplicationHandler(jobId, configuration, executable);
+		final EmbeddedApplicationHandler applicationHandler =
+				new EmbeddedApplicationHandler(configuration, executable);
 
 		return new DefaultDispatcherResourceManagerComponentFactory(
-				new DefaultDispatcherRunnerFactory(ApplicationDispatcherLeaderProcessFactoryFactory.create(ApplicationDispatcherFactory.INSTANCE, applicationSubmitter)),
+				new DefaultDispatcherRunnerFactory(
+						ApplicationDispatcherLeaderProcessFactoryFactory
+								.create(ApplicationDispatcherFactory.INSTANCE, applicationHandler)),
 				YarnResourceManagerFactory.getInstance(),
 				JobRestEndpointFactory.INSTANCE);
 	}
@@ -132,21 +124,10 @@ public class YarnApplicationClusterEntrypoint extends SessionClusterEntrypoint {
 		overwriteDetachedModeAndExecutor(configuration);
 		updateConfigWithInterpretedJarURLs(configuration);
 
-		final JobID jobId = createJobIdForCluster(configuration);
-
 		final YarnApplicationClusterEntrypoint yarnApplicationClusterEntrypoint =
-				new YarnApplicationClusterEntrypoint(configuration, jobId);
+				new YarnApplicationClusterEntrypoint(configuration);
 
-		LOG.info("CLASSPATH: {}", env.get(YarnConfigKeys.ENV_FLINK_CLASSPATH));
 		ClusterEntrypoint.runClusterEntrypoint(yarnApplicationClusterEntrypoint);
-	}
-
-	private static JobID createJobIdForCluster(Configuration globalConfiguration) {
-		if (HighAvailabilityMode.isHighAvailabilityModeActivated(globalConfiguration)) {
-			return ZERO_JOB_ID;
-		} else {
-			return JobID.generate();
-		}
 	}
 
 	private static void overwriteDetachedModeAndExecutor(final Configuration configuration) {

@@ -27,7 +27,9 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.rpc.RpcService;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
 
@@ -42,9 +44,9 @@ public class ApplicationClusterInitializer implements ClusterInitializer {
 	private final ApplicationHandler applicationSubmitter;
 
 	public ApplicationClusterInitializer(
-			final Collection<JobGraph> recoveredJobs,
+			final Collection<JobGraph> recoveredJobGraphs,
 			final ApplicationHandler applicationSubmitter) {
-		this.recoveredJobs = requireNonNull(recoveredJobs);
+		this.recoveredJobs = requireNonNull(recoveredJobGraphs);
 		this.applicationSubmitter = requireNonNull(applicationSubmitter);
 	}
 
@@ -57,37 +59,26 @@ public class ApplicationClusterInitializer implements ClusterInitializer {
 	public void initializeCluster(final Dispatcher dispatcher) {
 		requireNonNull(dispatcher);
 
-		final JobID applicationIdToSubmit = applicationSubmitter.getJobId();
-
-		boolean recoveredApplicationId = false;
 		for (JobGraph recoveredJob : recoveredJobs) {
-			if (recoveredJob.getJobID().equals(applicationIdToSubmit)) {
-				recoveredApplicationId = true;
-			}
-
 			FutureUtils.assertNoException(dispatcher.runJob(recoveredJob)
 					.handle(dispatcher.handleRecoveredJobStartError(recoveredJob.getJobID())));
 		}
 
-		recoveredJobs.clear();
-
-		if (applicationIdToSubmit != null) {
-			handleApplicationState(dispatcher, recoveredApplicationId);
-		}
+		handleApplicationState(dispatcher);
 	}
 
-	private void handleApplicationState(final Dispatcher dispatcher, final boolean onRecovery) {
+	private void handleApplicationState(final Dispatcher dispatcher) {
 		requireNonNull(dispatcher);
 
-		final RpcService rpcService = dispatcher.getRpcService();
+		final List<JobID> recoveredJobIds = recoveredJobs
+				.stream()
+				.map(JobGraph::getJobID)
+				.collect(Collectors.toList());
 
+		final RpcService rpcService = dispatcher.getRpcService();
 		CompletableFuture.runAsync(() -> {
 			try {
-				if (onRecovery) {
-					applicationSubmitter.recover(dispatcher);
-				} else {
-					applicationSubmitter.submit(dispatcher);
-				}
+				applicationSubmitter.launch(recoveredJobIds, dispatcher);
 			} catch (Exception e) {
 				throw new RuntimeException(e);
 			}

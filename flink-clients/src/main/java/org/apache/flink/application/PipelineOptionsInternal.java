@@ -19,21 +19,20 @@
 package org.apache.flink.application;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.dispatcher.DispatcherGateway;
+import org.apache.flink.configuration.ConfigOption;
 
-import java.util.Collection;
+import static org.apache.flink.configuration.ConfigOptions.key;
 
 /**
- * An interface to be implemented by the entities responsible for application submission
- * for the different deployment environments.
- *
- * <p>This is only relevant for execution in {@code application mode}. Its logic
- * will be executed by the leading {@link org.apache.flink.runtime.dispatcher.Dispatcher dispatchers}
- * upon grant of leadership to it.
+ * Javadoc.
  */
 @Internal
-public interface ApplicationHandler {
+public class PipelineOptionsInternal {
 
-	void launch(final Collection<JobID> recoveredJobIds, final DispatcherGateway dispatcherGateway);
+	public static final ConfigOption<String> PIPELINE_FIXED_JOB_ID =
+			key("$internal.pipeline.job-id")
+					.stringType()
+					.noDefaultValue()
+					.withDescription("**DO NOT USE** The static JobId to be used for the specific pipeline. " +
+							"For fault-tolerance, this value needs to stay the same across runs.");
 }
