@@ -18,11 +18,8 @@
 
 package org.apache.flink.runtime.dispatcher;
 
-import org.apache.flink.runtime.dispatcher.runner.application.ApplicationHandler;
-import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.dispatcher.runner.ClusterInitializer;
 import org.apache.flink.runtime.rpc.RpcService;
-
-import java.util.Collection;
 
 /**
  * {@link DispatcherFactory} which creates a {@link StandaloneDispatcher}.
@@ -34,16 +31,14 @@ public enum SessionDispatcherFactory implements DispatcherFactory {
 	public StandaloneDispatcher createDispatcher(
 			RpcService rpcService,
 			DispatcherId fencingToken,
-			Collection<JobGraph> recoveredJobs,
-			ApplicationHandler applicationSubmitter,
+			ClusterInitializer clusterInitializer,
 			PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore) throws Exception {
 		// create the default dispatcher
 		return new StandaloneDispatcher(
 			rpcService,
 			getEndpointId(),
 			fencingToken,
-			recoveredJobs,
-			applicationSubmitter,
+			clusterInitializer,
 			DispatcherServices.from(partialDispatcherServicesWithJobGraphStore, DefaultJobManagerRunnerFactory.INSTANCE));
 	}
 }

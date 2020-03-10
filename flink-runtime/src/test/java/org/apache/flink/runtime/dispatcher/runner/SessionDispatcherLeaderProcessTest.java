@@ -34,7 +34,7 @@ import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.ThrowingConsumer;
-import org.apache.flink.util.function.QuadFunctionWithException;
+import org.apache.flink.util.function.TriFunctionWithException;
 
 import org.junit.After;
 import org.junit.AfterClass;
@@ -120,8 +120,8 @@ public class SessionDispatcherLeaderProcessTest extends TestLogger {
 		final CompletableFuture<Collection<JobGraph>> recoveredJobGraphsFuture = new CompletableFuture<>();
 		dispatcherServiceFactory = TestingDispatcherServiceFactory.newBuilder()
 			.setCreateFunction(
-				(fencingToken, handler, recoveredJobGraphs, jobGraphStore) -> {
-					recoveredJobGraphsFuture.complete(recoveredJobGraphs);
+				(fencingToken, clusterInitializer, jobGraphStore) -> {
+					recoveredJobGraphsFuture.complete(clusterInitializer.getInitJobGraphs());
 					return TestingDispatcherGatewayService.newBuilder().build();
 				}
 			)
@@ -146,7 +146,7 @@ public class SessionDispatcherLeaderProcessTest extends TestLogger {
 
 		final CompletableFuture<Void> dispatcherServiceTerminationFuture = new CompletableFuture<>();
 		dispatcherServiceFactory = TestingDispatcherServiceFactory.newBuilder()
-			.setCreateFunction((ignoredA, ignoredB, ignoredC, ignoreD) -> TestingDispatcherGatewayService.newBuilder()
+			.setCreateFunction((ignoredA, ignoredB, ignoredC) -> TestingDispatcherGatewayService.newBuilder()
 				.setTerminationFutureSupplier(() -> dispatcherServiceTerminationFuture)
 				.build())
 			.build();
@@ -182,7 +182,7 @@ public class SessionDispatcherLeaderProcessTest extends TestLogger {
 
 		dispatcherServiceFactory = TestingDispatcherServiceFactory.newBuilder()
 			.setCreateFunction(
-				QuadFunctionWithException.unchecked((ignoredA, ignoredB, ignoredC, ignoredD) -> {
+				TriFunctionWithException.unchecked((ignoredA, ignoredB, ignoredC) -> {
 					createDispatcherServiceLatch.await();
 					return TestingDispatcherGatewayService.newBuilder()
 						.setDispatcherGateway(dispatcherGateway)
@@ -219,7 +219,7 @@ public class SessionDispatcherLeaderProcessTest extends TestLogger {
 
 		this.dispatcherServiceFactory = TestingDispatcherServiceFactory.newBuilder()
 			.setCreateFunction(
-				(ignoredA, ignoredB, ignoredC, ignoreD) -> {
+				(ignoredA, ignoredB, ignoredC) -> {
 					createDispatcherServiceLatch.trigger();
 					return TestingDispatcherGatewayService.newBuilder().build();
 				})
@@ -256,7 +256,7 @@ public class SessionDispatcherLeaderProcessTest extends TestLogger {
 			.build();
 
 		dispatcherServiceFactory = TestingDispatcherServiceFactory.newBuilder()
-			.setCreateFunction((dispatcherId, handler, jobGraphs, jobGraphWriter) -> testingDispatcherService)
+			.setCreateFunction((dispatcherId, clusterInitializer, jobGraphWriter) -> testingDispatcherService)
 			.build();
 
 		try (final SessionDispatcherLeaderProcess dispatcherLeaderProcess = createDispatcherLeaderProcess()) {
@@ -282,7 +282,7 @@ public class SessionDispatcherLeaderProcessTest extends TestLogger {
 			.build();
 
 		dispatcherServiceFactory = TestingDispatcherServiceFactory.newBuilder()
-			.setCreateFunction((dispatcherId, handler, jobGraphs, jobGraphWriter) -> testingDispatcherService)
+			.setCreateFunction((dispatcherId, clusterInitializer, jobGraphWriter) -> testingDispatcherService)
 			.build();
 
 		try (final SessionDispatcherLeaderProcess dispatcherLeaderProcess = createDispatcherLeaderProcess()) {
@@ -460,8 +460,8 @@ public class SessionDispatcherLeaderProcessTest extends TestLogger {
 			.setInitialJobGraphs(Collections.singleton(JOB_GRAPH))
 			.build();
 		dispatcherServiceFactory = TestingDispatcherServiceFactory.newBuilder()
-			.setCreateFunction((dispatcherId, handler, jobGraphs, jobGraphWriter) -> {
-				assertThat(jobGraphs, containsInAnyOrder(JOB_GRAPH));
+			.setCreateFunction((dispatcherId, clusterInitializer, jobGraphWriter) -> {
+				assertThat(clusterInitializer.getInitJobGraphs(), containsInAnyOrder(JOB_GRAPH));
 
 				return TestingDispatcherGatewayService.newBuilder()
 					.setDispatcherGateway(dispatcherGateway)
@@ -490,7 +490,7 @@ public class SessionDispatcherLeaderProcessTest extends TestLogger {
 	private TestingDispatcherServiceFactory createDispatcherServiceFactoryFor(TestingDispatcherGateway testingDispatcherGateway) {
 		return TestingDispatcherServiceFactory.newBuilder()
 			.setCreateFunction(
-				(ignoredA, ignoredB, ignoredC, ignoredD) -> TestingDispatcherGatewayService.newBuilder()
+				(ignoredA, ignoredB, ignoredC) -> TestingDispatcherGatewayService.newBuilder()
 					.setDispatcherGateway(testingDispatcherGateway)
 					.build())
 			.build();

@@ -16,36 +16,34 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.minicluster;
+package org.apache.flink.runtime.dispatcher.runner.application;
 
 import org.apache.flink.runtime.dispatcher.DefaultJobManagerRunnerFactory;
+import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.dispatcher.DispatcherFactory;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.dispatcher.DispatcherServices;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServicesWithJobGraphStore;
-import org.apache.flink.runtime.dispatcher.StandaloneDispatcher;
 import org.apache.flink.runtime.dispatcher.runner.ClusterInitializer;
 import org.apache.flink.runtime.rpc.RpcService;
 
 /**
- * {@link DispatcherFactory} which creates a {@link StandaloneDispatcher} which has an
- * endpoint id with a random UUID suffix.
+ * {@link DispatcherFactory} which creates a {@link ApplicationDispatcher}.
  */
-public enum SessionDispatcherWithUUIDFactory implements DispatcherFactory {
+public enum ApplicationDispatcherFactory implements DispatcherFactory {
 	INSTANCE;
 
 	@Override
-	public StandaloneDispatcher createDispatcher(
-			RpcService rpcService,
-			DispatcherId fencingToken,
-			ClusterInitializer clusterInitializer,
-			PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore) throws Exception {
-		// create the default dispatcher
-		return new StandaloneDispatcher(
-			rpcService,
-			generateEndpointIdWithUUID(),
-			fencingToken,
-			clusterInitializer,
-			DispatcherServices.from(partialDispatcherServicesWithJobGraphStore, DefaultJobManagerRunnerFactory.INSTANCE));
+	public Dispatcher createDispatcher(
+			final RpcService rpcService,
+			final DispatcherId fencingToken,
+			final ClusterInitializer clusterInitializer,
+			final PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore) throws Exception {
+		return new ApplicationDispatcher(
+				rpcService,
+				getEndpointId(),
+				fencingToken,
+				clusterInitializer,
+				DispatcherServices.from(partialDispatcherServicesWithJobGraphStore, DefaultJobManagerRunnerFactory.INSTANCE));
 	}
 }

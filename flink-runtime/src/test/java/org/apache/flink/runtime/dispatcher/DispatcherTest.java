@@ -32,6 +32,9 @@ import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobSubmissionException;
+import org.apache.flink.runtime.dispatcher.runner.ClusterInitializer;
+import org.apache.flink.runtime.dispatcher.runner.DefaultClusterInitializer;
+import org.apache.flink.runtime.dispatcher.runner.application.ApplicationClusterInitializer;
 import org.apache.flink.runtime.dispatcher.runner.application.ApplicationHandler;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
@@ -208,9 +211,7 @@ public class DispatcherTest extends TestLogger {
 
 	private class TestingDispatcherBuilder {
 
-		private ApplicationHandler applicationHandler = ApplicationHandler.NO_SUBMISSION;
-
-		private Collection<JobGraph> initialJobGraphs = Collections.emptyList();
+		private ClusterInitializer clusterInitializer = new DefaultClusterInitializer(Collections.emptyList());
 
 		private HeartbeatServices heartbeatServices = DispatcherTest.this.heartbeatServices;
 
@@ -230,8 +231,8 @@ public class DispatcherTest extends TestLogger {
 			return this;
 		}
 
-		TestingDispatcherBuilder setInitialJobGraphs(Collection<JobGraph> initialJobGraphs) {
-			this.initialJobGraphs = initialJobGraphs;
+		TestingDispatcherBuilder setClusterInitializer(ClusterInitializer clusterInitializer) {
+			this.clusterInitializer = clusterInitializer;
 			return this;
 		}
 
@@ -245,11 +246,6 @@ public class DispatcherTest extends TestLogger {
 			return this;
 		}
 
-		TestingDispatcherBuilder setApplicationHandler(ApplicationHandler applicationHandler) {
-			this.applicationHandler = applicationHandler;
-			return this;
-		}
-
 		TestingDispatcher build() throws Exception {
 			TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
 
@@ -259,8 +255,7 @@ public class DispatcherTest extends TestLogger {
 				rpcService,
 				Dispatcher.DISPATCHER_NAME + '_' + name.getMethodName(),
 				DispatcherId.generate(),
-				initialJobGraphs,
-				applicationHandler,
+				clusterInitializer,
 				new DispatcherServices(
 					configuration,
 					haServices,
@@ -464,7 +459,7 @@ public class DispatcherTest extends TestLogger {
 		final JobGraph failingJobGraph = createFailingJobGraph(testException);
 
 		dispatcher = new TestingDispatcherBuilder()
-			.setInitialJobGraphs(Collections.singleton(failingJobGraph))
+			.setClusterInitializer(new DefaultClusterInitializer(Collections.singleton(failingJobGraph)))
 			.build();
 
 		dispatcher.start();
@@ -614,7 +609,7 @@ public class DispatcherTest extends TestLogger {
 			.build();
 
 		dispatcher = new TestingDispatcherBuilder()
-			.setInitialJobGraphs(Collections.singleton(jobGraph))
+			.setClusterInitializer(new DefaultClusterInitializer(Collections.singleton(jobGraph)))
 			.setJobGraphWriter(testingJobGraphStore)
 			.build();
 		dispatcher.start();
@@ -652,9 +647,12 @@ public class DispatcherTest extends TestLogger {
 		dispatcher = new TestingDispatcherBuilder()
 				.setHaServices(haServices)
 				.setHeartbeatServices(heartbeatServices)
-				.setInitialJobGraphs(Collections.singletonList(new JobGraph(TEST_JOB_ID, "JobGraph")))
+				.setClusterInitializer(
+						new ApplicationClusterInitializer(
+								Collections.singletonList(new JobGraph(TEST_JOB_ID, "JobGraph")),
+								new TestApplicationHandler()
+						))
 				.setJobManagerRunnerFactory(new ExpectedJobIdJobManagerRunnerFactory(TEST_JOB_ID, createdJobManagerRunnerLatch))
-				.setApplicationHandler(new TestApplicationHandler())
 				.build();
 		dispatcher.start();
 
@@ -675,7 +673,7 @@ public class DispatcherTest extends TestLogger {
 				.setHaServices(haServices)
 				.setHeartbeatServices(heartbeatServices)
 				.setJobManagerRunnerFactory(new ExpectedJobIdJobManagerRunnerFactory(TEST_JOB_ID, createdJobManagerRunnerLatch))
-				.setApplicationHandler(new TestApplicationHandler())
+				.setClusterInitializer(new ApplicationClusterInitializer(Collections.emptyList(), new TestApplicationHandler()))
 				.build();
 		dispatcher.start();
 

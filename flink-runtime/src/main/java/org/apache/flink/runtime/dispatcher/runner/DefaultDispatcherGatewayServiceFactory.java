@@ -23,13 +23,9 @@ import org.apache.flink.runtime.dispatcher.DispatcherFactory;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServicesWithJobGraphStore;
-import org.apache.flink.runtime.dispatcher.runner.application.ApplicationHandler;
-import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.JobGraphWriter;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.FlinkRuntimeException;
-
-import java.util.Collection;
 
 /**
  * Factory for the {@link DefaultDispatcherGatewayService}.
@@ -54,16 +50,14 @@ class DefaultDispatcherGatewayServiceFactory implements AbstractDispatcherLeader
 	@Override
 	public AbstractDispatcherLeaderProcess.DispatcherGatewayService create(
 			DispatcherId fencingToken,
-			ApplicationHandler applicationSubmitter,
-			Collection<JobGraph> recoveredJobs,
+			ClusterInitializer clusterInitializer,
 			JobGraphWriter jobGraphWriter) {
 		final Dispatcher dispatcher;
 		try {
 			dispatcher = dispatcherFactory.createDispatcher(
 				rpcService,
 				fencingToken,
-				recoveredJobs,
-				applicationSubmitter,
+				clusterInitializer,
 				PartialDispatcherServicesWithJobGraphStore.from(partialDispatcherServices, jobGraphWriter));
 		} catch (Exception e) {
 			throw new FlinkRuntimeException("Could not create the Dispatcher rpc endpoint.", e);

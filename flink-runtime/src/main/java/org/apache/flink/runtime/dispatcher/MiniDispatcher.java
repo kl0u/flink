@@ -21,6 +21,7 @@ package org.apache.flink.runtime.dispatcher;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
+import org.apache.flink.runtime.dispatcher.runner.ClusterInitializer;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.JobClusterEntrypoint;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
@@ -33,7 +34,6 @@ import org.apache.flink.util.FlinkException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -56,13 +56,13 @@ public class MiniDispatcher extends Dispatcher {
 			String endpointId,
 			DispatcherId fencingToken,
 			DispatcherServices dispatcherServices,
-			JobGraph jobGraph,
+			ClusterInitializer clusterInitializer,
 			JobClusterEntrypoint.ExecutionMode executionMode) throws Exception {
 		super(
 			rpcService,
 			endpointId,
 			fencingToken,
-			Collections.singleton(jobGraph),
+			clusterInitializer,
 			dispatcherServices);
 
 		this.executionMode = checkNotNull(executionMode);

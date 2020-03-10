@@ -32,7 +32,7 @@ import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.dispatcher.runner.application.ApplicationHandler;
+import org.apache.flink.runtime.dispatcher.runner.ClusterInitializer;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -88,8 +88,6 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
 /**
  * Base class for the Dispatcher component. The Dispatcher component is responsible
  * for receiving job submissions, persisting them, spawning JobManagers to execute
@@ -115,7 +113,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 
 	private final Map<JobID, CompletableFuture<JobManagerRunner>> jobManagerRunnerFutures;
 
-	private final Collection<JobGraph> recoveredJobs;
+	private final ClusterInitializer clusterInitializer;
 
 	private final ArchivedExecutionGraphStore archivedExecutionGraphStore;
 
@@ -129,28 +127,16 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 
 	private final Map<JobID, CompletableFuture<Void>> jobManagerTerminationFutures;
 
-	private final ApplicationHandler applicationSubmitter;
-
 	protected final CompletableFuture<ApplicationStatus> shutDownFuture;
 
 	public Dispatcher(
 			RpcService rpcService,
 			String endpointId,
 			DispatcherId fencingToken,
-			Collection<JobGraph> recoveredJobs,
-			DispatcherServices dispatcherServices) throws Exception {
-		this(rpcService, endpointId, fencingToken, recoveredJobs, ApplicationHandler.NO_SUBMISSION, dispatcherServices);
-	}
-
-	public Dispatcher(
-			RpcService rpcService,
-			String endpointId,
-			DispatcherId fencingToken,
-			Collection<JobGraph> recoveredJobs,
-			ApplicationHandler applicationSubmitter,
+			ClusterInitializer clusterInitializer,
 			DispatcherServices dispatcherServices) throws Exception {
 		super(rpcService, endpointId, fencingToken);
-		checkNotNull(dispatcherServices);
+		Preconditions.checkNotNull(dispatcherServices);
 
 		this.configuration = dispatcherServices.getConfiguration();
 		this.highAvailabilityServices = dispatcherServices.getHighAvailabilityServices();
@@ -161,7 +147,6 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 		this.jobGraphWriter = dispatcherServices.getJobGraphWriter();
 		this.jobManagerMetricGroup = dispatcherServices.getJobManagerMetricGroup();
 		this.metricServiceQueryAddress = dispatcherServices.getMetricQueryServiceAddress();
-		this.applicationSubmitter = checkNotNull(applicationSubmitter);
 
 		this.jobManagerSharedServices = JobManagerSharedServices.fromConfiguration(
 			configuration,
@@ -181,7 +166,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 
 		this.shutDownFuture = new CompletableFuture<>();
 
-		this.recoveredJobs = new HashSet<>(recoveredJobs);
+		this.clusterInitializer = Preconditions.checkNotNull(clusterInitializer);
 	}
 
 	//------------------------------------------------------
@@ -206,7 +191,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 			throw exception;
 		}
 
-		startRecoveredJobs();
+		clusterInitializer.initializeCluster(this);
 	}
 
 	private void startDispatcherServices() throws Exception {
@@ -217,43 +202,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 		}
 	}
 
-	private void startRecoveredJobs() {
-		final JobID applicationIdToSubmit = applicationSubmitter.getJobId();
-
-		boolean recoveredApplicationId = false;
-		for (JobGraph recoveredJob : recoveredJobs) {
-			if (recoveredJob.getJobID().equals(applicationIdToSubmit)) {
-				recoveredApplicationId = true;
-			}
-
-			FutureUtils.assertNoException(runJob(recoveredJob)
-				.handle(handleRecoveredJobStartError(recoveredJob.getJobID())));
-		}
-
-		recoveredJobs.clear();
-
-		if (applicationIdToSubmit != null) {
-			handleApplicationState(recoveredApplicationId);
-		}
-	}
-
-	private void handleApplicationState(boolean onRecovery) {
-		final RpcService rpcService = getRpcService();
-
-		CompletableFuture.runAsync(() -> {
-			try {
-				if (onRecovery) {
-					applicationSubmitter.recover(this);
-				} else {
-					applicationSubmitter.submit(this);
-				}
-			} catch (Exception e) {
-				throw new RuntimeException(e);
-			}
-		}, rpcService.getExecutor());
-	}
-
-	private BiFunction<Void, Throwable, Void> handleRecoveredJobStartError(JobID jobId) {
+	public BiFunction<Void, Throwable, Void> handleRecoveredJobStartError(JobID jobId) {
 		return (ignored, throwable) -> {
 			if (throwable != null) {
 				onFatalError(new DispatcherException(String.format("Could not start recovered job %s.", jobId), throwable));
@@ -395,7 +344,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 		}));
 	}
 
-	private CompletableFuture<Void> runJob(JobGraph jobGraph) {
+	public CompletableFuture<Void> runJob(JobGraph jobGraph) {
 		Preconditions.checkState(!jobManagerRunnerFutures.containsKey(jobGraph.getJobID()));
 
 		final CompletableFuture<JobManagerRunner> jobManagerRunnerFuture = createJobManagerRunner(jobGraph);

@@ -33,7 +33,7 @@ import org.apache.flink.runtime.blob.TestingBlobStoreBuilder;
 import org.apache.flink.runtime.client.DuplicateJobSubmissionException;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.dispatcher.runner.application.ApplicationHandler;
+import org.apache.flink.runtime.dispatcher.runner.DefaultClusterInitializer;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -208,8 +208,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 			rpcService,
 			Dispatcher.DISPATCHER_NAME + UUID.randomUUID(),
 			DispatcherId.generate(),
-			Collections.emptyList(),
-			ApplicationHandler.NO_SUBMISSION,
+			new DefaultClusterInitializer(Collections.emptyList()),
 			new DispatcherServices(
 				configuration,
 				highAvailabilityServices,

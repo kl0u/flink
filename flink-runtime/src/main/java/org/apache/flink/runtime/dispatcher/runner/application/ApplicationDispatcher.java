@@ -16,36 +16,32 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.minicluster;
+package org.apache.flink.runtime.dispatcher.runner.application;
 
-import org.apache.flink.runtime.dispatcher.DefaultJobManagerRunnerFactory;
-import org.apache.flink.runtime.dispatcher.DispatcherFactory;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.dispatcher.DispatcherServices;
-import org.apache.flink.runtime.dispatcher.PartialDispatcherServicesWithJobGraphStore;
-import org.apache.flink.runtime.dispatcher.StandaloneDispatcher;
 import org.apache.flink.runtime.dispatcher.runner.ClusterInitializer;
 import org.apache.flink.runtime.rpc.RpcService;
 
 /**
- * {@link DispatcherFactory} which creates a {@link StandaloneDispatcher} which has an
- * endpoint id with a random UUID suffix.
+ * Javadoc.
  */
-public enum SessionDispatcherWithUUIDFactory implements DispatcherFactory {
-	INSTANCE;
+@Internal
+public class ApplicationDispatcher extends Dispatcher {
 
-	@Override
-	public StandaloneDispatcher createDispatcher(
+	public ApplicationDispatcher(
 			RpcService rpcService,
+			String endpointId,
 			DispatcherId fencingToken,
 			ClusterInitializer clusterInitializer,
-			PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore) throws Exception {
-		// create the default dispatcher
-		return new StandaloneDispatcher(
-			rpcService,
-			generateEndpointIdWithUUID(),
-			fencingToken,
-			clusterInitializer,
-			DispatcherServices.from(partialDispatcherServicesWithJobGraphStore, DefaultJobManagerRunnerFactory.INSTANCE));
+			DispatcherServices dispatcherServices) throws Exception {
+		super(
+				rpcService,
+				endpointId,
+				fencingToken,
+				clusterInitializer,
+				dispatcherServices);
 	}
 }

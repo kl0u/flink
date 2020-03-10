@@ -29,13 +29,12 @@ import java.util.function.BiFunction;
  * @param <S> type of the first argument
  * @param <T> type of the second argument
  * @param <U> type of the third argument
- * @param <V> type of the fourth argument
  * @param <R> type of the return value
  * @param <E> type of the thrown exception
  */
 @PublicEvolving
 @FunctionalInterface
-public interface QuadFunctionWithException<S, T, U, V, R, E extends Throwable> {
+public interface TriFunctionWithException<S, T, U, R, E extends Throwable> {
 
 	/**
 	 * Applies this function to the given arguments.
@@ -43,27 +42,25 @@ public interface QuadFunctionWithException<S, T, U, V, R, E extends Throwable> {
 	 * @param s the first function argument
 	 * @param t the second function argument
 	 * @param u the third function argument
-	 * @param v the fourth function argument
 	 * @return the function result
 	 * @throws E if it fails
 	 */
-	R apply(S s, T t, U u, V v) throws E;
+	R apply(S s, T t, U u) throws E;
 
 	/**
-	 * Convert at {@link QuadFunctionWithException} into a {@link TriFunction}.
+	 * Convert at {@link TriFunctionWithException} into a {@link TriFunction}.
 	 *
-	 * @param quadFunctionWithException function with exception to convert into a function
+	 * @param triFunctionWithException function with exception to convert into a function
 	 * @param <A> first input type
 	 * @param <B> second input type
 	 * @param <C> third input type
-	 * @param <D> fourth input type
-	 * @param <F> output type
+	 * @param <D> output type
 	 * @return {@link BiFunction} which throws all checked exception as an unchecked exception.
 	 */
-	static <A, B, C, D, F> QuadFunction<A, B, C, D, F> unchecked(QuadFunctionWithException<A, B, C, D, F, ?> quadFunctionWithException) {
-		return (A a, B b, C c, D d) -> {
+	static <A, B, C, D> TriFunction<A, B, C, D> unchecked(TriFunctionWithException<A, B, C, D, ?> triFunctionWithException) {
+		return (A a, B b, C c) -> {
 			try {
-				return quadFunctionWithException.apply(a, b, c, d);
+				return triFunctionWithException.apply(a, b, c);
 			} catch (Throwable t) {
 				ExceptionUtils.rethrow(t);
 				// we need this to appease the compiler :-(

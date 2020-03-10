@@ -16,30 +16,21 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.dispatcher;
+package org.apache.flink.runtime.dispatcher.runner;
 
-import org.apache.flink.runtime.dispatcher.runner.ClusterInitializer;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobmaster.JobMaster;
-import org.apache.flink.runtime.rpc.RpcService;
+
+import java.util.Collection;
 
 /**
- * Dispatcher implementation which spawns a {@link JobMaster} for each
- * submitted {@link JobGraph} within in the same process. This dispatcher
- * can be used as the default for all different session clusters.
+ * Javadoc.
  */
-public class StandaloneDispatcher extends Dispatcher {
-	public StandaloneDispatcher(
-			RpcService rpcService,
-			String endpointId,
-			DispatcherId fencingToken,
-			ClusterInitializer clusterInitializer,
-			DispatcherServices dispatcherServices) throws Exception {
-		super(
-			rpcService,
-			endpointId,
-			fencingToken,
-			clusterInitializer,
-			dispatcherServices);
-	}
+@Internal
+public interface ClusterInitializer {
+
+	Collection<JobGraph> getInitJobGraphs();
+
+	void initializeCluster(final Dispatcher dispatcher) throws Exception;
 }

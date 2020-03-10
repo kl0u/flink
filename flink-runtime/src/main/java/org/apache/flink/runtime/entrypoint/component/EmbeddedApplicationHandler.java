@@ -20,18 +20,24 @@ package org.apache.flink.runtime.entrypoint.component;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobSubmissionException;
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.runner.application.ApplicationHandler;
 import org.apache.flink.runtime.dispatcher.runner.application.EmbeddedExecutorServiceLoader;
+import org.apache.flink.runtime.jobmaster.JobResult;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
+import java.util.concurrent.CompletableFuture;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * Javadoc.
@@ -51,9 +57,9 @@ public class EmbeddedApplicationHandler implements ApplicationHandler {
 			final JobID jobId,
 			final Configuration configuration,
 			final Executable executable) {
-		this.jobId = checkNotNull(jobId);
-		this.configuration = checkNotNull(configuration);
-		this.executable = checkNotNull(executable);
+		this.jobId = requireNonNull(jobId);
+		this.configuration = requireNonNull(configuration);
+		this.executable = requireNonNull(executable);
 	}
 
 	@Override
@@ -86,9 +92,22 @@ public class EmbeddedApplicationHandler implements ApplicationHandler {
 			// due to finishing or cancelling the execution.
 			// In any case, it is time to shutdown the cluster
 
-			dispatcherGateway
-					.shutDownCluster()
-					.thenRun(() -> LOG.info("Cluster was shutdown."));
+			handleJobExecutionResult(dispatcherGateway);
 		}
+	}
+
+	private CompletableFuture<Void> handleJobExecutionResult(final DispatcherGateway dispatcherGateway) {
+		requireNonNull(dispatcherGateway);
+
+		final Time timeout = Time.milliseconds(configuration.getLong(WebOptions.TIMEOUT));
+		final CompletableFuture<JobResult> jobResultFuture = dispatcherGateway.requestJobResult(jobId, timeout);
+
+		return jobResultFuture.thenAccept((JobResult result) -> {
+			ApplicationStatus status = result.getSerializedThrowable().isPresent() ?
+					ApplicationStatus.FAILED : ApplicationStatus.SUCCEEDED;
+
+			LOG.debug("Shutting down application cluster because the application finished with status={}.", status);
+			dispatcherGateway.shutDownCluster();
+		});
 	}
 }

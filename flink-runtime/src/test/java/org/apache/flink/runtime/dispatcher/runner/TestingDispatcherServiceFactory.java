@@ -19,28 +19,22 @@
 package org.apache.flink.runtime.dispatcher.runner;
 
 import org.apache.flink.runtime.dispatcher.DispatcherId;
-import org.apache.flink.runtime.dispatcher.runner.application.ApplicationHandler;
-import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.JobGraphWriter;
-import org.apache.flink.util.function.QuadFunction;
-
-import java.util.Collection;
+import org.apache.flink.util.function.TriFunction;
 
 class TestingDispatcherServiceFactory implements AbstractDispatcherLeaderProcess.DispatcherGatewayServiceFactory {
+	private final TriFunction<DispatcherId, ClusterInitializer, JobGraphWriter, AbstractDispatcherLeaderProcess.DispatcherGatewayService> createFunction;
 
-	private final QuadFunction<DispatcherId, ApplicationHandler, Collection<JobGraph>, JobGraphWriter, AbstractDispatcherLeaderProcess.DispatcherGatewayService> createFunction;
-
-	private TestingDispatcherServiceFactory(QuadFunction<DispatcherId, ApplicationHandler, Collection<JobGraph>, JobGraphWriter, AbstractDispatcherLeaderProcess.DispatcherGatewayService> createFunction) {
+	private TestingDispatcherServiceFactory(TriFunction<DispatcherId, ClusterInitializer, JobGraphWriter, AbstractDispatcherLeaderProcess.DispatcherGatewayService> createFunction) {
 		this.createFunction = createFunction;
 	}
 
 	@Override
 	public AbstractDispatcherLeaderProcess.DispatcherGatewayService create(
 			DispatcherId fencingToken,
-			ApplicationHandler applicationSubmitter,
-			Collection<JobGraph> recoveredJobs,
+			ClusterInitializer clusterInitializer,
 			JobGraphWriter jobGraphWriter) {
-		return createFunction.apply(fencingToken, applicationSubmitter, recoveredJobs, jobGraphWriter);
+		return createFunction.apply(fencingToken, clusterInitializer, jobGraphWriter);
 	}
 
 	public static Builder newBuilder() {
@@ -48,12 +42,11 @@ class TestingDispatcherServiceFactory implements AbstractDispatcherLeaderProcess
 	}
 
 	public static class Builder {
-		private QuadFunction<DispatcherId, ApplicationHandler, Collection<JobGraph>, JobGraphWriter, AbstractDispatcherLeaderProcess.DispatcherGatewayService> createFunction  =
-				(ignoredA, ignoredB, ignoredC, ignoredD) -> TestingDispatcherGatewayService.newBuilder().build();
+		private TriFunction<DispatcherId, ClusterInitializer, JobGraphWriter, AbstractDispatcherLeaderProcess.DispatcherGatewayService> createFunction = (ignoredA, ignoredB, ignoredC) -> TestingDispatcherGatewayService.newBuilder().build();
 
 		private Builder() {}
 
-		Builder setCreateFunction(QuadFunction<DispatcherId, ApplicationHandler, Collection<JobGraph>, JobGraphWriter, AbstractDispatcherLeaderProcess.DispatcherGatewayService> createFunction) {
+		Builder setCreateFunction(TriFunction<DispatcherId, ClusterInitializer, JobGraphWriter, AbstractDispatcherLeaderProcess.DispatcherGatewayService> createFunction) {
 			this.createFunction = createFunction;
 			return this;
 		}
