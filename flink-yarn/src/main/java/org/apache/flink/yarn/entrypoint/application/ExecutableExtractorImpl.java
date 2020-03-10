@@ -18,12 +18,11 @@
 package org.apache.flink.yarn.entrypoint.application;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.application.AbstractExecutableExtractor;
 import org.apache.flink.client.cli.ExecutionConfigAccessor;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.entrypoint.component.AbstractExecutableExtractor;
-import org.apache.flink.runtime.entrypoint.component.Executable;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 
 import javax.annotation.Nullable;
@@ -54,7 +53,7 @@ public class ExecutableExtractorImpl extends AbstractExecutableExtractor {
 	}
 
 	@Override
-	public Executable createExecutable() throws ProgramInvocationException {
+	public PackagedProgram createExecutable() throws ProgramInvocationException {
 		final ExecutionConfigAccessor configAccessor = ExecutionConfigAccessor.fromConfiguration(configuration);
 
 		final Set<URL> classpaths = new HashSet<>(getUserClassPaths());

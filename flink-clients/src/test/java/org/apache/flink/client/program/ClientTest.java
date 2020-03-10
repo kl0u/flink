@@ -30,6 +30,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.ClientUtils;
+import org.apache.flink.client.FlinkPipelineTranslationUtil;
 import org.apache.flink.client.cli.ExecutionConfigAccessor;
 import org.apache.flink.client.deployment.ClusterClientJobClientAdapter;
 import org.apache.flink.configuration.AkkaOptions;
@@ -49,7 +50,6 @@ import org.apache.flink.optimizer.costs.DefaultCostEstimator;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.utils.FlinkPipelineTranslationUtil;
 import org.apache.flink.runtime.testutils.MiniClusterResource;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
@@ -60,6 +60,8 @@ import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
 import javax.annotation.Nonnull;
 
@@ -72,6 +74,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Simple and maybe stupid test to check the {@link ClusterClient} class.
@@ -121,14 +126,14 @@ public class ClientTest extends TestLogger {
 	 * Tests that invalid detached mode programs fail.
 	 */
 	@Test
-	public void testDetachedMode() {
+	public void testDetachedMode() throws Exception{
 		final ClusterClient<?> clusterClient = new MiniClusterClient(new Configuration(), MINI_CLUSTER_RESOURCE.getMiniCluster());
 
 		try {
 			PackagedProgram prg = PackagedProgram.newBuilder().setEntryPointClassName(TestEager.class.getName()).build();
 			final Configuration configuration = fromPackagedProgram(prg, 1, true);
 
-			prg.execute(new TestExecutorServiceLoader(clusterClient, plan), configuration);
+			ClientUtils.executeProgram(new TestExecutorServiceLoader(clusterClient, plan), configuration, prg);
 			fail(FAIL_MESSAGE);
 		} catch (ProgramInvocationException e) {
 			assertEquals(
@@ -140,7 +145,7 @@ public class ClientTest extends TestLogger {
 			PackagedProgram prg = PackagedProgram.newBuilder().setEntryPointClassName(TestGetRuntime.class.getName()).build();
 			final Configuration configuration = fromPackagedProgram(prg, 1, true);
 
-			prg.execute(new TestExecutorServiceLoader(clusterClient, plan), configuration);
+			ClientUtils.executeProgram(new TestExecutorServiceLoader(clusterClient, plan), configuration, prg);
 			fail(FAIL_MESSAGE);
 		} catch (ProgramInvocationException e) {
 			assertEquals(
@@ -152,7 +157,7 @@ public class ClientTest extends TestLogger {
 			PackagedProgram prg = PackagedProgram.newBuilder().setEntryPointClassName(TestGetAccumulator.class.getName()).build();
 			final Configuration configuration = fromPackagedProgram(prg, 1, true);
 
-			prg.execute(new TestExecutorServiceLoader(clusterClient, plan), configuration);
+			ClientUtils.executeProgram(new TestExecutorServiceLoader(clusterClient, plan), configuration, prg);
 			fail(FAIL_MESSAGE);
 		} catch (ProgramInvocationException e) {
 			assertEquals(
@@ -164,7 +169,7 @@ public class ClientTest extends TestLogger {
 			PackagedProgram prg = PackagedProgram.newBuilder().setEntryPointClassName(TestGetAllAccumulator.class.getName()).build();
 			final Configuration configuration = fromPackagedProgram(prg, 1, true);
 
-			prg.execute(new TestExecutorServiceLoader(clusterClient, plan), configuration);
+			ClientUtils.executeProgram(new TestExecutorServiceLoader(clusterClient, plan), configuration, prg);
 			fail(FAIL_MESSAGE);
 		} catch (ProgramInvocationException e) {
 			assertEquals(
@@ -196,22 +201,28 @@ public class ClientTest extends TestLogger {
 	 * the program is submitted through a client.
 	 */
 	@Test
-	public void tryLocalExecution() throws ProgramInvocationException {
-		PackagedProgram packagedProgram = PackagedProgram.newBuilder()
-				.setEntryPointClassName(LocalEnvProgram.class.getName())
-				.setArguments("/dev/random", "/tmp")
-				.build();
+	public void tryLocalExecution() throws ProgramInvocationException, ProgramMissingJobException {
+		PackagedProgram packagedProgramMock = mock(PackagedProgram.class);
+
+		when(packagedProgramMock.getUserCodeClassLoader())
+				.thenReturn(packagedProgramMock.getClass().getClassLoader());
+
+		doAnswer(new Answer<Void>() {
+			@Override
+			public Void answer(InvocationOnMock invocation) throws Throwable {
+				ExecutionEnvironment.createLocalEnvironment();
+				return null;
+			}
+		}).when(packagedProgramMock).invokeInteractiveModeForExecution();
 
 		try {
 			final ClusterClient<?> client = new MiniClusterClient(new Configuration(), MINI_CLUSTER_RESOURCE.getMiniCluster());
-			final Configuration configuration = fromPackagedProgram(packagedProgram, 1, true);
-			packagedProgram.execute(new TestExecutorServiceLoader(client, plan), configuration);
+			final Configuration configuration = fromPackagedProgram(packagedProgramMock, 1, true);
+			ClientUtils.executeProgram(new TestExecutorServiceLoader(client, plan), configuration, packagedProgramMock);
 			fail("Creating the local execution environment should not be possible");
-
-		} catch (ProgramInvocationException e) {
-			if (!(e.getCause() instanceof InvalidProgramException)) {
-				throw e;
-			}
+		}
+		catch (InvalidProgramException e) {
+			// that is what we want
 		}
 	}
 
@@ -223,7 +234,7 @@ public class ClientTest extends TestLogger {
 			.build();
 
 		Optimizer optimizer = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), config);
-		Plan plan = (Plan) prg.getPipeline(1, true);
+		Plan plan = (Plan) PackagedProgramUtils.getPipelineFromProgram(prg, 1, true);
 		OptimizedPlan op = optimizer.compile(plan);
 		assertNotNull(op);
 
@@ -239,17 +250,6 @@ public class ClientTest extends TestLogger {
 	}
 
 	// --------------------------------------------------------------------------------------------
-
-	/**
-	 * A test job that instantiates a local env.
-	 * This will be used to verify that users CANNOT submit such a job through the CLI.
-	 */
-	public static class LocalEnvProgram {
-		public static void main(String[] args) throws Exception {
-			ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-			env.execute();
-		}
-	}
 
 	/**
 	 * A test job.

@@ -17,7 +17,7 @@
  *
  */
 
-package org.apache.flink.runtime.jobgraph.utils;
+package org.apache.flink.client;
 
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.configuration.Configuration;

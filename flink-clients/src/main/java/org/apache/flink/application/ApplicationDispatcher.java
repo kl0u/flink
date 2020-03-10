@@ -16,20 +16,32 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.entrypoint.component;
+package org.apache.flink.application;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.dag.Pipeline;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
+import org.apache.flink.runtime.dispatcher.Dispatcher;
+import org.apache.flink.runtime.dispatcher.DispatcherId;
+import org.apache.flink.runtime.dispatcher.DispatcherServices;
+import org.apache.flink.runtime.dispatcher.runner.ClusterInitializer;
+import org.apache.flink.runtime.rpc.RpcService;
 
 /**
  * Javadoc.
  */
 @Internal
-public interface Executable {
+public class ApplicationDispatcher extends Dispatcher {
 
-	Pipeline getPipeline(final int parallelism, final boolean suppressOutput) throws Exception;
-
-	void execute(final PipelineExecutorServiceLoader executorLoader, final Configuration configuration) throws Exception;
+	public ApplicationDispatcher(
+			RpcService rpcService,
+			String endpointId,
+			DispatcherId fencingToken,
+			ClusterInitializer clusterInitializer,
+			DispatcherServices dispatcherServices) throws Exception {
+		super(
+				rpcService,
+				endpointId,
+				fencingToken,
+				clusterInitializer,
+				dispatcherServices);
+	}
 }

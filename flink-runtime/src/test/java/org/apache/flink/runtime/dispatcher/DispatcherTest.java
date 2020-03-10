@@ -30,12 +30,9 @@ import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.checkpoint.Checkpoints;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
-import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.dispatcher.runner.ClusterInitializer;
 import org.apache.flink.runtime.dispatcher.runner.DefaultClusterInitializer;
-import org.apache.flink.runtime.dispatcher.runner.application.ApplicationClusterInitializer;
-import org.apache.flink.runtime.dispatcher.runner.application.ApplicationHandler;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
@@ -624,69 +621,69 @@ public class DispatcherTest extends TestLogger {
 		} catch (TimeoutException expected) {}
 	}
 
-	private static final class TestApplicationHandler implements ApplicationHandler {
-
-		@Override
-		public JobID getJobId() {
-			return TEST_JOB_ID;
-		}
-
-		@Override
-		public void submit(DispatcherGateway dispatcherGateway) throws JobExecutionException {
-			System.out.println("SUBMIT");
-		}
-
-		@Override
-		public void recover(DispatcherGateway dispatcherGateway) throws JobExecutionException {
-			System.out.println("RECOVER");
-		}
-	}
-
-	@Test
-	public void testApplicationModeRecovery() throws Exception {
-		dispatcher = new TestingDispatcherBuilder()
-				.setHaServices(haServices)
-				.setHeartbeatServices(heartbeatServices)
-				.setClusterInitializer(
-						new ApplicationClusterInitializer(
-								Collections.singletonList(new JobGraph(TEST_JOB_ID, "JobGraph")),
-								new TestApplicationHandler()
-						))
-				.setJobManagerRunnerFactory(new ExpectedJobIdJobManagerRunnerFactory(TEST_JOB_ID, createdJobManagerRunnerLatch))
-				.build();
-		dispatcher.start();
-
-		DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
-
-		CompletableFuture<Acknowledge> acknowledgeFuture = dispatcherGateway.submitJob(jobGraph, TIMEOUT);
-
-		acknowledgeFuture.get();
-
-		assertTrue(
-				"jobManagerRunner was not started",
-				jobMasterLeaderElectionService.getStartFuture().isDone());
-	}
-
-	@Test
-	public void testApplicationModeSubmission() throws Exception {
-		dispatcher = new TestingDispatcherBuilder()
-				.setHaServices(haServices)
-				.setHeartbeatServices(heartbeatServices)
-				.setJobManagerRunnerFactory(new ExpectedJobIdJobManagerRunnerFactory(TEST_JOB_ID, createdJobManagerRunnerLatch))
-				.setClusterInitializer(new ApplicationClusterInitializer(Collections.emptyList(), new TestApplicationHandler()))
-				.build();
-		dispatcher.start();
-
-		DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
-
-		CompletableFuture<Acknowledge> acknowledgeFuture = dispatcherGateway.submitJob(jobGraph, TIMEOUT);
-
-		acknowledgeFuture.get();
-
-		assertTrue(
-				"jobManagerRunner was not started",
-				jobMasterLeaderElectionService.getStartFuture().isDone());
-	}
+//	private static final class TestApplicationHandler implements ApplicationHandler {
+//
+//		@Override
+//		public JobID getJobId() {
+//			return TEST_JOB_ID;
+//		}
+//
+//		@Override
+//		public void submit(DispatcherGateway dispatcherGateway) throws JobExecutionException {
+//			System.out.println("SUBMIT");
+//		}
+//
+//		@Override
+//		public void recover(DispatcherGateway dispatcherGateway) throws JobExecutionException {
+//			System.out.println("RECOVER");
+//		}
+//	}
+//
+//	@Test
+//	public void testApplicationModeRecovery() throws Exception {
+//		dispatcher = new TestingDispatcherBuilder()
+//				.setHaServices(haServices)
+//				.setHeartbeatServices(heartbeatServices)
+//				.setClusterInitializer(
+//						new ApplicationClusterInitializer(
+//								Collections.singletonList(new JobGraph(TEST_JOB_ID, "JobGraph")),
+//								new TestApplicationHandler()
+//						))
+//				.setJobManagerRunnerFactory(new ExpectedJobIdJobManagerRunnerFactory(TEST_JOB_ID, createdJobManagerRunnerLatch))
+//				.build();
+//		dispatcher.start();
+//
+//		DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
+//
+//		CompletableFuture<Acknowledge> acknowledgeFuture = dispatcherGateway.submitJob(jobGraph, TIMEOUT);
+//
+//		acknowledgeFuture.get();
+//
+//		assertTrue(
+//				"jobManagerRunner was not started",
+//				jobMasterLeaderElectionService.getStartFuture().isDone());
+//	}
+//
+//	@Test
+//	public void testApplicationModeSubmission() throws Exception {
+//		dispatcher = new TestingDispatcherBuilder()
+//				.setHaServices(haServices)
+//				.setHeartbeatServices(heartbeatServices)
+//				.setJobManagerRunnerFactory(new ExpectedJobIdJobManagerRunnerFactory(TEST_JOB_ID, createdJobManagerRunnerLatch))
+//				.setClusterInitializer(new ApplicationClusterInitializer(Collections.emptyList(), new TestApplicationHandler()))
+//				.build();
+//		dispatcher.start();
+//
+//		DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
+//
+//		CompletableFuture<Acknowledge> acknowledgeFuture = dispatcherGateway.submitJob(jobGraph, TIMEOUT);
+//
+//		acknowledgeFuture.get();
+//
+//		assertTrue(
+//				"jobManagerRunner was not started",
+//				jobMasterLeaderElectionService.getStartFuture().isDone());
+//	}
 
 	private static final class BlockingJobManagerRunnerFactory extends TestingJobManagerRunnerFactory {
 

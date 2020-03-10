@@ -20,9 +20,10 @@ package org.apache.flink.client.program;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.dag.Pipeline;
+import org.apache.flink.client.FlinkPipelineTranslationUtil;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.optimizer.CompilerException;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.utils.FlinkPipelineTranslationUtil;
 
 import javax.annotation.Nullable;
 
@@ -52,7 +53,7 @@ public class PackagedProgramUtils {
 			int defaultParallelism,
 			@Nullable JobID jobID,
 			boolean suppressOutput) throws ProgramInvocationException {
-		final Pipeline pipeline = packagedProgram.getPipeline(defaultParallelism, suppressOutput);
+		final Pipeline pipeline = getPipelineFromProgram(packagedProgram, defaultParallelism, suppressOutput);
 		final JobGraph jobGraph = FlinkPipelineTranslationUtil.getJobGraph(pipeline, configuration, defaultParallelism);
 
 		if (jobID != null) {
@@ -82,6 +83,25 @@ public class PackagedProgramUtils {
 			int defaultParallelism,
 			boolean suppressOutput) throws ProgramInvocationException {
 		return createJobGraph(packagedProgram, configuration, defaultParallelism, null, suppressOutput);
+	}
+
+	public static Pipeline getPipelineFromProgram(
+			PackagedProgram prog,
+			int parallelism,
+			boolean suppressOutput) throws CompilerException, ProgramInvocationException {
+		final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
+		try {
+			Thread.currentThread().setContextClassLoader(prog.getUserCodeClassLoader());
+
+			// temporary hack to support the optimizer plan preview
+			OptimizerPlanEnvironment env = new OptimizerPlanEnvironment();
+			if (parallelism > 0) {
+				env.setParallelism(parallelism);
+			}
+			return env.getPipeline(prog, suppressOutput);
+		} finally {
+			Thread.currentThread().setContextClassLoader(contextClassLoader);
+		}
 	}
 
 	public static Boolean isPython(String entryPointClassName) {

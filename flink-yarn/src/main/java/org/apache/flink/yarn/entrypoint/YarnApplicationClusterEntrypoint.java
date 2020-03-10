@@ -20,20 +20,24 @@ package org.apache.flink.yarn.entrypoint;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.application.ApplicationDispatcherFactory;
+import org.apache.flink.application.ApplicationDispatcherLeaderProcessFactoryFactory;
+import org.apache.flink.application.EmbeddedApplicationExecutor;
+import org.apache.flink.application.EmbeddedApplicationHandler;
+import org.apache.flink.application.ExecutableExtractor;
+import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.PipelineOptions;
-import org.apache.flink.runtime.dispatcher.runner.application.EmbeddedApplicationExecutor;
+import org.apache.flink.runtime.dispatcher.runner.DefaultDispatcherRunnerFactory;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.SessionClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
-import org.apache.flink.runtime.entrypoint.component.EmbeddedApplicationHandler;
-import org.apache.flink.runtime.entrypoint.component.Executable;
-import org.apache.flink.runtime.entrypoint.component.ExecutableExtractor;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
+import org.apache.flink.runtime.rest.JobRestEndpointFactory;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
@@ -78,13 +82,15 @@ public class YarnApplicationClusterEntrypoint extends SessionClusterEntrypoint {
 	@Override
 	protected DispatcherResourceManagerComponentFactory createDispatcherResourceManagerComponentFactory(final Configuration configuration) throws Exception {
 		final ExecutableExtractor executableExtractor = new ExecutableExtractorImpl(configuration, getUsrLibDir(configuration));
-		final Executable executable = executableExtractor.createExecutable();
+		final PackagedProgram executable = executableExtractor.createExecutable();
 
 		final EmbeddedApplicationHandler applicationSubmitter =
 				new EmbeddedApplicationHandler(jobId, configuration, executable);
 
-		return DefaultDispatcherResourceManagerComponentFactory
-				.createApplicationComponentFactory(YarnResourceManagerFactory.getInstance(), applicationSubmitter);
+		return new DefaultDispatcherResourceManagerComponentFactory(
+				new DefaultDispatcherRunnerFactory(ApplicationDispatcherLeaderProcessFactoryFactory.create(ApplicationDispatcherFactory.INSTANCE, applicationSubmitter)),
+				YarnResourceManagerFactory.getInstance(),
+				JobRestEndpointFactory.INSTANCE);
 	}
 
 	@Nullable

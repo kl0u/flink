@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.entrypoint.component;
+package org.apache.flink.application;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.FileUtils;

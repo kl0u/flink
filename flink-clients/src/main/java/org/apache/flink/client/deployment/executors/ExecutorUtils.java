@@ -19,10 +19,10 @@
 package org.apache.flink.client.deployment.executors;
 
 import org.apache.flink.api.dag.Pipeline;
+import org.apache.flink.client.FlinkPipelineTranslationUtil;
 import org.apache.flink.client.cli.ExecutionConfigAccessor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.utils.FlinkPipelineTranslationUtil;
 
 import javax.annotation.Nonnull;
 

@@ -20,7 +20,6 @@ package org.apache.flink.runtime.dispatcher.runner;
 
 import org.apache.flink.runtime.dispatcher.DispatcherFactory;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
-import org.apache.flink.runtime.dispatcher.runner.application.ApplicationHandler;
 import org.apache.flink.runtime.entrypoint.component.JobGraphRetriever;
 import org.apache.flink.runtime.jobmanager.JobGraphStoreFactory;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
@@ -36,7 +35,7 @@ import java.util.concurrent.Executor;
 public class DefaultDispatcherRunnerFactory implements DispatcherRunnerFactory {
 	private final DispatcherLeaderProcessFactoryFactory dispatcherLeaderProcessFactoryFactory;
 
-	private DefaultDispatcherRunnerFactory(DispatcherLeaderProcessFactoryFactory dispatcherLeaderProcessFactoryFactory) {
+	public DefaultDispatcherRunnerFactory(DispatcherLeaderProcessFactoryFactory dispatcherLeaderProcessFactoryFactory) {
 		this.dispatcherLeaderProcessFactoryFactory = dispatcherLeaderProcessFactoryFactory;
 	}
 
@@ -62,16 +61,9 @@ public class DefaultDispatcherRunnerFactory implements DispatcherRunnerFactory {
 			dispatcherLeaderProcessFactory);
 	}
 
-	public static DefaultDispatcherRunnerFactory createApplicationRunner(
-			DispatcherFactory dispatcherFactory,
-			ApplicationHandler applicationSubmitter) {
-		return new DefaultDispatcherRunnerFactory(
-				ApplicationDispatcherLeaderProcessFactoryFactory.create(dispatcherFactory, applicationSubmitter));
-	}
-
 	public static DefaultDispatcherRunnerFactory createSessionRunner(DispatcherFactory dispatcherFactory) {
 		return new DefaultDispatcherRunnerFactory(
-			ApplicationDispatcherLeaderProcessFactoryFactory.create(dispatcherFactory, ApplicationHandler.NO_SUBMISSION));
+			SessionDispatcherLeaderProcessFactoryFactory.create(dispatcherFactory));
 	}
 
 	public static DefaultDispatcherRunnerFactory createJobRunner(JobGraphRetriever jobGraphRetriever) {

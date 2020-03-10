@@ -16,32 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.dispatcher.runner.application;
+package org.apache.flink.application;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.runtime.dispatcher.Dispatcher;
-import org.apache.flink.runtime.dispatcher.DispatcherId;
-import org.apache.flink.runtime.dispatcher.DispatcherServices;
-import org.apache.flink.runtime.dispatcher.runner.ClusterInitializer;
-import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.client.program.PackagedProgram;
 
 /**
  * Javadoc.
  */
 @Internal
-public class ApplicationDispatcher extends Dispatcher {
+public interface ExecutableExtractor {
 
-	public ApplicationDispatcher(
-			RpcService rpcService,
-			String endpointId,
-			DispatcherId fencingToken,
-			ClusterInitializer clusterInitializer,
-			DispatcherServices dispatcherServices) throws Exception {
-		super(
-				rpcService,
-				endpointId,
-				fencingToken,
-				clusterInitializer,
-				dispatcherServices);
-	}
+	PackagedProgram createExecutable() throws Exception;
 }
+

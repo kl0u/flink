@@ -41,7 +41,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
-abstract class AbstractDispatcherLeaderProcess implements DispatcherLeaderProcess {
+/**
+ * Javadoc.
+ */
+public abstract class AbstractDispatcherLeaderProcess implements DispatcherLeaderProcess {
 
 	protected final Logger log = LoggerFactory.getLogger(getClass());
 
@@ -225,6 +228,9 @@ abstract class AbstractDispatcherLeaderProcess implements DispatcherLeaderProces
 		return null;
 	}
 
+	/**
+	 * Javadoc.
+	 */
 	protected enum State {
 		CREATED,
 		RUNNING,
@@ -235,7 +241,10 @@ abstract class AbstractDispatcherLeaderProcess implements DispatcherLeaderProces
 	// Internal classes
 	// ------------------------------------------------------------
 
-	interface DispatcherGatewayServiceFactory {
+	/**
+	 * Javadoc.
+	 */
+	public interface DispatcherGatewayServiceFactory {
 		DispatcherGatewayService create(
 			DispatcherId fencingToken,
 			ClusterInitializer clusterInitializer,

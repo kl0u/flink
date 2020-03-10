@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.dispatcher.runner.application;
+package org.apache.flink.application;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
@@ -45,21 +45,4 @@ public interface ApplicationHandler {
 	void submit(final DispatcherGateway dispatcherGateway) throws JobExecutionException;
 
 	void recover(final DispatcherGateway dispatcherGateway) throws JobExecutionException;
-
-	ApplicationHandler NO_SUBMISSION = new ApplicationHandler() {
-		@Override
-		public JobID getJobId() {
-			return null;
-		}
-
-		@Override
-		public void submit(DispatcherGateway dispatcherGateway) {
-			// do nothing
-		}
-
-		@Override
-		public void recover(DispatcherGateway dispatcherGateway) {
-			// do nothing
-		}
-	};
 }

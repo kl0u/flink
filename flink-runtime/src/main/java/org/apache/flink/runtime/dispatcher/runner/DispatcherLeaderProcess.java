@@ -29,7 +29,7 @@ import java.util.concurrent.CompletableFuture;
 /**
  * Leader process which encapsulates the lifecycle of the {@link Dispatcher} component.
  */
-interface DispatcherLeaderProcess extends AutoCloseableAsync {
+public interface DispatcherLeaderProcess extends AutoCloseableAsync {
 
 	void start();
 

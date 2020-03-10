@@ -21,19 +21,23 @@ package org.apache.flink.container.entrypoint;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.application.ApplicationDispatcherFactory;
+import org.apache.flink.application.ApplicationDispatcherLeaderProcessFactoryFactory;
+import org.apache.flink.application.EmbeddedApplicationExecutor;
+import org.apache.flink.application.EmbeddedApplicationHandler;
+import org.apache.flink.application.ExecutableExtractor;
+import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
-import org.apache.flink.runtime.dispatcher.runner.application.EmbeddedApplicationExecutor;
+import org.apache.flink.runtime.dispatcher.runner.DefaultDispatcherRunnerFactory;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.JobClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
-import org.apache.flink.runtime.entrypoint.component.EmbeddedApplicationHandler;
-import org.apache.flink.runtime.entrypoint.component.Executable;
-import org.apache.flink.runtime.entrypoint.component.ExecutableExtractor;
 import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.resourcemanager.StandaloneResourceManagerFactory;
+import org.apache.flink.runtime.rest.JobRestEndpointFactory;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
@@ -73,14 +77,15 @@ public class StandaloneApplicationClusterEntryPoint extends JobClusterEntrypoint
 	@Override
 	protected DispatcherResourceManagerComponentFactory createDispatcherResourceManagerComponentFactory(Configuration configuration) throws Exception {
 		final ExecutableExtractor executableExtractor = getExecutableExtractor();
-		final Executable executable = executableExtractor.createExecutable();
+		final PackagedProgram executable = executableExtractor.createExecutable();
 
 		final EmbeddedApplicationHandler applicationSubmitter =
 				new EmbeddedApplicationHandler(jobId, configuration, executable);
 
-		return DefaultDispatcherResourceManagerComponentFactory.createApplicationComponentFactory(
+		return new DefaultDispatcherResourceManagerComponentFactory(
+				new DefaultDispatcherRunnerFactory(ApplicationDispatcherLeaderProcessFactoryFactory.create(ApplicationDispatcherFactory.INSTANCE, applicationSubmitter)),
 				StandaloneResourceManagerFactory.INSTANCE,
-				applicationSubmitter);
+				JobRestEndpointFactory.INSTANCE);
 	}
 
 	private ExecutableExtractor getExecutableExtractor() throws IOException {

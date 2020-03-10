@@ -16,11 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.dispatcher.runner.application;
+package org.apache.flink.application;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.dag.Pipeline;
+import org.apache.flink.client.FlinkPipelineTranslationUtil;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
@@ -31,7 +32,6 @@ import org.apache.flink.core.execution.PipelineExecutor;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
-import org.apache.flink.runtime.jobgraph.utils.FlinkPipelineTranslationUtil;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

@@ -16,12 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.dispatcher.runner;
+package org.apache.flink.application;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
-import org.apache.flink.runtime.dispatcher.runner.application.ApplicationClusterInitializer;
-import org.apache.flink.runtime.dispatcher.runner.application.ApplicationHandler;
+import org.apache.flink.runtime.dispatcher.runner.ClusterInitializer;
+import org.apache.flink.runtime.dispatcher.runner.SessionDispatcherLeaderProcess;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;

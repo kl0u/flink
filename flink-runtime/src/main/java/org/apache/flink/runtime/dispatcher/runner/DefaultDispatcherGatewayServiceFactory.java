@@ -30,7 +30,7 @@ import org.apache.flink.util.FlinkRuntimeException;
 /**
  * Factory for the {@link DefaultDispatcherGatewayService}.
  */
-class DefaultDispatcherGatewayServiceFactory implements AbstractDispatcherLeaderProcess.DispatcherGatewayServiceFactory {
+public class DefaultDispatcherGatewayServiceFactory implements AbstractDispatcherLeaderProcess.DispatcherGatewayServiceFactory {
 
 	private final DispatcherFactory dispatcherFactory;
 
@@ -38,7 +38,7 @@ class DefaultDispatcherGatewayServiceFactory implements AbstractDispatcherLeader
 
 	private final PartialDispatcherServices partialDispatcherServices;
 
-	DefaultDispatcherGatewayServiceFactory(
+	public DefaultDispatcherGatewayServiceFactory(
 			DispatcherFactory dispatcherFactory,
 			RpcService rpcService,
 			PartialDispatcherServices partialDispatcherServices) {

@@ -20,10 +20,9 @@
 package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.api.dag.Pipeline;
+import org.apache.flink.client.FlinkPipelineTranslator;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.utils.FlinkPipelineTranslationUtil;
-import org.apache.flink.runtime.jobgraph.utils.FlinkPipelineTranslator;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,7 +33,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * {@link FlinkPipelineTranslator} for DataStream API {@link StreamGraph StreamGraphs}.
  *
  * <p>Note: this is used through reflection in
- * {@link FlinkPipelineTranslationUtil}.
+ * {@link org.apache.flink.client.FlinkPipelineTranslationUtil}.
  */
 @SuppressWarnings("unused")
 public class StreamGraphTranslator implements FlinkPipelineTranslator {

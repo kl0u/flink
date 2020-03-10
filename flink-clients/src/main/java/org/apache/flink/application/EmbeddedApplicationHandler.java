@@ -16,11 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.entrypoint.component;
+package org.apache.flink.application;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.client.ClientUtils;
+import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
@@ -28,8 +30,6 @@ import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
-import org.apache.flink.runtime.dispatcher.runner.application.ApplicationHandler;
-import org.apache.flink.runtime.dispatcher.runner.application.EmbeddedExecutorServiceLoader;
 import org.apache.flink.runtime.jobmaster.JobResult;
 
 import org.slf4j.Logger;
@@ -51,12 +51,12 @@ public class EmbeddedApplicationHandler implements ApplicationHandler {
 
 	private final Configuration configuration;
 
-	private final Executable executable;
+	private final PackagedProgram executable;
 
 	public EmbeddedApplicationHandler(
 			final JobID jobId,
 			final Configuration configuration,
-			final Executable executable) {
+			final PackagedProgram executable) {
 		this.jobId = requireNonNull(jobId);
 		this.configuration = requireNonNull(configuration);
 		this.executable = requireNonNull(executable);
@@ -82,7 +82,7 @@ public class EmbeddedApplicationHandler implements ApplicationHandler {
 				new EmbeddedExecutorServiceLoader(jobId, dispatcherGateway, onRecovery);
 
 		try {
-			executable.execute(executorServiceLoader, configuration);
+			ClientUtils.executeProgram(executorServiceLoader, configuration, executable);
 		} catch (Exception e) {
 			LOG.warn("Could not execute program: ", e);
 			throw new JobSubmissionException(jobId, "Could not execute application (id= " + jobId + ")", e);

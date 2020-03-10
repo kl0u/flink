@@ -19,14 +19,15 @@
 package org.apache.flink.client.cli;
 
 import org.apache.flink.api.dag.Pipeline;
+import org.apache.flink.client.FlinkPipelineTranslationUtil;
 import org.apache.flink.client.program.PackagedProgram;
+import org.apache.flink.client.program.PackagedProgramUtils;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.costs.DefaultCostEstimator;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
-import org.apache.flink.runtime.jobgraph.utils.FlinkPipelineTranslationUtil;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.commons.cli.CommandLine;
@@ -300,7 +301,7 @@ public class CliFrontendPackageProgramTest extends TestLogger {
 			Optimizer compiler = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), c);
 
 			// we expect this to fail with a "ClassNotFoundException"
-			Pipeline pipeline = prog.getPipeline(666, true);
+			Pipeline pipeline = PackagedProgramUtils.getPipelineFromProgram(prog, 666, true);
 			FlinkPipelineTranslationUtil.translateToJSONExecutionPlan(pipeline);
 			fail("Should have failed with a ClassNotFoundException");
 		}
