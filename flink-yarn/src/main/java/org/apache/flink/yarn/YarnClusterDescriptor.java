@@ -50,7 +50,7 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ShutdownHookUtil;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.configuration.YarnConfigOptionsInternal;
-import org.apache.flink.yarn.entrypoint.YarnApplicationClusterEntrypoint;
+import org.apache.flink.yarn.entrypoint.YarnApplicationClusterEntryPoint;
 import org.apache.flink.yarn.entrypoint.YarnJobClusterEntrypoint;
 import org.apache.flink.yarn.entrypoint.YarnSessionClusterEntrypoint;
 
@@ -378,7 +378,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 			return deployInternal(
 					clusterSpecification,
 					"Flink Application Cluster",
-					YarnApplicationClusterEntrypoint.class.getName(),
+					YarnApplicationClusterEntryPoint.class.getName(),
 					null,
 					true);
 		} catch (Exception e) {
@@ -503,7 +503,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
 		flinkConfiguration.setString(ClusterEntrypoint.EXECUTION_MODE, executionMode.toString());
 
-		ApplicationReport report = yarnClusterEntrypoint.equalsIgnoreCase(YarnApplicationClusterEntrypoint.class.getName())
+		ApplicationReport report = yarnClusterEntrypoint.equalsIgnoreCase(YarnApplicationClusterEntryPoint.class.getName())
 				? startAppMasterForApplicationMode(flinkConfiguration, applicationName, yarnClusterEntrypoint, yarnClient, yarnApplication, validClusterSpecification)
 				: startAppMaster(flinkConfiguration, applicationName, yarnClusterEntrypoint, jobGraph, yarnClient, yarnApplication, validClusterSpecification);
 

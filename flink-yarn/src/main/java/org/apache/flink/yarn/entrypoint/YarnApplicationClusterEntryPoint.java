@@ -63,9 +63,9 @@ import static org.apache.flink.util.Preconditions.checkState;
  * Javadoc.
  */
 @Internal
-public class YarnApplicationClusterEntrypoint extends SessionClusterEntrypoint {
+public class YarnApplicationClusterEntryPoint extends SessionClusterEntrypoint {
 
-	public YarnApplicationClusterEntrypoint(final Configuration configuration) {
+	public YarnApplicationClusterEntryPoint(final Configuration configuration) {
 		super(configuration);
 	}
 
@@ -102,7 +102,7 @@ public class YarnApplicationClusterEntrypoint extends SessionClusterEntrypoint {
 
 	public static void main(String[] args) throws ProgramInvocationException {
 		// startup checks and logging
-		EnvironmentInformation.logEnvironmentInfo(LOG, YarnApplicationClusterEntrypoint.class.getSimpleName(), args);
+		EnvironmentInformation.logEnvironmentInfo(LOG, YarnApplicationClusterEntryPoint.class.getSimpleName(), args);
 		SignalHandler.register(LOG);
 		JvmShutdownSafeguard.installAsShutdownHook(LOG);
 
@@ -124,8 +124,8 @@ public class YarnApplicationClusterEntrypoint extends SessionClusterEntrypoint {
 		overwriteDetachedModeAndExecutor(configuration);
 		updateConfigWithInterpretedJarURLs(configuration);
 
-		final YarnApplicationClusterEntrypoint yarnApplicationClusterEntrypoint =
-				new YarnApplicationClusterEntrypoint(configuration);
+		final YarnApplicationClusterEntryPoint yarnApplicationClusterEntrypoint =
+				new YarnApplicationClusterEntryPoint(configuration);
 
 		ClusterEntrypoint.runClusterEntrypoint(yarnApplicationClusterEntrypoint);
 	}
