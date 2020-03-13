@@ -95,15 +95,15 @@ public class SessionDispatcherLeaderProcess extends AbstractDispatcherLeaderProc
 		runIfStateIs(State.RUNNING, () -> createDispatcher(jobGraphs));
 	}
 
-	protected ClusterInitializer getClusterInitializer(Collection<JobGraph> jobGraphs) {
-		return new DefaultClusterInitializer(jobGraphs);
+	protected DispatcherInitializer getDispatcherInitializer(Collection<JobGraph> jobGraphs) {
+		return new DefaultDispatcherInitializer(jobGraphs);
 	}
 
 	private void createDispatcher(Collection<JobGraph> jobGraphs) {
 
 		final DispatcherGatewayService dispatcherService = dispatcherGatewayServiceFactory.create(
 			DispatcherId.fromUuid(getLeaderSessionId()),
-			getClusterInitializer(jobGraphs),
+			getDispatcherInitializer(jobGraphs),
 			jobGraphStore);
 
 		completeDispatcherSetup(dispatcherService);

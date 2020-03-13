@@ -50,14 +50,14 @@ public class DefaultDispatcherGatewayServiceFactory implements AbstractDispatche
 	@Override
 	public AbstractDispatcherLeaderProcess.DispatcherGatewayService create(
 			DispatcherId fencingToken,
-			ClusterInitializer clusterInitializer,
+			DispatcherInitializer dispatcherInitializer,
 			JobGraphWriter jobGraphWriter) {
 		final Dispatcher dispatcher;
 		try {
 			dispatcher = dispatcherFactory.createDispatcher(
 				rpcService,
 				fencingToken,
-				clusterInitializer,
+				dispatcherInitializer,
 				PartialDispatcherServicesWithJobGraphStore.from(partialDispatcherServices, jobGraphWriter));
 		} catch (Exception e) {
 			throw new FlinkRuntimeException("Could not create the Dispatcher rpc endpoint.", e);

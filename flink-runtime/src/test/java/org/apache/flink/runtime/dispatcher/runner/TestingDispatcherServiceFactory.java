@@ -23,18 +23,18 @@ import org.apache.flink.runtime.jobmanager.JobGraphWriter;
 import org.apache.flink.util.function.TriFunction;
 
 class TestingDispatcherServiceFactory implements AbstractDispatcherLeaderProcess.DispatcherGatewayServiceFactory {
-	private final TriFunction<DispatcherId, ClusterInitializer, JobGraphWriter, AbstractDispatcherLeaderProcess.DispatcherGatewayService> createFunction;
+	private final TriFunction<DispatcherId, DispatcherInitializer, JobGraphWriter, AbstractDispatcherLeaderProcess.DispatcherGatewayService> createFunction;
 
-	private TestingDispatcherServiceFactory(TriFunction<DispatcherId, ClusterInitializer, JobGraphWriter, AbstractDispatcherLeaderProcess.DispatcherGatewayService> createFunction) {
+	private TestingDispatcherServiceFactory(TriFunction<DispatcherId, DispatcherInitializer, JobGraphWriter, AbstractDispatcherLeaderProcess.DispatcherGatewayService> createFunction) {
 		this.createFunction = createFunction;
 	}
 
 	@Override
 	public AbstractDispatcherLeaderProcess.DispatcherGatewayService create(
 			DispatcherId fencingToken,
-			ClusterInitializer clusterInitializer,
+			DispatcherInitializer dispatcherInitializer,
 			JobGraphWriter jobGraphWriter) {
-		return createFunction.apply(fencingToken, clusterInitializer, jobGraphWriter);
+		return createFunction.apply(fencingToken, dispatcherInitializer, jobGraphWriter);
 	}
 
 	public static Builder newBuilder() {
@@ -42,11 +42,11 @@ class TestingDispatcherServiceFactory implements AbstractDispatcherLeaderProcess
 	}
 
 	public static class Builder {
-		private TriFunction<DispatcherId, ClusterInitializer, JobGraphWriter, AbstractDispatcherLeaderProcess.DispatcherGatewayService> createFunction = (ignoredA, ignoredB, ignoredC) -> TestingDispatcherGatewayService.newBuilder().build();
+		private TriFunction<DispatcherId, DispatcherInitializer, JobGraphWriter, AbstractDispatcherLeaderProcess.DispatcherGatewayService> createFunction = (ignoredA, ignoredB, ignoredC) -> TestingDispatcherGatewayService.newBuilder().build();
 
 		private Builder() {}
 
-		Builder setCreateFunction(TriFunction<DispatcherId, ClusterInitializer, JobGraphWriter, AbstractDispatcherLeaderProcess.DispatcherGatewayService> createFunction) {
+		Builder setCreateFunction(TriFunction<DispatcherId, DispatcherInitializer, JobGraphWriter, AbstractDispatcherLeaderProcess.DispatcherGatewayService> createFunction) {
 			this.createFunction = createFunction;
 			return this;
 		}

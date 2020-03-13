@@ -31,11 +31,11 @@ import static java.util.Objects.requireNonNull;
  * Javadoc.
  */
 @Internal
-public class DefaultClusterInitializer implements ClusterInitializer {
+public class DefaultDispatcherInitializer implements DispatcherInitializer {
 
 	private final Collection<JobGraph> recoveredJobs;
 
-	public DefaultClusterInitializer(final Collection<JobGraph> recoveredJobs) {
+	public DefaultDispatcherInitializer(final Collection<JobGraph> recoveredJobs) {
 		this.recoveredJobs = requireNonNull(recoveredJobs);
 	}
 
@@ -45,7 +45,7 @@ public class DefaultClusterInitializer implements ClusterInitializer {
 	}
 
 	@Override
-	public void initializeCluster(Dispatcher dispatcher) {
+	public void bootstrap(Dispatcher dispatcher) {
 		requireNonNull(dispatcher);
 
 		for (JobGraph recoveredJob : recoveredJobs) {

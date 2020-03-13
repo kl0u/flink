@@ -28,9 +28,9 @@ import java.util.Collection;
  * Javadoc.
  */
 @Internal
-public interface ClusterInitializer {
+public interface DispatcherInitializer {
 
 	Collection<JobGraph> getInitJobGraphs();
 
-	void initializeCluster(final Dispatcher dispatcher) throws Exception;
+	void bootstrap(final Dispatcher dispatcher) throws Exception;
 }

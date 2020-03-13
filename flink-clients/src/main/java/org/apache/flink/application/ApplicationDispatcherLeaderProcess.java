@@ -20,7 +20,7 @@ package org.apache.flink.application;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
-import org.apache.flink.runtime.dispatcher.runner.ClusterInitializer;
+import org.apache.flink.runtime.dispatcher.runner.DispatcherInitializer;
 import org.apache.flink.runtime.dispatcher.runner.SessionDispatcherLeaderProcess;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
@@ -53,8 +53,8 @@ public class ApplicationDispatcherLeaderProcess extends SessionDispatcherLeaderP
 	}
 
 	@Override
-	protected ClusterInitializer getClusterInitializer(Collection<JobGraph> jobGraphs) {
-		return new ApplicationClusterInitializer(jobGraphs, applicationSubmitter);
+	protected DispatcherInitializer getDispatcherInitializer(Collection<JobGraph> jobGraphs) {
+		return new ApplicationDispatcherInitializer(jobGraphs, applicationSubmitter);
 	}
 
 	// ---------------------------------------------------------------

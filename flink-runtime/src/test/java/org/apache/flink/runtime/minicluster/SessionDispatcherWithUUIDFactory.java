@@ -24,7 +24,7 @@ import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.dispatcher.DispatcherServices;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServicesWithJobGraphStore;
 import org.apache.flink.runtime.dispatcher.StandaloneDispatcher;
-import org.apache.flink.runtime.dispatcher.runner.ClusterInitializer;
+import org.apache.flink.runtime.dispatcher.runner.DispatcherInitializer;
 import org.apache.flink.runtime.rpc.RpcService;
 
 /**
@@ -38,14 +38,14 @@ public enum SessionDispatcherWithUUIDFactory implements DispatcherFactory {
 	public StandaloneDispatcher createDispatcher(
 			RpcService rpcService,
 			DispatcherId fencingToken,
-			ClusterInitializer clusterInitializer,
+			DispatcherInitializer dispatcherInitializer,
 			PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore) throws Exception {
 		// create the default dispatcher
 		return new StandaloneDispatcher(
 			rpcService,
 			generateEndpointIdWithUUID(),
 			fencingToken,
-			clusterInitializer,
+			dispatcherInitializer,
 			DispatcherServices.from(partialDispatcherServicesWithJobGraphStore, DefaultJobManagerRunnerFactory.INSTANCE));
 	}
 }

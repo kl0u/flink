@@ -205,13 +205,13 @@ public class DefaultDispatcherRunnerITCase extends TestLogger {
 		public Dispatcher createDispatcher(
 			RpcService rpcService,
 			DispatcherId fencingToken,
-			ClusterInitializer clusterInitializer,
+			DispatcherInitializer 	dispatcherInitializer,
 			PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore) throws Exception {
 			return new StandaloneDispatcher(
 				rpcService,
 				generateEndpointIdWithUUID(),
 				fencingToken,
-				clusterInitializer,
+				dispatcherInitializer,
 				DispatcherServices.from(partialDispatcherServicesWithJobGraphStore, jobManagerRunnerFactory));
 		}
 	}

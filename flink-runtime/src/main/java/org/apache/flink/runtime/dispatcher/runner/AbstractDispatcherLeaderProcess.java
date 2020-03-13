@@ -247,7 +247,7 @@ public abstract class AbstractDispatcherLeaderProcess implements DispatcherLeade
 	public interface DispatcherGatewayServiceFactory {
 		DispatcherGatewayService create(
 			DispatcherId fencingToken,
-			ClusterInitializer clusterInitializer,
+			DispatcherInitializer dispatcherInitializer,
 			JobGraphWriter jobGraphWriter);
 	}
 

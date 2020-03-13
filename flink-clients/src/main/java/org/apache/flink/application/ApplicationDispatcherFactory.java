@@ -24,7 +24,7 @@ import org.apache.flink.runtime.dispatcher.DispatcherFactory;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.dispatcher.DispatcherServices;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServicesWithJobGraphStore;
-import org.apache.flink.runtime.dispatcher.runner.ClusterInitializer;
+import org.apache.flink.runtime.dispatcher.runner.DispatcherInitializer;
 import org.apache.flink.runtime.rpc.RpcService;
 
 /**
@@ -37,13 +37,13 @@ public enum ApplicationDispatcherFactory implements DispatcherFactory {
 	public Dispatcher createDispatcher(
 			final RpcService rpcService,
 			final DispatcherId fencingToken,
-			final ClusterInitializer clusterInitializer,
+			final DispatcherInitializer dispatcherInitializer,
 			final PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore) throws Exception {
 		return new ApplicationDispatcher(
 				rpcService,
 				getEndpointId(),
 				fencingToken,
-				clusterInitializer,
+				dispatcherInitializer,
 				DispatcherServices.from(partialDispatcherServicesWithJobGraphStore, DefaultJobManagerRunnerFactory.INSTANCE));
 	}
 }

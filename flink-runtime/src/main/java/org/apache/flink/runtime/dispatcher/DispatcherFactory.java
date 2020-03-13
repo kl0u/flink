@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.dispatcher;
 
-import org.apache.flink.runtime.dispatcher.runner.ClusterInitializer;
+import org.apache.flink.runtime.dispatcher.runner.DispatcherInitializer;
 import org.apache.flink.runtime.rpc.RpcService;
 
 import java.util.UUID;
@@ -34,7 +34,7 @@ public interface DispatcherFactory {
 	Dispatcher createDispatcher(
 		RpcService rpcService,
 		DispatcherId fencingToken,
-		ClusterInitializer clusterInitializer,
+		DispatcherInitializer dispatcherInitializer,
 		PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore) throws Exception;
 
 	default String generateEndpointIdWithUUID() {

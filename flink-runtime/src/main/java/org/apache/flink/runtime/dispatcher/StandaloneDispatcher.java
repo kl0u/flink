@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.dispatcher;
 
-import org.apache.flink.runtime.dispatcher.runner.ClusterInitializer;
+import org.apache.flink.runtime.dispatcher.runner.DispatcherInitializer;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -33,13 +33,13 @@ public class StandaloneDispatcher extends Dispatcher {
 			RpcService rpcService,
 			String endpointId,
 			DispatcherId fencingToken,
-			ClusterInitializer clusterInitializer,
+			DispatcherInitializer dispatcherInitializer,
 			DispatcherServices dispatcherServices) throws Exception {
 		super(
 			rpcService,
 			endpointId,
 			fencingToken,
-			clusterInitializer,
+			dispatcherInitializer,
 			dispatcherServices);
 	}
 }

@@ -120,8 +120,8 @@ public class SessionDispatcherLeaderProcessTest extends TestLogger {
 		final CompletableFuture<Collection<JobGraph>> recoveredJobGraphsFuture = new CompletableFuture<>();
 		dispatcherServiceFactory = TestingDispatcherServiceFactory.newBuilder()
 			.setCreateFunction(
-				(fencingToken, clusterInitializer, jobGraphStore) -> {
-					recoveredJobGraphsFuture.complete(clusterInitializer.getInitJobGraphs());
+				(fencingToken, dispatcherInitializer, jobGraphStore) -> {
+					recoveredJobGraphsFuture.complete(dispatcherInitializer.getInitJobGraphs());
 					return TestingDispatcherGatewayService.newBuilder().build();
 				}
 			)
@@ -256,7 +256,7 @@ public class SessionDispatcherLeaderProcessTest extends TestLogger {
 			.build();
 
 		dispatcherServiceFactory = TestingDispatcherServiceFactory.newBuilder()
-			.setCreateFunction((dispatcherId, clusterInitializer, jobGraphWriter) -> testingDispatcherService)
+			.setCreateFunction((dispatcherId, dispatcherInitializer, jobGraphWriter) -> testingDispatcherService)
 			.build();
 
 		try (final SessionDispatcherLeaderProcess dispatcherLeaderProcess = createDispatcherLeaderProcess()) {
@@ -282,7 +282,7 @@ public class SessionDispatcherLeaderProcessTest extends TestLogger {
 			.build();
 
 		dispatcherServiceFactory = TestingDispatcherServiceFactory.newBuilder()
-			.setCreateFunction((dispatcherId, clusterInitializer, jobGraphWriter) -> testingDispatcherService)
+			.setCreateFunction((dispatcherId, dispatcherInitializer, jobGraphWriter) -> testingDispatcherService)
 			.build();
 
 		try (final SessionDispatcherLeaderProcess dispatcherLeaderProcess = createDispatcherLeaderProcess()) {
@@ -460,8 +460,8 @@ public class SessionDispatcherLeaderProcessTest extends TestLogger {
 			.setInitialJobGraphs(Collections.singleton(JOB_GRAPH))
 			.build();
 		dispatcherServiceFactory = TestingDispatcherServiceFactory.newBuilder()
-			.setCreateFunction((dispatcherId, clusterInitializer, jobGraphWriter) -> {
-				assertThat(clusterInitializer.getInitJobGraphs(), containsInAnyOrder(JOB_GRAPH));
+			.setCreateFunction((dispatcherId, dispatcherInitializer, jobGraphWriter) -> {
+				assertThat(dispatcherInitializer.getInitJobGraphs(), containsInAnyOrder(JOB_GRAPH));
 
 				return TestingDispatcherGatewayService.newBuilder()
 					.setDispatcherGateway(dispatcherGateway)

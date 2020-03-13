@@ -31,8 +31,8 @@ import org.apache.flink.runtime.checkpoint.Checkpoints;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.runtime.client.JobSubmissionException;
-import org.apache.flink.runtime.dispatcher.runner.ClusterInitializer;
-import org.apache.flink.runtime.dispatcher.runner.DefaultClusterInitializer;
+import org.apache.flink.runtime.dispatcher.runner.DefaultDispatcherInitializer;
+import org.apache.flink.runtime.dispatcher.runner.DispatcherInitializer;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
@@ -208,7 +208,7 @@ public class DispatcherTest extends TestLogger {
 
 	private class TestingDispatcherBuilder {
 
-		private ClusterInitializer clusterInitializer = new DefaultClusterInitializer(Collections.emptyList());
+		private DispatcherInitializer dispatcherInitializer = new DefaultDispatcherInitializer(Collections.emptyList());
 
 		private HeartbeatServices heartbeatServices = DispatcherTest.this.heartbeatServices;
 
@@ -228,8 +228,8 @@ public class DispatcherTest extends TestLogger {
 			return this;
 		}
 
-		TestingDispatcherBuilder setClusterInitializer(ClusterInitializer clusterInitializer) {
-			this.clusterInitializer = clusterInitializer;
+		TestingDispatcherBuilder setDispatcherInitializer(DispatcherInitializer dispatcherInitializer) {
+			this.dispatcherInitializer = dispatcherInitializer;
 			return this;
 		}
 
@@ -252,7 +252,7 @@ public class DispatcherTest extends TestLogger {
 				rpcService,
 				Dispatcher.DISPATCHER_NAME + '_' + name.getMethodName(),
 				DispatcherId.generate(),
-				clusterInitializer,
+					dispatcherInitializer,
 				new DispatcherServices(
 					configuration,
 					haServices,
@@ -456,7 +456,7 @@ public class DispatcherTest extends TestLogger {
 		final JobGraph failingJobGraph = createFailingJobGraph(testException);
 
 		dispatcher = new TestingDispatcherBuilder()
-			.setClusterInitializer(new DefaultClusterInitializer(Collections.singleton(failingJobGraph)))
+			.setDispatcherInitializer(new DefaultDispatcherInitializer(Collections.singleton(failingJobGraph)))
 			.build();
 
 		dispatcher.start();
@@ -606,7 +606,7 @@ public class DispatcherTest extends TestLogger {
 			.build();
 
 		dispatcher = new TestingDispatcherBuilder()
-			.setClusterInitializer(new DefaultClusterInitializer(Collections.singleton(jobGraph)))
+			.setDispatcherInitializer(new DefaultDispatcherInitializer(Collections.singleton(jobGraph)))
 			.setJobGraphWriter(testingJobGraphStore)
 			.build();
 		dispatcher.start();

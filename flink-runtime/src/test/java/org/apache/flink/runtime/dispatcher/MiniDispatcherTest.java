@@ -24,7 +24,7 @@ import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.VoidBlobStore;
-import org.apache.flink.runtime.dispatcher.runner.DefaultClusterInitializer;
+import org.apache.flink.runtime.dispatcher.runner.DefaultDispatcherInitializer;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
@@ -231,7 +231,7 @@ public class MiniDispatcherTest extends TestLogger {
 				UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
 				highAvailabilityServices.getJobGraphStore(),
 				testingJobManagerRunnerFactory),
-			new DefaultClusterInitializer(Collections.singletonList(jobGraph)),
+			new DefaultDispatcherInitializer(Collections.singletonList(jobGraph)),
 			executionMode);
 	}
 

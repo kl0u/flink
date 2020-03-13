@@ -32,7 +32,7 @@ import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.dispatcher.runner.ClusterInitializer;
+import org.apache.flink.runtime.dispatcher.runner.DispatcherInitializer;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -113,7 +113,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 
 	private final Map<JobID, CompletableFuture<JobManagerRunner>> jobManagerRunnerFutures;
 
-	private final ClusterInitializer clusterInitializer;
+	private final DispatcherInitializer dispatcherInitializer;
 
 	private final ArchivedExecutionGraphStore archivedExecutionGraphStore;
 
@@ -133,7 +133,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 			RpcService rpcService,
 			String endpointId,
 			DispatcherId fencingToken,
-			ClusterInitializer clusterInitializer,
+			DispatcherInitializer dispatcherInitializer,
 			DispatcherServices dispatcherServices) throws Exception {
 		super(rpcService, endpointId, fencingToken);
 		Preconditions.checkNotNull(dispatcherServices);
@@ -166,7 +166,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 
 		this.shutDownFuture = new CompletableFuture<>();
 
-		this.clusterInitializer = Preconditions.checkNotNull(clusterInitializer);
+		this.dispatcherInitializer = Preconditions.checkNotNull(dispatcherInitializer);
 	}
 
 	//------------------------------------------------------
@@ -191,7 +191,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 			throw exception;
 		}
 
-		clusterInitializer.initializeCluster(this);
+		dispatcherInitializer.bootstrap(this);
 	}
 
 	private void startDispatcherServices() throws Exception {

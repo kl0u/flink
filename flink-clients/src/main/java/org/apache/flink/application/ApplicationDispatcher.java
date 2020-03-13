@@ -22,7 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.dispatcher.DispatcherServices;
-import org.apache.flink.runtime.dispatcher.runner.ClusterInitializer;
+import org.apache.flink.runtime.dispatcher.runner.DispatcherInitializer;
 import org.apache.flink.runtime.rpc.RpcService;
 
 /**
@@ -35,13 +35,13 @@ public class ApplicationDispatcher extends Dispatcher {
 			RpcService rpcService,
 			String endpointId,
 			DispatcherId fencingToken,
-			ClusterInitializer clusterInitializer,
+			DispatcherInitializer dispatcherInitializer,
 			DispatcherServices dispatcherServices) throws Exception {
 		super(
 				rpcService,
 				endpointId,
 				fencingToken,
-				clusterInitializer,
+				dispatcherInitializer,
 				dispatcherServices);
 	}
 }

@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.dispatcher.runner.ClusterInitializer;
+import org.apache.flink.runtime.dispatcher.runner.DispatcherInitializer;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.rpc.RpcService;
 
@@ -35,7 +35,7 @@ public enum JobDispatcherFactory implements DispatcherFactory {
 	public MiniDispatcher createDispatcher(
 			RpcService rpcService,
 			DispatcherId fencingToken,
-			ClusterInitializer clusterInitializer,
+			DispatcherInitializer dispatcherInitializer,
 			PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore) throws Exception {
 		final Configuration configuration = partialDispatcherServicesWithJobGraphStore.getConfiguration();
 		final String executionModeValue = configuration.getString(EXECUTION_MODE);
@@ -46,7 +46,7 @@ public enum JobDispatcherFactory implements DispatcherFactory {
 			getEndpointId(),
 			fencingToken,
 			DispatcherServices.from(partialDispatcherServicesWithJobGraphStore, DefaultJobManagerRunnerFactory.INSTANCE),
-			clusterInitializer,
+			dispatcherInitializer,
 			executionMode);
 	}
 }

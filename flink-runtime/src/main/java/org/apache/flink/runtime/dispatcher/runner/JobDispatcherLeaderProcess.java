@@ -49,7 +49,7 @@ public class JobDispatcherLeaderProcess extends AbstractDispatcherLeaderProcess 
 	protected void onStart() {
 		final DispatcherGatewayService dispatcherService = dispatcherGatewayServiceFactory.create(
 			DispatcherId.fromUuid(getLeaderSessionId()),
-			new DefaultClusterInitializer(Collections.singleton(jobGraph)),
+			new DefaultDispatcherInitializer(Collections.singleton(jobGraph)),
 			ThrowingJobGraphWriter.INSTANCE);
 
 		completeDispatcherSetup(dispatcherService);

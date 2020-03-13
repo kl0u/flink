@@ -20,7 +20,7 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.dispatcher.runner.ClusterInitializer;
+import org.apache.flink.runtime.dispatcher.runner.DispatcherInitializer;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.rpc.RpcService;
 
@@ -40,13 +40,13 @@ class TestingDispatcher extends Dispatcher {
 			RpcService rpcService,
 			String endpointId,
 			DispatcherId fencingToken,
-			ClusterInitializer clusterInitializer,
+			DispatcherInitializer dispatcherInitializer,
 			DispatcherServices dispatcherServices) throws Exception {
 		super(
 			rpcService,
 			endpointId,
 			fencingToken,
-			clusterInitializer,
+			dispatcherInitializer,
 			dispatcherServices);
 
 		this.startFuture = new CompletableFuture<>();
