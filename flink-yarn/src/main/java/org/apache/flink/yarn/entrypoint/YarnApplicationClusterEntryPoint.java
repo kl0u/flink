@@ -30,9 +30,11 @@ import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
+import org.apache.flink.runtime.dispatcher.ArchivedExecutionGraphStore;
+import org.apache.flink.runtime.dispatcher.MemoryArchivedExecutionGraphStore;
 import org.apache.flink.runtime.dispatcher.runner.DefaultDispatcherRunnerFactory;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
-import org.apache.flink.runtime.entrypoint.SessionClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.rest.JobRestEndpointFactory;
@@ -63,7 +65,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * Javadoc.
  */
 @Internal
-public class YarnApplicationClusterEntryPoint extends SessionClusterEntrypoint {
+public class YarnApplicationClusterEntryPoint extends ClusterEntrypoint {
 
 	public YarnApplicationClusterEntryPoint(final Configuration configuration) {
 		super(configuration);
@@ -83,6 +85,13 @@ public class YarnApplicationClusterEntryPoint extends SessionClusterEntrypoint {
 								.create(ApplicationDispatcherFactory.INSTANCE, applicationHandler)),
 				YarnResourceManagerFactory.getInstance(),
 				JobRestEndpointFactory.INSTANCE);
+	}
+
+	@Override
+	protected ArchivedExecutionGraphStore createSerializableExecutionGraphStore(
+			final Configuration configuration,
+			final ScheduledExecutor scheduledExecutor) {
+		return new MemoryArchivedExecutionGraphStore();
 	}
 
 	@Nullable
