@@ -53,8 +53,8 @@ public class ApplicationDispatcherLeaderProcess extends SessionDispatcherLeaderP
 	}
 
 	@Override
-	protected DispatcherInitializer getDispatcherInitializer(Collection<JobGraph> jobGraphs) {
-		return new ApplicationDispatcherInitializer(jobGraphs, applicationRunner);
+	protected DispatcherInitializer getDispatcherInitializer(Collection<JobGraph> recoveredJobGraphs) {
+		return new ApplicationDispatcherInitializer(recoveredJobGraphs, applicationRunner);
 	}
 
 	// ---------------------------------------------------------------

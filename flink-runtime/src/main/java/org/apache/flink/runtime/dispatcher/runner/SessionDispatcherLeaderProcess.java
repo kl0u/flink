@@ -91,19 +91,19 @@ public class SessionDispatcherLeaderProcess extends AbstractDispatcherLeaderProc
 		}
 	}
 
-	private void createDispatcherIfRunning(Collection<JobGraph> jobGraphs) {
-		runIfStateIs(State.RUNNING, () -> createDispatcher(jobGraphs));
+	private void createDispatcherIfRunning(Collection<JobGraph> recoveredJobGraphs) {
+		runIfStateIs(State.RUNNING, () -> createDispatcher(recoveredJobGraphs));
 	}
 
-	protected DispatcherInitializer getDispatcherInitializer(Collection<JobGraph> jobGraphs) {
-		return new DefaultDispatcherInitializer(jobGraphs);
+	protected DispatcherInitializer getDispatcherInitializer(Collection<JobGraph> recoveredJobGraphs) {
+		return new DefaultDispatcherInitializer(recoveredJobGraphs);
 	}
 
-	private void createDispatcher(Collection<JobGraph> jobGraphs) {
+	private void createDispatcher(Collection<JobGraph> recoveredJobGraphs) {
 
 		final DispatcherGatewayService dispatcherService = dispatcherGatewayServiceFactory.create(
 			DispatcherId.fromUuid(getLeaderSessionId()),
-			getDispatcherInitializer(jobGraphs),
+			getDispatcherInitializer(recoveredJobGraphs),
 			jobGraphStore);
 
 		completeDispatcherSetup(dispatcherService);

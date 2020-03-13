@@ -35,8 +35,8 @@ public class DefaultDispatcherInitializer implements DispatcherInitializer {
 
 	private final Collection<JobGraph> recoveredJobs;
 
-	public DefaultDispatcherInitializer(final Collection<JobGraph> recoveredJobs) {
-		this.recoveredJobs = requireNonNull(recoveredJobs);
+	public DefaultDispatcherInitializer(final Collection<JobGraph> recoveredJobsGraphs) {
+		this.recoveredJobs = requireNonNull(recoveredJobsGraphs);
 	}
 
 	@Override
