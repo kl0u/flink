@@ -123,7 +123,7 @@ public final class DefaultDispatcherRunner implements DispatcherRunner, LeaderCo
 				previousDispatcherLeaderProcessTerminationFuture,
 				terminationFuture));
 
-		// TODO: 12.03.20 kill application 
+		// TODO: 12.03.20 kill application
 	}
 
 	private DispatcherLeaderProcess createNewDispatcherLeaderProcess(UUID leaderSessionID) {

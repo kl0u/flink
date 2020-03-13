@@ -21,6 +21,7 @@ package org.apache.flink.runtime.dispatcher.runner;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.dispatcher.DispatcherFactory;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
+import org.apache.flink.runtime.dispatcher.DispatcherInitializer;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServicesWithJobGraphStore;
 import org.apache.flink.runtime.jobmanager.JobGraphWriter;

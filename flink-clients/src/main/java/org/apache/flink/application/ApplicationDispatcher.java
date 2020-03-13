@@ -21,8 +21,8 @@ package org.apache.flink.application;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
+import org.apache.flink.runtime.dispatcher.DispatcherInitializer;
 import org.apache.flink.runtime.dispatcher.DispatcherServices;
-import org.apache.flink.runtime.dispatcher.runner.DispatcherInitializer;
 import org.apache.flink.runtime.rpc.RpcService;
 
 /**

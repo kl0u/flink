@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.dispatcher.runner;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.dispatcher.AbstractDispatcherInitializer;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 
@@ -31,7 +31,7 @@ import static java.util.Objects.requireNonNull;
  * Javadoc.
  */
 @Internal
-public class DefaultDispatcherInitializer implements DispatcherInitializer {
+public class DefaultDispatcherInitializer extends AbstractDispatcherInitializer {
 
 	private final Collection<JobGraph> recoveredJobs;
 
@@ -47,11 +47,7 @@ public class DefaultDispatcherInitializer implements DispatcherInitializer {
 	@Override
 	public void bootstrap(Dispatcher dispatcher) {
 		requireNonNull(dispatcher);
-
-		for (JobGraph recoveredJob : recoveredJobs) {
-			FutureUtils.assertNoException(dispatcher.runJob(recoveredJob)
-					.handle(dispatcher.handleRecoveredJobStartError(recoveredJob.getJobID())));
-		}
+		runRecoveredJobGraphs(dispatcher, recoveredJobs);
 		recoveredJobs.clear();
 	}
 }

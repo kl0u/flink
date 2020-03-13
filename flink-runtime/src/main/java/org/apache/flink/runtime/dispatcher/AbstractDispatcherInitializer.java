@@ -16,21 +16,28 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.dispatcher.runner;
+package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.runtime.dispatcher.Dispatcher;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 
 import java.util.Collection;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * Javadoc.
  */
 @Internal
-public interface DispatcherInitializer {
+public abstract class AbstractDispatcherInitializer implements DispatcherInitializer {
 
-	Collection<JobGraph> getInitJobGraphs();
+	protected void runRecoveredJobGraphs(final Dispatcher dispatcher, final Collection<JobGraph> recoveredJobGraphs) {
+		requireNonNull(dispatcher);
 
-	void bootstrap(final Dispatcher dispatcher) throws Exception;
+		for (JobGraph recoveredJob : recoveredJobGraphs) {
+			FutureUtils.assertNoException(dispatcher.runJob(recoveredJob)
+					.handle(dispatcher.handleRecoveredJobStartError(recoveredJob.getJobID())));
+		}
+	}
 }

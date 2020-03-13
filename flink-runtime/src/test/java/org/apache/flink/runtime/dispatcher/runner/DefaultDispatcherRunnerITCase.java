@@ -25,6 +25,7 @@ import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.dispatcher.DispatcherFactory;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
+import org.apache.flink.runtime.dispatcher.DispatcherInitializer;
 import org.apache.flink.runtime.dispatcher.DispatcherServices;
 import org.apache.flink.runtime.dispatcher.JobManagerRunnerFactory;
 import org.apache.flink.runtime.dispatcher.MemoryArchivedExecutionGraphStore;
@@ -205,7 +206,7 @@ public class DefaultDispatcherRunnerITCase extends TestLogger {
 		public Dispatcher createDispatcher(
 			RpcService rpcService,
 			DispatcherId fencingToken,
-			DispatcherInitializer 	dispatcherInitializer,
+			DispatcherInitializer dispatcherInitializer,
 			PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore) throws Exception {
 			return new StandaloneDispatcher(
 				rpcService,

@@ -32,7 +32,6 @@ import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.dispatcher.runner.DispatcherInitializer;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -202,7 +201,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 		}
 	}
 
-	public BiFunction<Void, Throwable, Void> handleRecoveredJobStartError(JobID jobId) {
+	BiFunction<Void, Throwable, Void> handleRecoveredJobStartError(JobID jobId) {
 		return (ignored, throwable) -> {
 			if (throwable != null) {
 				onFatalError(new DispatcherException(String.format("Could not start recovered job %s.", jobId), throwable));
@@ -344,7 +343,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 		}));
 	}
 
-	public CompletableFuture<Void> runJob(JobGraph jobGraph) {
+	CompletableFuture<Void> runJob(JobGraph jobGraph) {
 		Preconditions.checkState(!jobManagerRunnerFutures.containsKey(jobGraph.getJobID()));
 
 		final CompletableFuture<JobManagerRunner> jobManagerRunnerFuture = createJobManagerRunner(jobGraph);

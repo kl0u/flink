@@ -20,7 +20,7 @@ package org.apache.flink.application;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
-import org.apache.flink.runtime.dispatcher.runner.DispatcherInitializer;
+import org.apache.flink.runtime.dispatcher.DispatcherInitializer;
 import org.apache.flink.runtime.dispatcher.runner.SessionDispatcherLeaderProcess;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;

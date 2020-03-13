@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.dispatcher.runner;
 
 import org.apache.flink.runtime.dispatcher.DispatcherId;
+import org.apache.flink.runtime.dispatcher.DispatcherInitializer;
 import org.apache.flink.runtime.jobmanager.JobGraphWriter;
 import org.apache.flink.util.function.TriFunction;
 

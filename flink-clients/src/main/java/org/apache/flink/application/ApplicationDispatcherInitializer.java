@@ -20,9 +20,8 @@ package org.apache.flink.application;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.dispatcher.AbstractDispatcherInitializer;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
-import org.apache.flink.runtime.dispatcher.runner.DispatcherInitializer;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.rpc.RpcService;
 
@@ -37,7 +36,7 @@ import static java.util.Objects.requireNonNull;
  * Javadoc.
  */
 @Internal
-public class ApplicationDispatcherInitializer implements DispatcherInitializer {
+public class ApplicationDispatcherInitializer extends AbstractDispatcherInitializer {
 
 	private final Collection<JobGraph> recoveredJobs;
 
@@ -58,13 +57,9 @@ public class ApplicationDispatcherInitializer implements DispatcherInitializer {
 	@Override
 	public void bootstrap(final Dispatcher dispatcher) {
 		requireNonNull(dispatcher);
-
-		for (JobGraph recoveredJob : recoveredJobs) {
-			FutureUtils.assertNoException(dispatcher.runJob(recoveredJob)
-					.handle(dispatcher.handleRecoveredJobStartError(recoveredJob.getJobID())));
-		}
-
+		runRecoveredJobGraphs(dispatcher, recoveredJobs);
 		handleApplicationState(dispatcher);
+		recoveredJobs.clear();
 	}
 
 	private void handleApplicationState(final Dispatcher dispatcher) {
