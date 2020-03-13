@@ -207,7 +207,7 @@ public class DispatcherTest extends TestLogger {
 
 	private class TestingDispatcherBuilder {
 
-		private DispatcherInitializer dispatcherInitializer = new DefaultDispatcherInitializer(Collections.emptyList());
+		private DispatcherBootstrap dispatcherInitializer = new DefaultDispatcherInitializer(Collections.emptyList());
 
 		private HeartbeatServices heartbeatServices = DispatcherTest.this.heartbeatServices;
 
@@ -227,7 +227,7 @@ public class DispatcherTest extends TestLogger {
 			return this;
 		}
 
-		TestingDispatcherBuilder setDispatcherInitializer(DispatcherInitializer dispatcherInitializer) {
+		TestingDispatcherBuilder setDispatcherInitializer(DispatcherBootstrap dispatcherInitializer) {
 			this.dispatcherInitializer = dispatcherInitializer;
 			return this;
 		}

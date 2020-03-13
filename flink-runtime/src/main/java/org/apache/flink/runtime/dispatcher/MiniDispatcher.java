@@ -55,7 +55,7 @@ public class MiniDispatcher extends Dispatcher {
 			String endpointId,
 			DispatcherId fencingToken,
 			DispatcherServices dispatcherServices,
-			DispatcherInitializer dispatcherInitializer,
+			DispatcherBootstrap dispatcherInitializer,
 			JobClusterEntrypoint.ExecutionMode executionMode) throws Exception {
 		super(
 			rpcService,

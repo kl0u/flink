@@ -112,7 +112,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 
 	private final Map<JobID, CompletableFuture<JobManagerRunner>> jobManagerRunnerFutures;
 
-	private final DispatcherInitializer dispatcherInitializer;
+	private final DispatcherBootstrap dispatcherInitializer;
 
 	private final ArchivedExecutionGraphStore archivedExecutionGraphStore;
 
@@ -132,7 +132,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 			RpcService rpcService,
 			String endpointId,
 			DispatcherId fencingToken,
-			DispatcherInitializer dispatcherInitializer,
+			DispatcherBootstrap dispatcherInitializer,
 			DispatcherServices dispatcherServices) throws Exception {
 		super(rpcService, endpointId, fencingToken);
 		Preconditions.checkNotNull(dispatcherServices);
@@ -190,7 +190,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 			throw exception;
 		}
 
-		dispatcherInitializer.bootstrap(this);
+		dispatcherInitializer.initialize(this);
 	}
 
 	private void startDispatcherServices() throws Exception {
@@ -230,6 +230,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 		return FutureUtils.runAfterwards(
 			allJobManagerRunnersTerminationFuture,
 			() -> {
+				dispatcherInitializer.cancel(this);
 				stopDispatcherServices();
 
 				log.info("Stopped dispatcher {}.", getAddress());

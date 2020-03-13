@@ -22,9 +22,9 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.dispatcher.DispatcherBootstrap;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
-import org.apache.flink.runtime.dispatcher.DispatcherInitializer;
 import org.apache.flink.runtime.jobmanager.JobGraphWriter;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
@@ -248,7 +248,7 @@ public abstract class AbstractDispatcherLeaderProcess implements DispatcherLeade
 	public interface DispatcherGatewayServiceFactory {
 		DispatcherGatewayService create(
 			DispatcherId fencingToken,
-			DispatcherInitializer dispatcherInitializer,
+			DispatcherBootstrap dispatcherInitializer,
 			JobGraphWriter jobGraphWriter);
 	}
 

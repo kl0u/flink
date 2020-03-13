@@ -45,9 +45,14 @@ public class DefaultDispatcherInitializer extends AbstractDispatcherInitializer 
 	}
 
 	@Override
-	public void bootstrap(Dispatcher dispatcher) {
+	public void initialize(Dispatcher dispatcher) {
 		requireNonNull(dispatcher);
 		runRecoveredJobGraphs(dispatcher, recoveredJobs);
 		recoveredJobs.clear();
+	}
+
+	@Override
+	public void cancel(Dispatcher dispatcher) throws Exception {
+		// nothing to do here
 	}
 }

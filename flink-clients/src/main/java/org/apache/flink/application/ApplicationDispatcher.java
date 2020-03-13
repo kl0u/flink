@@ -20,8 +20,8 @@ package org.apache.flink.application;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
+import org.apache.flink.runtime.dispatcher.DispatcherBootstrap;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
-import org.apache.flink.runtime.dispatcher.DispatcherInitializer;
 import org.apache.flink.runtime.dispatcher.DispatcherServices;
 import org.apache.flink.runtime.rpc.RpcService;
 
@@ -35,7 +35,7 @@ public class ApplicationDispatcher extends Dispatcher {
 			RpcService rpcService,
 			String endpointId,
 			DispatcherId fencingToken,
-			DispatcherInitializer dispatcherInitializer,
+			DispatcherBootstrap dispatcherInitializer,
 			DispatcherServices dispatcherServices) throws Exception {
 		super(
 				rpcService,

@@ -39,7 +39,7 @@ class TestingDispatcher extends Dispatcher {
 			RpcService rpcService,
 			String endpointId,
 			DispatcherId fencingToken,
-			DispatcherInitializer dispatcherInitializer,
+			DispatcherBootstrap dispatcherInitializer,
 			DispatcherServices dispatcherServices) throws Exception {
 		super(
 			rpcService,

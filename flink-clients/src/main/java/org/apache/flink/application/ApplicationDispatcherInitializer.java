@@ -25,6 +25,9 @@ import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.rpc.RpcService;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -38,9 +41,13 @@ import static java.util.Objects.requireNonNull;
 @Internal
 public class ApplicationDispatcherInitializer extends AbstractDispatcherInitializer {
 
+	private static final Logger LOG = LoggerFactory.getLogger(ApplicationDispatcherInitializer.class);
+
 	private final Collection<JobGraph> recoveredJobs;
 
 	private final ApplicationRunner applicationRunner;
+
+	private CompletableFuture<Void> applicationRunningFuture;
 
 	public ApplicationDispatcherInitializer(
 			final Collection<JobGraph> recoveredJobGraphs,
@@ -55,23 +62,37 @@ public class ApplicationDispatcherInitializer extends AbstractDispatcherInitiali
 	}
 
 	@Override
-	public void bootstrap(final Dispatcher dispatcher) {
+	public void initialize(final Dispatcher dispatcher) {
 		requireNonNull(dispatcher);
 		runRecoveredJobGraphs(dispatcher, recoveredJobs);
-		handleApplicationState(dispatcher);
+		startApplication(dispatcher);
 		recoveredJobs.clear();
 	}
 
-	private void handleApplicationState(final Dispatcher dispatcher) {
+	@Override
+	public void cancel(Dispatcher dispatcher) {
 		requireNonNull(dispatcher);
+		stopApplication();
+		recoveredJobs.clear();
+	}
 
+	private void stopApplication() {
+		if (applicationRunningFuture != null) {
+			applicationRunningFuture.cancel(true);
+
+			LOG.info("Cancelled Application.");
+		}
+	}
+
+	private void startApplication(final Dispatcher dispatcher) {
+		requireNonNull(dispatcher);
 		final List<JobID> recoveredJobIds = recoveredJobs
 				.stream()
 				.map(JobGraph::getJobID)
 				.collect(Collectors.toList());
 
 		final RpcService rpcService = dispatcher.getRpcService();
-		CompletableFuture.runAsync(() -> {
+		applicationRunningFuture = CompletableFuture.runAsync(() -> {
 			try {
 				applicationRunner.run(recoveredJobIds, dispatcher);
 			} catch (Exception e) {

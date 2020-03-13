@@ -36,4 +36,6 @@ import java.util.Collection;
 public interface ApplicationRunner {
 
 	void run(final Collection<JobID> recoveredJobIds, final DispatcherGateway dispatcherGateway);
+
+	void cancel(final DispatcherGateway dispatcherGateway);
 }

@@ -27,9 +27,11 @@ import java.util.Collection;
  * Javadoc.
  */
 @Internal
-public interface DispatcherInitializer {
+public interface DispatcherBootstrap {
 
 	Collection<JobGraph> getInitJobGraphs();
 
-	void bootstrap(final Dispatcher dispatcher) throws Exception;
+	void initialize(final Dispatcher dispatcher) throws Exception;
+
+	void cancel(final Dispatcher dispatcher) throws Exception;
 }

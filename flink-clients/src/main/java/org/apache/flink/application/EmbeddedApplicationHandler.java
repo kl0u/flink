@@ -68,6 +68,11 @@ public class EmbeddedApplicationHandler implements ApplicationRunner {
 					.whenComplete((r, t) -> dispatcherGateway.shutDownCluster());
 	}
 
+	@Override
+	public void cancel(DispatcherGateway dispatcherGateway) {
+		throw new UnsupportedOperationException("COMING SOON");
+	}
+
 	private CompletableFuture<Void> tryExecuteApplication(
 			final Collection<JobID> recoveredJobIds,
 			final DispatcherGateway dispatcherGateway) {

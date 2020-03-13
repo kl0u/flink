@@ -30,7 +30,7 @@ import static java.util.Objects.requireNonNull;
  * Javadoc.
  */
 @Internal
-public abstract class AbstractDispatcherInitializer implements DispatcherInitializer {
+public abstract class AbstractDispatcherInitializer implements DispatcherBootstrap {
 
 	protected void runRecoveredJobGraphs(final Dispatcher dispatcher, final Collection<JobGraph> recoveredJobGraphs) {
 		requireNonNull(dispatcher);

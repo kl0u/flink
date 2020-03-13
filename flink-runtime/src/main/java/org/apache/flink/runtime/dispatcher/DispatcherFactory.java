@@ -33,7 +33,7 @@ public interface DispatcherFactory {
 	Dispatcher createDispatcher(
 		RpcService rpcService,
 		DispatcherId fencingToken,
-		DispatcherInitializer dispatcherInitializer,
+		DispatcherBootstrap dispatcherInitializer,
 		PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore) throws Exception;
 
 	default String generateEndpointIdWithUUID() {

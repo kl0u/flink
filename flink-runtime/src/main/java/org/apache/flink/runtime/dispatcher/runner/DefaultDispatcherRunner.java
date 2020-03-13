@@ -122,8 +122,6 @@ public final class DefaultDispatcherRunner implements DispatcherRunner, LeaderCo
 			Arrays.asList(
 				previousDispatcherLeaderProcessTerminationFuture,
 				terminationFuture));
-
-		// TODO: 12.03.20 kill application
 	}
 
 	private DispatcherLeaderProcess createNewDispatcherLeaderProcess(UUID leaderSessionID) {

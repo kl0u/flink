@@ -22,9 +22,9 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.client.DuplicateJobSubmissionException;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
+import org.apache.flink.runtime.dispatcher.DispatcherBootstrap;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
-import org.apache.flink.runtime.dispatcher.DispatcherInitializer;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -96,7 +96,7 @@ public class SessionDispatcherLeaderProcess extends AbstractDispatcherLeaderProc
 		runIfStateIs(State.RUNNING, () -> createDispatcher(recoveredJobGraphs));
 	}
 
-	protected DispatcherInitializer getDispatcherInitializer(Collection<JobGraph> recoveredJobGraphs) {
+	protected DispatcherBootstrap getDispatcherInitializer(Collection<JobGraph> recoveredJobGraphs) {
 		return new DefaultDispatcherInitializer(recoveredJobGraphs);
 	}
 
