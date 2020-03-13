@@ -39,7 +39,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class ApplicationDispatcherLeaderProcess extends SessionDispatcherLeaderProcess {
 
-	private final ApplicationHandler applicationSubmitter;
+	private final ApplicationRunner applicationRunner;
 
 	protected ApplicationDispatcherLeaderProcess(
 			UUID leaderSessionId,
@@ -47,14 +47,14 @@ public class ApplicationDispatcherLeaderProcess extends SessionDispatcherLeaderP
 			JobGraphStore jobGraphStore,
 			Executor ioExecutor,
 			FatalErrorHandler fatalErrorHandler,
-			ApplicationHandler applicationSubmitter) {
+			ApplicationRunner applicationRunner) {
 		super(leaderSessionId, dispatcherGatewayServiceFactory, jobGraphStore, ioExecutor, fatalErrorHandler);
-		this.applicationSubmitter = checkNotNull(applicationSubmitter);
+		this.applicationRunner = checkNotNull(applicationRunner);
 	}
 
 	@Override
 	protected DispatcherInitializer getDispatcherInitializer(Collection<JobGraph> jobGraphs) {
-		return new ApplicationDispatcherInitializer(jobGraphs, applicationSubmitter);
+		return new ApplicationDispatcherInitializer(jobGraphs, applicationRunner);
 	}
 
 	// ---------------------------------------------------------------
@@ -67,13 +67,13 @@ public class ApplicationDispatcherLeaderProcess extends SessionDispatcherLeaderP
 			JobGraphStore jobGraphStore,
 			Executor ioExecutor,
 			FatalErrorHandler fatalErrorHandler,
-			ApplicationHandler applicationSubmitter) {
+			ApplicationRunner applicationRunner) {
 		return new ApplicationDispatcherLeaderProcess(
 				leaderSessionId,
 				dispatcherFactory,
 				jobGraphStore,
 				ioExecutor,
 				fatalErrorHandler,
-				applicationSubmitter);
+				applicationRunner);
 	}
 }

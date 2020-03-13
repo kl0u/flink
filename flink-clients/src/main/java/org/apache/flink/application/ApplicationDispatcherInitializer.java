@@ -41,13 +41,13 @@ public class ApplicationDispatcherInitializer implements DispatcherInitializer {
 
 	private final Collection<JobGraph> recoveredJobs;
 
-	private final ApplicationHandler applicationSubmitter;
+	private final ApplicationRunner applicationRunner;
 
 	public ApplicationDispatcherInitializer(
 			final Collection<JobGraph> recoveredJobGraphs,
-			final ApplicationHandler applicationSubmitter) {
+			final ApplicationRunner applicationRunner) {
 		this.recoveredJobs = requireNonNull(recoveredJobGraphs);
-		this.applicationSubmitter = requireNonNull(applicationSubmitter);
+		this.applicationRunner = requireNonNull(applicationRunner);
 	}
 
 	@Override
@@ -78,7 +78,7 @@ public class ApplicationDispatcherInitializer implements DispatcherInitializer {
 		final RpcService rpcService = dispatcher.getRpcService();
 		CompletableFuture.runAsync(() -> {
 			try {
-				applicationSubmitter.launch(recoveredJobIds, dispatcher);
+				applicationRunner.run(recoveredJobIds, dispatcher);
 			} catch (Exception e) {
 				throw new RuntimeException(e);
 			}

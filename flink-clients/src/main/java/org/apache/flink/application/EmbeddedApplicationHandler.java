@@ -44,7 +44,7 @@ import static java.util.Objects.requireNonNull;
  * Javadoc.
  */
 @Internal
-public class EmbeddedApplicationHandler implements ApplicationHandler {
+public class EmbeddedApplicationHandler implements ApplicationRunner {
 
 	private static final Logger LOG = LoggerFactory.getLogger(EmbeddedApplicationHandler.class);
 
@@ -60,7 +60,7 @@ public class EmbeddedApplicationHandler implements ApplicationHandler {
 	}
 
 	@Override
-	public void launch(final Collection<JobID> recoveredJobIds, final DispatcherGateway dispatcherGateway) {
+	public void run(final Collection<JobID> recoveredJobIds, final DispatcherGateway dispatcherGateway) {
 		requireNonNull(recoveredJobIds);
 		requireNonNull(dispatcherGateway);
 

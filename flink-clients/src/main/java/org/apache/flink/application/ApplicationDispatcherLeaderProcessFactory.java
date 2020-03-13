@@ -40,19 +40,19 @@ public class ApplicationDispatcherLeaderProcessFactory implements DispatcherLead
 	private final JobGraphStoreFactory jobGraphStoreFactory;
 	private final Executor ioExecutor;
 	private final FatalErrorHandler fatalErrorHandler;
-	private final ApplicationHandler applicationSubmitter;
+	private final ApplicationRunner applicationRunner;
 
 	ApplicationDispatcherLeaderProcessFactory(
 			AbstractDispatcherLeaderProcess.DispatcherGatewayServiceFactory dispatcherGatewayServiceFactory,
 			JobGraphStoreFactory jobGraphStoreFactory,
 			Executor ioExecutor,
 			FatalErrorHandler fatalErrorHandler,
-			ApplicationHandler applicationSubmitter) {
+			ApplicationRunner applicationRunner) {
 		this.dispatcherGatewayServiceFactory = dispatcherGatewayServiceFactory;
 		this.jobGraphStoreFactory = jobGraphStoreFactory;
 		this.ioExecutor = ioExecutor;
 		this.fatalErrorHandler = fatalErrorHandler;
-		this.applicationSubmitter = checkNotNull(applicationSubmitter);
+		this.applicationRunner = checkNotNull(applicationRunner);
 	}
 
 	@Override
@@ -63,6 +63,6 @@ public class ApplicationDispatcherLeaderProcessFactory implements DispatcherLead
 				jobGraphStoreFactory.create(),
 				ioExecutor,
 				fatalErrorHandler,
-				applicationSubmitter);
+				applicationRunner);
 	}
 }

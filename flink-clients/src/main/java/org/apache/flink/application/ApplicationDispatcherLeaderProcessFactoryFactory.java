@@ -39,15 +39,15 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class ApplicationDispatcherLeaderProcessFactoryFactory implements DispatcherLeaderProcessFactoryFactory {
 
-	private final ApplicationHandler applicationSubmitter;
+	private final ApplicationRunner applicationRunner;
 
 	private final DispatcherFactory dispatcherFactory;
 
 	private ApplicationDispatcherLeaderProcessFactoryFactory(
 			final DispatcherFactory dispatcherFactory,
-			final ApplicationHandler applicationSubmitter) {
+			final ApplicationRunner applicationRunner) {
 		this.dispatcherFactory = dispatcherFactory;
-		this.applicationSubmitter = checkNotNull(applicationSubmitter);
+		this.applicationRunner = checkNotNull(applicationRunner);
 	}
 
 	@Override
@@ -67,12 +67,12 @@ public class ApplicationDispatcherLeaderProcessFactoryFactory implements Dispatc
 				jobGraphStoreFactory,
 				ioExecutor,
 				fatalErrorHandler,
-				applicationSubmitter);
+				applicationRunner);
 	}
 
 	public static ApplicationDispatcherLeaderProcessFactoryFactory create(
 			final DispatcherFactory dispatcherFactory,
-			final ApplicationHandler applicationSubmitter) {
-		return new ApplicationDispatcherLeaderProcessFactoryFactory(dispatcherFactory, applicationSubmitter);
+			final ApplicationRunner applicationRunner) {
+		return new ApplicationDispatcherLeaderProcessFactoryFactory(dispatcherFactory, applicationRunner);
 	}
 }

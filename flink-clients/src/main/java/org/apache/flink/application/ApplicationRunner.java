@@ -33,7 +33,7 @@ import java.util.Collection;
  * upon grant of leadership to it.
  */
 @Internal
-public interface ApplicationHandler {
+public interface ApplicationRunner {
 
-	void launch(final Collection<JobID> recoveredJobIds, final DispatcherGateway dispatcherGateway);
+	void run(final Collection<JobID> recoveredJobIds, final DispatcherGateway dispatcherGateway);
 }
