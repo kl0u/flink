@@ -25,8 +25,8 @@ import org.apache.flink.client.program.PackagedProgram;
  * Javadoc.
  */
 @Internal
-public interface ExecutableExtractor {
+public interface PackagedProgramRetriever {
 
-	PackagedProgram createExecutable() throws Exception;
+	PackagedProgram getPackagedProgram() throws Exception;
 }
 

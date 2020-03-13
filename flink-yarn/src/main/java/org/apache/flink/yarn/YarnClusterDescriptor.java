@@ -1165,47 +1165,9 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		final List<String> jarUrls = configuration.get(PipelineOptions.JARS);
 		final StringBuilder jarFileList = new StringBuilder();
 
-//		List<String> jarPaths = new ArrayList<>();
-		//if (jarUrls != null && YarnApplicationClusterEntrypoint.class.getName().equals(yarnClusterEntrypoint)) {
-			final List<File> jars = jarUrls.stream()
-					.map(path -> new File(new Path(path).toUri()).getAbsoluteFile())
-					.collect(Collectors.toList());
-
-			/*
-			if (jobGraph != null) {
-			File tmpJobGraphFile = null;
-			try {
-				tmpJobGraphFile = File.createTempFile(appId.toString(), null);
-				try (FileOutputStream output = new FileOutputStream(tmpJobGraphFile);
-					ObjectOutputStream obOutput = new ObjectOutputStream(output);){
-					obOutput.writeObject(jobGraph);
-				}
-
-				final String jobGraphFilename = "job.graph";
-				flinkConfiguration.setString(JOB_GRAPH_FILE_PATH, jobGraphFilename);
-
-				Path pathFromYarnURL = setupSingleLocalResource(
-						jobGraphFilename,
-						fs,
-						appId,
-						new Path(tmpJobGraphFile.toURI()),
-						localResources,
-						homeDir,
-						"");
-				paths.add(pathFromYarnURL);
-				classPathBuilder.append(jobGraphFilename).append(File.pathSeparator);
-			} catch (Exception e) {
-				LOG.warn("Add job graph to local resource fail");
-				throw e;
-			} finally {
-				if (tmpJobGraphFile != null && !tmpJobGraphFile.delete()) {
-					LOG.warn("Fail to delete temporary file {}.", tmpConfigurationFile.toPath());
-				}
-			}
-		}
-			*/
-
-//		}
+		final List<File> jars = jarUrls.stream()
+				.map(path -> new File(new Path(path).toUri()).getAbsoluteFile())
+				.collect(Collectors.toList());
 
 		// normalize classpath by sorting
 		Collections.sort(systemClassPaths);
@@ -1215,10 +1177,6 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		for (String classPath : systemClassPaths) {
 			classPathBuilder.append(classPath).append(File.pathSeparator);
 		}
-
-//		for (String p : jarPaths) {
-//			classPathBuilder.append(p).append(File.pathSeparator);
-//		}
 
 		Path jarPathFromYarnURL = setupSingleLocalResource(
 				"user-jar",
@@ -1233,7 +1191,6 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		paths.add(jarPathFromYarnURL);
 		classPathBuilder.append("user-jar").append(File.pathSeparator);
 		ConfigUtils.encodeCollectionToConfig(configuration, PipelineOptions.JARS, Collections.singletonList("user-jar"), t -> t);
-//		jarPaths.addAll(jarRemotes);
 
 		// Setup jar for ApplicationMaster
 		Path remotePathJar = setupSingleLocalResource(

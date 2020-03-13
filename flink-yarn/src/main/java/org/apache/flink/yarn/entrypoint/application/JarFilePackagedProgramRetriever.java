@@ -18,12 +18,15 @@
 package org.apache.flink.yarn.entrypoint.application;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.application.AbstractExecutableExtractor;
+import org.apache.flink.application.AbstractPackagedProgramRetriever;
 import org.apache.flink.client.cli.ExecutionConfigAccessor;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
@@ -31,9 +34,11 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
 
@@ -41,11 +46,13 @@ import static java.util.Objects.requireNonNull;
  * Javadoc.
  */
 @Internal
-public class ExecutableExtractorImpl extends AbstractExecutableExtractor {
+public class JarFilePackagedProgramRetriever extends AbstractPackagedProgramRetriever {
+
+	private static final Logger LOG = LoggerFactory.getLogger(JarFilePackagedProgramRetriever.class);
 
 	private final Configuration configuration;
 
-	public ExecutableExtractorImpl(
+	public JarFilePackagedProgramRetriever(
 			final Configuration configuration,
 			@Nullable final File userLibDirectory) throws IOException {
 		super(userLibDirectory);
@@ -53,13 +60,25 @@ public class ExecutableExtractorImpl extends AbstractExecutableExtractor {
 	}
 
 	@Override
-	public PackagedProgram createExecutable() throws ProgramInvocationException {
+	public PackagedProgram getPackagedProgram() throws ProgramInvocationException {
 		final ExecutionConfigAccessor configAccessor = ExecutionConfigAccessor.fromConfiguration(configuration);
 
-		final Set<URL> classpaths = new HashSet<>(getUserClassPaths());
+		final Collection<URL> classpathURLs = getUserClassPaths();
+		final Collection<URL> configClasspathURLs = configAccessor.getClasspaths();
+
+		final String urlsString = classpathURLs.stream().map(URL::toString).collect(Collectors.joining(",", "[", "]"));
+		final String configUrlsString = configClasspathURLs.stream().map(URL::toString).collect(Collectors.joining(",", "[", "]"));
+
+		LOG.info("DIR: " + urlsString);
+		LOG.info("CONFIG: " + configUrlsString);
+
+		final Set<URL> classpaths = new HashSet<>(classpathURLs);
 		classpaths.addAll(configAccessor.getClasspaths());
 
 		final String entryPointClass = configAccessor.getMainClassName();
+
+		LOG.info("MAIN: " + entryPointClass);
+
 		final String[] programArgs = configAccessor.getProgramArgs().toArray(new String[0]);
 		final SavepointRestoreSettings savepointRestoreSettings = configAccessor.getSavepointRestoreSettings();
 

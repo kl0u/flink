@@ -23,7 +23,7 @@ import org.apache.flink.application.ApplicationDispatcherFactory;
 import org.apache.flink.application.ApplicationDispatcherLeaderProcessFactoryFactory;
 import org.apache.flink.application.EmbeddedApplicationExecutor;
 import org.apache.flink.application.EmbeddedApplicationHandler;
-import org.apache.flink.application.ExecutableExtractor;
+import org.apache.flink.application.PackagedProgramRetriever;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.ConfigUtils;
@@ -41,7 +41,7 @@ import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
-import org.apache.flink.yarn.entrypoint.application.ExecutableExtractorImpl;
+import org.apache.flink.yarn.entrypoint.application.JarFilePackagedProgramRetriever;
 
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 
@@ -71,8 +71,8 @@ public class YarnApplicationClusterEntryPoint extends SessionClusterEntrypoint {
 
 	@Override
 	protected DispatcherResourceManagerComponentFactory createDispatcherResourceManagerComponentFactory(final Configuration configuration) throws Exception {
-		final ExecutableExtractor executableExtractor = new ExecutableExtractorImpl(configuration, getUsrLibDir(configuration));
-		final PackagedProgram executable = executableExtractor.createExecutable();
+		final PackagedProgramRetriever retriever = new JarFilePackagedProgramRetriever(configuration, getUsrLibDir(configuration));
+		final PackagedProgram executable = retriever.getPackagedProgram();
 
 		final EmbeddedApplicationHandler applicationHandler =
 				new EmbeddedApplicationHandler(configuration, executable);

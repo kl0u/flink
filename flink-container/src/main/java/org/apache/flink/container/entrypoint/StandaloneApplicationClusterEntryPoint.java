@@ -24,7 +24,7 @@ import org.apache.flink.application.ApplicationDispatcherFactory;
 import org.apache.flink.application.ApplicationDispatcherLeaderProcessFactoryFactory;
 import org.apache.flink.application.EmbeddedApplicationExecutor;
 import org.apache.flink.application.EmbeddedApplicationHandler;
-import org.apache.flink.application.ExecutableExtractor;
+import org.apache.flink.application.PackagedProgramRetriever;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
@@ -68,8 +68,8 @@ public class StandaloneApplicationClusterEntryPoint extends JobClusterEntrypoint
 
 	@Override
 	protected DispatcherResourceManagerComponentFactory createDispatcherResourceManagerComponentFactory(Configuration configuration) throws Exception {
-		final ExecutableExtractor executableExtractor = getExecutableExtractor();
-		final PackagedProgram executable = executableExtractor.createExecutable();
+		final PackagedProgramRetriever executableExtractor = getExecutableExtractor();
+		final PackagedProgram executable = executableExtractor.getPackagedProgram();
 
 		final EmbeddedApplicationHandler applicationHandler =
 				new EmbeddedApplicationHandler(configuration, executable);
@@ -82,8 +82,8 @@ public class StandaloneApplicationClusterEntryPoint extends JobClusterEntrypoint
 				JobRestEndpointFactory.INSTANCE);
 	}
 
-	private ExecutableExtractor getExecutableExtractor() throws IOException {
-		final ExecutableExtractorImpl.Builder executableBuilder = ExecutableExtractorImpl
+	private PackagedProgramRetriever getExecutableExtractor() throws IOException {
+		final ClasspathPackagedProgramRetriever.Builder executableBuilder = ClasspathPackagedProgramRetriever
 				.newBuilder(programArguments)
 				.setJobClassName(jobClassName);
 

@@ -37,13 +37,13 @@ import java.util.stream.Collectors;
  * Javadoc.
  */
 @Internal
-public abstract class AbstractExecutableExtractor implements ExecutableExtractor {
+public abstract class AbstractPackagedProgramRetriever implements PackagedProgramRetriever {
 
 	/** User classpaths in relative form to the working directory. */
 	@Nonnull
 	private final Collection<URL> userClassPaths;
 
-	protected AbstractExecutableExtractor(@Nullable File jobDir) throws IOException {
+	protected AbstractPackagedProgramRetriever(@Nullable File jobDir) throws IOException {
 		if (jobDir == null) {
 			userClassPaths = Collections.emptyList();
 		} else {

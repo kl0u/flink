@@ -20,7 +20,7 @@ package org.apache.flink.container.entrypoint;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.application.AbstractExecutableExtractor;
+import org.apache.flink.application.AbstractPackagedProgramRetriever;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.util.ExceptionUtils;
@@ -51,9 +51,9 @@ import static java.util.Objects.requireNonNull;
  * Javadoc.
  */
 @Internal
-public class ExecutableExtractorImpl extends AbstractExecutableExtractor {
+public class ClasspathPackagedProgramRetriever extends AbstractPackagedProgramRetriever {
 
-	private static final Logger LOG = LoggerFactory.getLogger(ExecutableExtractorImpl.class);
+	private static final Logger LOG = LoggerFactory.getLogger(ClasspathPackagedProgramRetriever.class);
 
 	private final String[] programArguments;
 
@@ -65,7 +65,7 @@ public class ExecutableExtractorImpl extends AbstractExecutableExtractor {
 	@Nullable
 	private final File userLibDirectory;
 
-	private ExecutableExtractorImpl(
+	private ClasspathPackagedProgramRetriever(
 			@Nonnull String[] programArguments,
 			@Nonnull Supplier<Iterable<File>> jarsOnClassPath,
 			@Nullable String jobClassName,
@@ -78,7 +78,7 @@ public class ExecutableExtractorImpl extends AbstractExecutableExtractor {
 	}
 
 	@Override
-	public PackagedProgram createExecutable() throws Exception {
+	public PackagedProgram getPackagedProgram() throws Exception {
 		final String entryClass = getJobClassNameOrScanClassPath();
 		try {
 			return PackagedProgram.newBuilder()
@@ -214,8 +214,8 @@ public class ExecutableExtractorImpl extends AbstractExecutableExtractor {
 			return this;
 		}
 
-		ExecutableExtractorImpl build() throws IOException {
-			return new ExecutableExtractorImpl(
+		ClasspathPackagedProgramRetriever build() throws IOException {
+			return new ClasspathPackagedProgramRetriever(
 					programArguments,
 					jarsOnClassPath,
 					jobClassName,
