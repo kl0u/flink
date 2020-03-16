@@ -19,12 +19,15 @@
 package org.apache.flink.runtime.webmonitor.handlers.utils;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.PackagedProgramUtils;
 import org.apache.flink.client.program.ProgramInvocationException;
+import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.configuration.PipelineOptionsInternal;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
@@ -43,6 +46,7 @@ import org.slf4j.Logger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -52,6 +56,7 @@ import java.util.concurrent.CompletionException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static java.util.Objects.requireNonNull;
 import static org.apache.flink.runtime.rest.handler.util.HandlerRequestUtils.fromRequestBodyOrQueryParameter;
 import static org.apache.flink.runtime.rest.handler.util.HandlerRequestUtils.getQueryParameter;
 import static org.apache.flink.shaded.guava18.com.google.common.base.Strings.emptyToNull;
@@ -100,7 +105,7 @@ public class JarHandlerUtils {
 			int parallelism = fromRequestBodyOrQueryParameter(
 				requestBody.getParallelism(),
 				() -> getQueryParameter(request, ParallelismQueryParameter.class),
-				ExecutionConfig.PARALLELISM_DEFAULT,
+				CoreOptions.DEFAULT_PARALLELISM.defaultValue(),
 				log);
 
 			JobID jobId = fromRequestBodyOrQueryParameter(
@@ -112,20 +117,43 @@ public class JarHandlerUtils {
 			return new JarHandlerContext(jarFile, entryClass, programArgs, parallelism, jobId);
 		}
 
+		public void applyOnConfiguration(final Configuration configuration) {
+			requireNonNull(configuration);
+
+			if (jobId != null) {
+				configuration.set(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID, jobId.toHexString());
+			}
+			configuration.set(CoreOptions.DEFAULT_PARALLELISM, parallelism);
+
+			final PackagedProgram program = toPackagedProgram(configuration);
+			ConfigUtils.encodeCollectionToConfig(configuration, PipelineOptions.JARS, program.getJobJarAndDependencies(), URL::toString);
+			ConfigUtils.encodeCollectionToConfig(configuration, PipelineOptions.CLASSPATHS, program.getClasspaths(), URL::toString);
+		}
+
 		public JobGraph toJobGraph(Configuration configuration, boolean suppressOutput) {
+			try {
+				final PackagedProgram packagedProgram = toPackagedProgram(configuration);
+				return PackagedProgramUtils.createJobGraph(packagedProgram, configuration, parallelism, jobId, suppressOutput);
+			} catch (final ProgramInvocationException e) {
+				throw new CompletionException(e);
+			}
+		}
+
+		public PackagedProgram toPackagedProgram(Configuration configuration) {
+			requireNonNull(configuration);
+
 			if (!Files.exists(jarFile)) {
 				throw new CompletionException(new RestHandlerException(
-					String.format("Jar file %s does not exist", jarFile), HttpResponseStatus.BAD_REQUEST));
+						String.format("Jar file %s does not exist", jarFile), HttpResponseStatus.BAD_REQUEST));
 			}
 
 			try {
-				final PackagedProgram packagedProgram = PackagedProgram.newBuilder()
-					.setJarFile(jarFile.toFile())
-					.setEntryPointClassName(entryClass)
-					.setConfiguration(configuration)
-					.setArguments(programArgs.toArray(new String[0]))
-					.build();
-				return PackagedProgramUtils.createJobGraph(packagedProgram, configuration, parallelism, jobId, suppressOutput);
+				return PackagedProgram.newBuilder()
+						.setJarFile(jarFile.toFile())
+						.setEntryPointClassName(entryClass)
+						.setConfiguration(configuration)
+						.setArguments(programArgs.toArray(new String[0]))
+						.build();
 			} catch (final ProgramInvocationException e) {
 				throw new CompletionException(e);
 			}

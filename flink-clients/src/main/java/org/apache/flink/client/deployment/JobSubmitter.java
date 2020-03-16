@@ -16,23 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.webmonitor.testutils;
+package org.apache.flink.client.deployment;
 
-import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.io.DiscardingOutputFormat;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.jobgraph.JobGraph;
+
+import java.util.concurrent.CompletableFuture;
 
 /**
- * Simple test program that exposes passed arguments.
+ * An interface to be implemented by entities that are
+ * allowed/capable to submit {@link JobGraph JobGraphs} for execution.
  */
-public class ParameterProgram {
+@Internal
+public interface JobSubmitter {
 
-	public static volatile String[] actualArguments = null;
-
-	public static void main(String[] args) throws Exception {
-		actualArguments = args;
-
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.fromElements("hello", "world").output(new DiscardingOutputFormat<>());
-		env.execute();
-	}
+	/**
+	 * Submits the provided {@link JobGraph} for execution.
+	 *
+	 * @param jobGraph the jobGraph to be executed.
+	 * @return a future containing the {@link JobID} assigned to the submitted job graph.
+	 */
+	CompletableFuture<JobID> submitJob(final JobGraph jobGraph) throws Exception;
 }
