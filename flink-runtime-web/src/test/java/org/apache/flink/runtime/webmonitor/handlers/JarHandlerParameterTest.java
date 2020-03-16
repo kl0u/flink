@@ -22,7 +22,9 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.HandlerRequestException;
@@ -63,7 +65,10 @@ import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 
-/** Base test class for jar request handlers. */
+/**
+ * Base test class for jar request handlers.
+ * STILL THINK ABOUT THE ARGS AND THE REMAINING THINGS WE PUT IN THE PACKAGED PROGRAM.
+ */
 public abstract class JarHandlerParameterTest
 	<REQB extends JarRequestBody, M extends JarMessageParameters> extends TestLogger {
 	enum ProgramArgsParType {
@@ -115,7 +120,15 @@ public abstract class JarHandlerParameterTest
 				LAST_SUBMITTED_JOB_GRAPH_REFERENCE.set(jobGraph);
 				return CompletableFuture.completedFuture(Acknowledge.get());
 			})
-			.build();
+			.setRequestJobResultFunction(jobID ->
+					CompletableFuture.completedFuture(
+							new JobResult.Builder()
+									.jobId(jobID)
+									.applicationStatus(ApplicationStatus.SUCCEEDED)
+									.accumulatorResults(Collections.emptyMap())
+									.netRuntime(Long.MAX_VALUE)
+									.build()))
+		.build();
 
 		gatewayRetriever = () -> CompletableFuture.completedFuture(restfulGateway);
 		localAddressFuture = CompletableFuture.completedFuture("shazam://localhost:12345");
