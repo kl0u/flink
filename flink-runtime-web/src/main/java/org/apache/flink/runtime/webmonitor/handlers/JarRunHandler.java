@@ -88,6 +88,7 @@ public class JarRunHandler extends
 		configuration.set(DeploymentOptions.ATTACHED, false);
 		configuration.set(DeploymentOptions.TARGET, EmbeddedExecutor.NAME);
 
+		// TODO: 23.03.20 we can more clearly split what we parse for the config and what for the packaged program.
 		final JarHandlerContext context = JarHandlerContext.fromRequest(request, jarDir, log);
 		context.applyOnConfiguration(configuration);
 		SavepointRestoreSettings.toConfiguration(getSavepointRestoreSettings(request), configuration);
