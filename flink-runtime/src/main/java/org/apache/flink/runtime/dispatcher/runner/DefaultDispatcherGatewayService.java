@@ -25,7 +25,10 @@ import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 
 import java.util.concurrent.CompletableFuture;
 
-class DefaultDispatcherGatewayService implements AbstractDispatcherLeaderProcess.DispatcherGatewayService {
+/**
+ * Javadoc.
+ */
+public class DefaultDispatcherGatewayService implements AbstractDispatcherLeaderProcess.DispatcherGatewayService {
 
 	private final Dispatcher dispatcher;
 	private final DispatcherGateway dispatcherGateway;

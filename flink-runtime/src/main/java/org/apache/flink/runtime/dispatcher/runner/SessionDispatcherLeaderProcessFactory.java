@@ -27,14 +27,14 @@ import java.util.concurrent.Executor;
 /**
  * Factory for the {@link SessionDispatcherLeaderProcess}.
  */
-class SessionDispatcherLeaderProcessFactory implements DispatcherLeaderProcessFactory {
+public class SessionDispatcherLeaderProcessFactory implements DispatcherLeaderProcessFactory {
 
 	private final AbstractDispatcherLeaderProcess.DispatcherGatewayServiceFactory dispatcherGatewayServiceFactory;
 	private final JobGraphStoreFactory jobGraphStoreFactory;
 	private final Executor ioExecutor;
 	private final FatalErrorHandler fatalErrorHandler;
 
-	SessionDispatcherLeaderProcessFactory(
+	public SessionDispatcherLeaderProcessFactory(
 			AbstractDispatcherLeaderProcess.DispatcherGatewayServiceFactory dispatcherGatewayServiceFactory,
 			JobGraphStoreFactory jobGraphStoreFactory,
 			Executor ioExecutor,

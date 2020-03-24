@@ -16,25 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.dispatcher;
+package org.apache.flink.client.deployment.application;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.util.FlinkException;
 
 /**
- * An interface containing the logic of bootstrapping the {@link Dispatcher} of a cluster.
+ * A {@link FlinkException} thrown in case something during application execution went wrong.
  */
-@Internal
-public interface DispatcherBootstrap {
+@PublicEvolving
+public class ApplicationExecutionException extends FlinkException {
 
-	/**
-	 * Initializes the {@link Dispatcher} provided as an argument.
-	 *
-	 * <p>IMPORTANT: In HA settings, this method will run during
-	 * the initialization of the **leader** dispatcher.
-	 *
-	 * @param dispatcher the dispatcher to be initialized.
-	 */
-	void initialize(final Dispatcher dispatcher) throws Exception;
+	public ApplicationExecutionException(String message) {
+		super(message);
+	}
 
-	void stop(final DispatcherGateway dispatcher) throws Exception;
+	public ApplicationExecutionException(Throwable cause) {
+		super(cause);
+	}
+
+	public ApplicationExecutionException(String message, Throwable cause) {
+		super(message, cause);
+	}
 }

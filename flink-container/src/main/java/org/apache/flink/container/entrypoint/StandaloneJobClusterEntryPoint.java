@@ -20,7 +20,15 @@ package org.apache.flink.container.entrypoint;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.client.deployment.application.ApplicationDispatcherLeaderProcessFactoryFactory;
+import org.apache.flink.client.program.PackagedProgram;
+import org.apache.flink.client.program.PackagedProgramRetriever;
+import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.configuration.PipelineOptionsInternal;
+import org.apache.flink.runtime.dispatcher.SessionDispatcherFactory;
+import org.apache.flink.runtime.dispatcher.runner.DefaultDispatcherRunnerFactory;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.JobClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
@@ -29,14 +37,17 @@ import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.resourcemanager.StandaloneResourceManagerFactory;
+import org.apache.flink.runtime.rest.JobRestEndpointFactory;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
+import org.apache.flink.util.FlinkException;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.net.URL;
 import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
@@ -50,40 +61,23 @@ public final class StandaloneJobClusterEntryPoint extends JobClusterEntrypoint {
 
 	public static final JobID ZERO_JOB_ID = new JobID(0, 0);
 
-	@Nonnull
-	private final JobID jobId;
-
-	@Nonnull
-	private final SavepointRestoreSettings savepointRestoreSettings;
-
-	@Nonnull
-	private final String[] programArguments;
-
-	@Nullable
-	private final String jobClassName;
+	private final PackagedProgram program;
 
 	private StandaloneJobClusterEntryPoint(
 			Configuration configuration,
-			@Nonnull JobID jobId,
-			@Nonnull SavepointRestoreSettings savepointRestoreSettings,
-			@Nonnull String[] programArguments,
-			@Nullable String jobClassName) {
+			PackagedProgram program) {
 		super(configuration);
-		this.jobId = requireNonNull(jobId, "jobId");
-		this.savepointRestoreSettings = requireNonNull(savepointRestoreSettings, "savepointRestoreSettings");
-		this.programArguments = requireNonNull(programArguments, "programArguments");
-		this.jobClassName = jobClassName;
+		this.program = requireNonNull(program);
 	}
 
 	@Override
-	protected DispatcherResourceManagerComponentFactory createDispatcherResourceManagerComponentFactory(Configuration configuration) throws IOException {
-		final ClassPathJobGraphRetriever.Builder classPathJobGraphRetrieverBuilder = ClassPathJobGraphRetriever.newBuilder(jobId, savepointRestoreSettings, programArguments)
-			.setJobClassName(jobClassName);
-		tryFindUserLibDirectory().ifPresent(classPathJobGraphRetrieverBuilder::setUserLibDirectory);
-
-		return DefaultDispatcherResourceManagerComponentFactory.createJobComponentFactory(
-			StandaloneResourceManagerFactory.INSTANCE,
-			classPathJobGraphRetrieverBuilder.build());
+	protected DispatcherResourceManagerComponentFactory createDispatcherResourceManagerComponentFactory(Configuration configuration) {
+		return new DefaultDispatcherResourceManagerComponentFactory(
+				new DefaultDispatcherRunnerFactory(
+						ApplicationDispatcherLeaderProcessFactoryFactory
+								.create(configuration, SessionDispatcherFactory.INSTANCE, program)),
+				StandaloneResourceManagerFactory.INSTANCE,
+				JobRestEndpointFactory.INSTANCE);
 	}
 
 	public static void main(String[] args) {
@@ -94,7 +88,6 @@ public final class StandaloneJobClusterEntryPoint extends JobClusterEntrypoint {
 
 		final CommandLineParser<StandaloneJobClusterConfiguration> commandLineParser = new CommandLineParser<>(new StandaloneJobClusterConfigurationParserFactory());
 		StandaloneJobClusterConfiguration clusterConfiguration = null;
-
 		try {
 			clusterConfiguration = commandLineParser.parse(args);
 		} catch (Exception e) {
@@ -103,17 +96,54 @@ public final class StandaloneJobClusterEntryPoint extends JobClusterEntrypoint {
 			System.exit(1);
 		}
 
-		Configuration configuration = loadConfiguration(clusterConfiguration);
-		setDefaultExecutionModeIfNotConfigured(configuration);
+		PackagedProgram program = null;
+		try {
+			program = getPackagedProgram(clusterConfiguration);
+		} catch (Exception e) {
+			LOG.error("Could not create application program.", e);
+			System.exit(1);
+		}
 
-		StandaloneJobClusterEntryPoint entrypoint = new StandaloneJobClusterEntryPoint(
-			configuration,
-			resolveJobIdForCluster(Optional.ofNullable(clusterConfiguration.getJobId()), configuration),
-			clusterConfiguration.getSavepointRestoreSettings(),
-			clusterConfiguration.getArgs(),
-			clusterConfiguration.getJobClassName());
+		Configuration configuration = loadConfigurationFromClusterConfig(clusterConfiguration);
+		extractConfigOptionsFromProgram(configuration, program);
+
+		StandaloneJobClusterEntryPoint entrypoint = new StandaloneJobClusterEntryPoint(configuration, program);
 
 		ClusterEntrypoint.runClusterEntrypoint(entrypoint);
+	}
+
+	@VisibleForTesting
+	static Configuration loadConfigurationFromClusterConfig(StandaloneJobClusterConfiguration clusterConfiguration) {
+		Configuration configuration = loadConfiguration(clusterConfiguration);
+		setStaticJobId(clusterConfiguration, configuration);
+		SavepointRestoreSettings.toConfiguration(clusterConfiguration.getSavepointRestoreSettings(), configuration);
+		return configuration;
+	}
+
+	static void extractConfigOptionsFromProgram(Configuration configuration, PackagedProgram program) {
+		ConfigUtils.encodeCollectionToConfig(configuration, PipelineOptions.JARS, program.getJobJarAndDependencies(), URL::toString);
+		ConfigUtils.encodeCollectionToConfig(configuration, PipelineOptions.CLASSPATHS, program.getClasspaths(), URL::toString);
+	}
+
+	private static PackagedProgram getPackagedProgram(StandaloneJobClusterConfiguration clusterConfiguration) throws IOException, FlinkException {
+		final PackagedProgramRetriever programRetriever = getPackagedProgramRetriever(
+				clusterConfiguration.getArgs(),
+				clusterConfiguration.getJobClassName());
+		return programRetriever.getPackagedProgram();
+	}
+
+	private static PackagedProgramRetriever getPackagedProgramRetriever(String[] programArguments, @Nullable String jobClassName) throws IOException {
+		final ClassPathPackagedProgramRetriever.Builder retrieverBuilder =
+				ClassPathPackagedProgramRetriever
+						.newBuilder(programArguments)
+						.setJobClassName(jobClassName);
+		tryFindUserLibDirectory().ifPresent(retrieverBuilder::setUserLibDirectory);
+		return retrieverBuilder.build();
+	}
+
+	private static void setStaticJobId(StandaloneJobClusterConfiguration clusterConfiguration, Configuration configuration) {
+		final JobID jobId = resolveJobIdForCluster(Optional.ofNullable(clusterConfiguration.getJobId()), configuration);
+		configuration.set(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID, jobId.toHexString());
 	}
 
 	@VisibleForTesting
@@ -129,17 +159,5 @@ public final class StandaloneJobClusterEntryPoint extends JobClusterEntrypoint {
 		} else {
 			return JobID.generate();
 		}
-	}
-
-	@VisibleForTesting
-	static void setDefaultExecutionModeIfNotConfigured(Configuration configuration) {
-		if (isNoExecutionModeConfigured(configuration)) {
-			// In contrast to other places, the default for standalone job clusters is ExecutionMode.DETACHED
-			configuration.setString(ClusterEntrypoint.EXECUTION_MODE, ExecutionMode.DETACHED.toString());
-		}
-	}
-
-	private static boolean isNoExecutionModeConfigured(Configuration configuration) {
-		return configuration.getString(ClusterEntrypoint.EXECUTION_MODE, null) == null;
 	}
 }

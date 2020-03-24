@@ -16,25 +16,35 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.dispatcher;
+package org.apache.flink.client.testjar;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
- * An interface containing the logic of bootstrapping the {@link Dispatcher} of a cluster.
+ * A testing job with configurable number
+ * of calls to {@link ExecutionEnvironment#executeAsync()}.
  */
-@Internal
-public interface DispatcherBootstrap {
+public class MultiExecuteJob {
 
-	/**
-	 * Initializes the {@link Dispatcher} provided as an argument.
-	 *
-	 * <p>IMPORTANT: In HA settings, this method will run during
-	 * the initialization of the **leader** dispatcher.
-	 *
-	 * @param dispatcher the dispatcher to be initialized.
-	 */
-	void initialize(final Dispatcher dispatcher) throws Exception;
+	public static void main(String[] args) throws Exception {
+		int noOfExecutes = Integer.parseInt(args[0]);
 
-	void stop(final DispatcherGateway dispatcher) throws Exception;
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		for (int i = 0; i < noOfExecutes; i++) {
+			final List<Integer> input = new ArrayList<>();
+			input.add(1);
+			input.add(2);
+			input.add(3);
+
+			env.fromCollection(input)
+					.map(element -> element + 1)
+					.output(new DiscardingOutputFormat<>());
+			env.executeAsync();
+		}
+	}
 }

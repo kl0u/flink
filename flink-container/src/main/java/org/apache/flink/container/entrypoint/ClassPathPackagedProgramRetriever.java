@@ -19,20 +19,14 @@
 package org.apache.flink.container.entrypoint;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.program.PackagedProgram;
-import org.apache.flink.client.program.PackagedProgramUtils;
+import org.apache.flink.client.program.PackagedProgramRetriever;
 import org.apache.flink.client.program.ProgramInvocationException;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.container.entrypoint.JarManifestParser.JarFileWithEntryClass;
-import org.apache.flink.runtime.entrypoint.component.AbstractUserClassPathJobGraphRetriever;
-import org.apache.flink.runtime.entrypoint.component.JobGraphRetriever;
-import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.function.FunctionUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,8 +37,11 @@ import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.NoSuchElementException;
 import java.util.function.Supplier;
 import java.util.jar.JarEntry;
@@ -55,18 +52,15 @@ import java.util.stream.Collectors;
 import static java.util.Objects.requireNonNull;
 
 /**
- * {@link JobGraphRetriever} which creates the {@link JobGraph} from a class
- * on the class path.
+ * A {@link PackagedProgramRetriever} which creates the {@link PackagedProgram} from a class on the class path.
  */
-class ClassPathJobGraphRetriever extends AbstractUserClassPathJobGraphRetriever {
+class ClassPathPackagedProgramRetriever implements PackagedProgramRetriever {
 
-	private static final Logger LOG = LoggerFactory.getLogger(ClassPathJobGraphRetriever.class);
+	private static final Logger LOG = LoggerFactory.getLogger(ClassPathPackagedProgramRetriever.class);
 
+	/** User classpaths in relative form to the working directory. */
 	@Nonnull
-	private final JobID jobId;
-
-	@Nonnull
-	private final SavepointRestoreSettings savepointRestoreSettings;
+	private final Collection<URL> userClassPaths;
 
 	@Nonnull
 	private final String[] programArguments;
@@ -80,46 +74,43 @@ class ClassPathJobGraphRetriever extends AbstractUserClassPathJobGraphRetriever 
 	@Nullable
 	private final File userLibDirectory;
 
-	private ClassPathJobGraphRetriever(
-		@Nonnull JobID jobId,
-		@Nonnull SavepointRestoreSettings savepointRestoreSettings,
+	private ClassPathPackagedProgramRetriever(
 		@Nonnull String[] programArguments,
 		@Nullable String jobClassName,
 		@Nonnull Supplier<Iterable<File>> jarsOnClassPath,
 		@Nullable File userLibDirectory) throws IOException {
-		super(userLibDirectory);
 		this.userLibDirectory = userLibDirectory;
-		this.jobId = requireNonNull(jobId, "jobId");
-		this.savepointRestoreSettings = requireNonNull(savepointRestoreSettings, "savepointRestoreSettings");
 		this.programArguments = requireNonNull(programArguments, "programArguments");
 		this.jobClassName = jobClassName;
 		this.jarsOnClassPath = requireNonNull(jarsOnClassPath);
+		this.userClassPaths = discoverUserClassPaths(userLibDirectory);
+	}
+
+	@Nonnull
+	public Collection<URL> getUserClassPaths() {
+		return userClassPaths;
+	}
+
+	private Collection<URL> discoverUserClassPaths(@Nullable File jobDir) throws IOException {
+		if (jobDir == null) {
+			return Collections.emptyList();
+		}
+
+		final Path workingDirectory = FileUtils.getCurrentWorkingDirectory();
+		final Collection<URL> relativeJarURLs = FileUtils.listFilesInDirectory(jobDir.toPath(), FileUtils::isJarFile)
+				.stream()
+				.map(path -> FileUtils.relativizePath(workingDirectory, path))
+				.map(FunctionUtils.uncheckedFunction(FileUtils::toURL))
+				.collect(Collectors.toList());
+		return Collections.unmodifiableCollection(relativeJarURLs);
 	}
 
 	@Override
-	public JobGraph retrieveJobGraph(Configuration configuration) throws FlinkException {
-		final PackagedProgram packagedProgram = createPackagedProgram();
-		final int defaultParallelism = configuration.getInteger(CoreOptions.DEFAULT_PARALLELISM);
-		try {
-			final JobGraph jobGraph = PackagedProgramUtils.createJobGraph(
-				packagedProgram,
-				configuration,
-				defaultParallelism,
-				jobId,
-				false);
-			jobGraph.setSavepointRestoreSettings(savepointRestoreSettings);
-
-			return jobGraph;
-		} catch (Exception e) {
-			throw new FlinkException("Could not create the JobGraph from the provided user code jar.", e);
-		}
-	}
-
-	private PackagedProgram createPackagedProgram() throws FlinkException {
+	public PackagedProgram getPackagedProgram() throws FlinkException {
 		final String entryClass = getJobClassNameOrScanClassPath();
 		try {
 			return PackagedProgram.newBuilder()
-				.setUserClassPaths(new ArrayList<>(getUserClassPaths()))
+				.setUserClassPaths(new ArrayList<>(userClassPaths))
 				.setEntryPointClassName(entryClass)
 				.setArguments(programArguments)
 				.build();
@@ -151,7 +142,7 @@ class ClassPathJobGraphRetriever extends AbstractUserClassPathJobGraphRetriever 
 	}
 
 	private boolean userClassPathContainsJobClass(String jobClassName) {
-		for (URL userClassPath : getUserClassPaths()) {
+		for (URL userClassPath : userClassPaths) {
 			try (final JarFile jarFile = new JarFile(userClassPath.getFile())) {
 				if (jarContainsJobClass(jobClassName, jarFile)) {
 					return true;
@@ -184,7 +175,7 @@ class ClassPathJobGraphRetriever extends AbstractUserClassPathJobGraphRetriever 
 			jars = jarsOnClassPath.get();
 		} else {
 			LOG.info("Scanning user class path for job JAR");
-			jars = getUserClassPaths()
+			jars = userClassPaths
 				.stream()
 				.map(url -> new File(url.getFile()))
 				.collect(Collectors.toList());
@@ -222,10 +213,6 @@ class ClassPathJobGraphRetriever extends AbstractUserClassPathJobGraphRetriever 
 
 	static class Builder {
 
-		private final JobID jobId;
-
-		private final SavepointRestoreSettings savepointRestoreSettings;
-
 		private final String[] programArguments;
 
 		@Nullable
@@ -236,9 +223,7 @@ class ClassPathJobGraphRetriever extends AbstractUserClassPathJobGraphRetriever 
 
 		private Supplier<Iterable<File>> jarsOnClassPath = JarsOnClassPath.INSTANCE;
 
-		private Builder(JobID jobId, SavepointRestoreSettings savepointRestoreSettings, String[] programArguments) {
-			this.jobId = requireNonNull(jobId);
-			this.savepointRestoreSettings = requireNonNull(savepointRestoreSettings);
+		private Builder(String[] programArguments) {
 			this.programArguments = requireNonNull(programArguments);
 		}
 
@@ -257,10 +242,8 @@ class ClassPathJobGraphRetriever extends AbstractUserClassPathJobGraphRetriever 
 			return this;
 		}
 
-		ClassPathJobGraphRetriever build() throws IOException {
-			return new ClassPathJobGraphRetriever(
-				jobId,
-				savepointRestoreSettings,
+		ClassPathPackagedProgramRetriever build() throws IOException {
+			return new ClassPathPackagedProgramRetriever(
 				programArguments,
 				jobClassName,
 				jarsOnClassPath,
@@ -268,8 +251,7 @@ class ClassPathJobGraphRetriever extends AbstractUserClassPathJobGraphRetriever 
 		}
 	}
 
-	static Builder newBuilder(JobID jobId, SavepointRestoreSettings savepointRestoreSettings, String[] programArguments) {
-		return new Builder(jobId, savepointRestoreSettings, programArguments);
+	static Builder newBuilder(String[] programArguments) {
+		return new Builder(programArguments);
 	}
-
 }

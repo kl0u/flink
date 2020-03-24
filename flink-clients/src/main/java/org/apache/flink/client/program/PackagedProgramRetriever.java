@@ -16,25 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.dispatcher;
+package org.apache.flink.client.program;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.util.FlinkException;
 
 /**
- * An interface containing the logic of bootstrapping the {@link Dispatcher} of a cluster.
+ * Interface which allows to retrieve the {@link PackagedProgram}.
  */
 @Internal
-public interface DispatcherBootstrap {
+public interface PackagedProgramRetriever {
 
 	/**
-	 * Initializes the {@link Dispatcher} provided as an argument.
+	 * Retrieve the {@link PackagedProgram}.
 	 *
-	 * <p>IMPORTANT: In HA settings, this method will run during
-	 * the initialization of the **leader** dispatcher.
-	 *
-	 * @param dispatcher the dispatcher to be initialized.
+	 * @return the retrieved {@link PackagedProgram}.
+	 * @throws FlinkException if the {@link PackagedProgram} could not be retrieved
 	 */
-	void initialize(final Dispatcher dispatcher) throws Exception;
-
-	void stop(final DispatcherGateway dispatcher) throws Exception;
+	PackagedProgram getPackagedProgram() throws FlinkException;
 }
