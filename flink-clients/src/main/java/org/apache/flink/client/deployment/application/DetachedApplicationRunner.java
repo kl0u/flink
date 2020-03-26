@@ -29,13 +29,13 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CompletionException;
 
 import static java.util.Objects.requireNonNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -74,7 +74,7 @@ public class DetachedApplicationRunner implements ApplicationRunner {
 			ClientUtils.executeProgram(executorServiceLoader, configuration, program);
 		} catch (ProgramInvocationException e) {
 			LOG.warn("Could not execute application: ", e);
-			throw new CompletionException("Could not execute application.", e);
+			throw new FlinkRuntimeException("Could not execute application.", e);
 		}
 
 		return applicationJobIds;

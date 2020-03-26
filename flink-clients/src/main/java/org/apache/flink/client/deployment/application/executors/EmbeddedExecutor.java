@@ -21,28 +21,18 @@ package org.apache.flink.client.deployment.application.executors;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.dag.Pipeline;
-import org.apache.flink.client.FlinkPipelineTranslationUtil;
 import org.apache.flink.client.deployment.application.EmbeddedClient;
-import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.configuration.ConfigUtils;
+import org.apache.flink.client.deployment.executors.ExecutorUtils;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.CoreOptions;
-import org.apache.flink.configuration.PipelineOptions;
-import org.apache.flink.configuration.PipelineOptionsInternal;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.PipelineExecutor;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.util.Collection;
-import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import static java.util.Objects.requireNonNull;
@@ -57,7 +47,7 @@ public class EmbeddedExecutor implements PipelineExecutor {
 
 	private static final Logger LOG = LoggerFactory.getLogger(EmbeddedExecutor.class);
 
-	public static final String NAME = "Embedded";
+	public static final String NAME = "embedded";
 
 	private final Collection<JobID> applicationJobIds;
 
@@ -75,7 +65,7 @@ public class EmbeddedExecutor implements PipelineExecutor {
 		requireNonNull(pipeline);
 		requireNonNull(configuration);
 
-		final JobGraph jobGraph = getJobGraph(pipeline, configuration);
+		final JobGraph jobGraph = ExecutorUtils.getJobGraph(pipeline, configuration);
 		final JobID actualJobId = jobGraph.getJobID();
 
 		this.applicationJobIds.add(actualJobId);
@@ -85,39 +75,5 @@ public class EmbeddedExecutor implements PipelineExecutor {
 		return embeddedClient
 				.submitJob(jobGraph)
 				.thenApplyAsync(jobID -> embeddedClient);
-	}
-
-	private JobGraph getJobGraph(final Pipeline pipeline, final Configuration configuration) {
-		final int parallelism = configuration.getInteger(CoreOptions.DEFAULT_PARALLELISM);
-		final List<URL> jars = decodeUrlList(configuration, PipelineOptions.JARS);
-		final List<URL> classpaths = decodeUrlList(configuration, PipelineOptions.CLASSPATHS);
-		final SavepointRestoreSettings savepointRestoreSettings = SavepointRestoreSettings.fromConfiguration(configuration);
-
-		final JobGraph jobGraph = FlinkPipelineTranslationUtil.getJobGraph(pipeline, configuration, parallelism);
-		jobGraph.addJars(jars);
-		jobGraph.setClasspaths(classpaths);
-		jobGraph.setSavepointRestoreSettings(savepointRestoreSettings);
-
-		getJobId(configuration).ifPresent(jobGraph::setJobID);
-
-		return jobGraph;
-	}
-
-	private List<URL> decodeUrlList(final Configuration configuration, final ConfigOption<List<String>> configOption) {
-		return ConfigUtils.decodeListFromConfig(configuration, configOption, url -> {
-			try {
-				return new URL(url);
-			} catch (MalformedURLException e) {
-				throw new IllegalArgumentException("Invalid URL", e);
-			}
-		});
-	}
-
-	private static Optional<JobID> getJobId(final Configuration configuration) {
-		requireNonNull(configuration);
-
-		return configuration
-				.getOptional(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID)
-				.map(JobID::fromHexString);
 	}
 }

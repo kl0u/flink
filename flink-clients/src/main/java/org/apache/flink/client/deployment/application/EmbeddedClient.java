@@ -24,7 +24,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.client.deployment.JobSubmitter;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.execution.JobClient;
@@ -49,11 +48,11 @@ import java.util.concurrent.CompletionException;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A {@link JobClient} with the ability to also submit jobs (see {@link JobSubmitter})
- * that uses directly the {@link DispatcherGateway}.
+ * A {@link JobClient} with the ability to also submit jobs which
+ * uses directly the {@link DispatcherGateway}.
  */
 @Internal
-public class EmbeddedClient implements JobClient, JobSubmitter {
+public class EmbeddedClient implements JobClient {
 
 	private static final Logger LOG = LoggerFactory.getLogger(EmbeddedClient.class);
 
@@ -75,7 +74,6 @@ public class EmbeddedClient implements JobClient, JobSubmitter {
 		this.timeout = Time.milliseconds(configuration.getLong(WebOptions.TIMEOUT));
 	}
 
-	@Override
 	public CompletableFuture<JobID> submitJob(final JobGraph jobGraph) {
 		checkNotNull(jobGraph);
 
