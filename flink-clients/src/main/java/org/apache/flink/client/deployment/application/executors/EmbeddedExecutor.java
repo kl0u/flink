@@ -24,6 +24,7 @@ import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.client.deployment.application.EmbeddedClient;
 import org.apache.flink.client.deployment.executors.PipelineExecutorUtils;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.PipelineOptionsInternal;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.PipelineExecutor;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
@@ -33,6 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Collection;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import static java.util.Objects.requireNonNull;
@@ -65,11 +67,33 @@ public class EmbeddedExecutor implements PipelineExecutor {
 		requireNonNull(pipeline);
 		requireNonNull(configuration);
 
+		final Optional<JobID> optJobId = configuration
+				.getOptional(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID)
+				.map(JobID::fromHexString);
+
+		if (optJobId.isPresent() && applicationJobIds.contains(optJobId.get())) {
+			// TODO it be that the job by now is done and essentially the client will refer
+			//  to a non-running job. Is this a problem that we need to handle or the user?
+			return getJobClientFuture(configuration, optJobId.get());
+		}
+
+		return submitAndGetJobClientFuture(pipeline, configuration);
+	}
+
+	private CompletableFuture<JobClient> getJobClientFuture(final Configuration configuration, final JobID jobId) {
+		LOG.info("Job {} was recovered successfully.", jobId);
+
+		return CompletableFuture.completedFuture(
+				new EmbeddedClient(jobId, configuration, dispatcherGateway)
+		);
+	}
+
+	private CompletableFuture<JobClient> submitAndGetJobClientFuture(final Pipeline pipeline, final Configuration configuration) {
 		final JobGraph jobGraph = PipelineExecutorUtils.getJobGraph(pipeline, configuration);
 		final JobID actualJobId = jobGraph.getJobID();
 
 		this.applicationJobIds.add(actualJobId);
-		LOG.info("Job {} is submitted.", actualJobId);
+		LOG.info("Submitting job {}.", actualJobId);
 
 		final EmbeddedClient embeddedClient = new EmbeddedClient(actualJobId, configuration, dispatcherGateway);
 		return embeddedClient
