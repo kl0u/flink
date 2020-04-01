@@ -29,7 +29,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.PipelineOptionsInternal;
-import org.apache.flink.container.entrypoint.ClassPathJobGraphRetriever.JarsOnClassPath;
+import org.apache.flink.container.entrypoint.ClassPathPackagedProgramRetriever.JarsOnClassPath;
 import org.apache.flink.container.entrypoint.testjar.TestJobInfo;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
@@ -69,7 +69,7 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Tests for the {@link ClassPathJobGraphRetriever}.
+ * Tests for the {@link ClassPathPackagedProgramRetriever}.
  */
 public class ClassPathPackagedProgramRetrieverTest extends TestLogger {
 

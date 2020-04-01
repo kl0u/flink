@@ -88,11 +88,6 @@ class ClassPathPackagedProgramRetriever implements PackagedProgramRetriever {
 		this.userClassPaths = discoverUserClassPaths(userLibDirectory);
 	}
 
-	@Nonnull
-	public Collection<URL> getUserClassPaths() {
-		return userClassPaths;
-	}
-
 	private Collection<URL> discoverUserClassPaths(@Nullable File jobDir) throws IOException {
 		if (jobDir == null) {
 			return Collections.emptyList();

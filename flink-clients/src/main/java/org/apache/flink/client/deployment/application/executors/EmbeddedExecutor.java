@@ -72,7 +72,7 @@ public class EmbeddedExecutor implements PipelineExecutor {
 				.map(JobID::fromHexString);
 
 		if (optJobId.isPresent() && applicationJobIds.contains(optJobId.get())) {
-			// TODO it be that the job by now is done and essentially the client will refer
+			// TODO it can be that the recovered job by now is done and the client will refer
 			//  to a non-running job. Is this a problem that we need to handle or the user?
 			return getJobClientFuture(configuration, optJobId.get());
 		}
