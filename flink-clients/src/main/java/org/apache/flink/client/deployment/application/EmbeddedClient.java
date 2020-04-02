@@ -32,7 +32,6 @@ import org.apache.flink.runtime.client.ClientUtils;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.util.FlinkException;
 
 import org.slf4j.Logger;
@@ -141,7 +140,7 @@ public class EmbeddedClient implements JobClient {
 		checkNotNull(userClassloader);
 
 		return dispatcherGateway
-				.requestJobResult(jobId, RpcUtils.INF_TIMEOUT)
+				.requestJobResult(jobId, timeout)
 				.thenApply((jobResult) -> {
 					try {
 						return jobResult.toJobExecutionResult(userClassloader);
