@@ -73,6 +73,8 @@ public class EmbeddedClient implements JobClient {
 		this.timeout = Time.milliseconds(configuration.getLong(WebOptions.TIMEOUT));
 	}
 
+	// TODO: 02.04.20 check if it is needed to ship jars in the standalone/Kubernetes
+	// TODO: 02.04.20 see if the jobgraph has any jars attached to it.
 	public CompletableFuture<JobID> submitJob(final JobGraph jobGraph) {
 		checkNotNull(jobGraph);
 
