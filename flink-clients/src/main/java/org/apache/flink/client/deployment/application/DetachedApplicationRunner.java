@@ -37,7 +37,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.List;
 
-import static java.util.Objects.requireNonNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
@@ -57,9 +57,9 @@ public class DetachedApplicationRunner implements ApplicationRunner {
 
 	@Override
 	public List<JobID> run(final DispatcherGateway dispatcherGateway, final PackagedProgram program, final Configuration configuration) {
-		requireNonNull(dispatcherGateway);
-		requireNonNull(program);
-		requireNonNull(configuration);
+		checkNotNull(dispatcherGateway);
+		checkNotNull(program);
+		checkNotNull(configuration);
 		return tryExecuteJobs(dispatcherGateway, program, configuration);
 	}
 
