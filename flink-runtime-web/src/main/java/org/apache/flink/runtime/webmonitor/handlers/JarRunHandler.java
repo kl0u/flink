@@ -85,17 +85,18 @@ public class JarRunHandler extends
 			@Nonnull final HandlerRequest<JarRunRequestBody, JarRunMessageParameters> request,
 			@Nonnull final DispatcherGateway gateway) throws RestHandlerException {
 
-		configuration.set(DeploymentOptions.ATTACHED, false);
-		configuration.set(DeploymentOptions.TARGET, EmbeddedExecutor.NAME);
+		final Configuration effectiveConfiguration = new Configuration(configuration);
+		effectiveConfiguration.set(DeploymentOptions.ATTACHED, false);
+		effectiveConfiguration.set(DeploymentOptions.TARGET, EmbeddedExecutor.NAME);
 
 		final JarHandlerContext context = JarHandlerContext.fromRequest(request, jarDir, log);
-		context.applyOnConfiguration(configuration);
-		SavepointRestoreSettings.toConfiguration(getSavepointRestoreSettings(request), configuration);
+		context.applyOnConfiguration(effectiveConfiguration);
+		SavepointRestoreSettings.toConfiguration(getSavepointRestoreSettings(request), effectiveConfiguration);
 
-		final PackagedProgram program = context.toPackagedProgram(configuration);
+		final PackagedProgram program = context.toPackagedProgram(effectiveConfiguration);
 
 		return CompletableFuture
-				.supplyAsync(() -> applicationRunner.run(gateway, program, configuration), executor)
+				.supplyAsync(() -> applicationRunner.run(gateway, program, effectiveConfiguration), executor)
 				.thenApply(jobIds -> {
 					if (jobIds.isEmpty()) {
 						throw new CompletionException(new ProgramInvocationException("No jobs submitted."));

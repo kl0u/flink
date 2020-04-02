@@ -41,6 +41,15 @@ public class EmbeddedExecutorServiceLoader implements PipelineExecutorServiceLoa
 
 	private final DispatcherGateway dispatcherGateway;
 
+
+	/**
+	 * Creates a {@link EmbeddedExecutorServiceLoader}.
+	 *
+	 * @param applicationJobIds a list initialized with the recovered jobs (if any). This list is also going to be filled
+	 *                          by the {@link EmbeddedExecutor} with the job ids of the new jobs that will be submitted. The
+	 *                          list can later be used for monitoring the status of the submitted/recovered jobs.
+	 * @param dispatcherGateway the dispatcher of the cluster which is going to be used to submit jobs.
+	 */
 	public EmbeddedExecutorServiceLoader(
 			final Collection<JobID> applicationJobIds,
 			final DispatcherGateway dispatcherGateway) {
