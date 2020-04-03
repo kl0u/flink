@@ -97,7 +97,7 @@ public class EmbeddedExecutor implements PipelineExecutor {
 
 		final EmbeddedClient embeddedClient = new EmbeddedClient(actualJobId, configuration, dispatcherGateway);
 		return embeddedClient
-				.submitJob(jobGraph)
+				.submitJob(jobGraph) // TODO: 03.04.20 handle directly hte BlobClient and not instantiate it in the classs and remove the configuration
 				.thenApplyAsync(jobID -> embeddedClient);
 	}
 }

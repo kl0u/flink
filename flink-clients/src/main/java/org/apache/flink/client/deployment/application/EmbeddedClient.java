@@ -141,6 +141,7 @@ public class EmbeddedClient implements JobClient {
 	public CompletableFuture<JobExecutionResult> getJobExecutionResult(final ClassLoader userClassloader) {
 		checkNotNull(userClassloader);
 
+		// TODO: 03.04.20 have asyncpoll and configurable timeout 
 		return dispatcherGateway
 				.requestJobResult(jobId, timeout)
 				.thenApply((jobResult) -> {
