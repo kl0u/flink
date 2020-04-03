@@ -34,6 +34,7 @@ import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.dispatcher.DispatcherBootstrap;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.util.SerializedThrowable;
 
 import org.slf4j.Logger;
@@ -72,6 +73,8 @@ public class ApplicationDispatcherBootstrap extends AbstractDispatcherBootstrap 
 
 	private final Configuration configuration;
 
+	private final CompletableFuture<Void> applicationStatusFuture;
+
 	private CompletableFuture<Void> applicationExecutionFuture;
 
 	public ApplicationDispatcherBootstrap(
@@ -81,6 +84,12 @@ public class ApplicationDispatcherBootstrap extends AbstractDispatcherBootstrap 
 		this.configuration = checkNotNull(configuration);
 		this.recoveredJobs = checkNotNull(recoveredJobs);
 		this.application = checkNotNull(application);
+
+		this.applicationStatusFuture = new CompletableFuture<>();
+	}
+
+	public CompletableFuture<Void> getApplicationStatusFuture() {
+		return applicationStatusFuture;
 	}
 
 	@Override
@@ -88,11 +97,9 @@ public class ApplicationDispatcherBootstrap extends AbstractDispatcherBootstrap 
 		checkNotNull(dispatcher);
 		launchRecoveredJobGraphs(dispatcher, recoveredJobs);
 
-		runApplicationToCompletionAsync(
+		runApplicationAndShutdownClusterAsync(
 				dispatcher,
 				dispatcher.getRpcService().getExecutor());
-
-		recoveredJobs.clear();
 	}
 
 	@Override
@@ -103,25 +110,30 @@ public class ApplicationDispatcherBootstrap extends AbstractDispatcherBootstrap 
 	}
 
 	@VisibleForTesting
-	CompletableFuture<Void> runApplicationToCompletionAsync(final DispatcherGateway dispatcher, final Executor executor) {
+	CompletableFuture<Acknowledge> runApplicationAndShutdownClusterAsync(
+			final DispatcherGateway dispatcher,
+			final Executor executor) {
+
 		applicationExecutionFuture = CompletableFuture
-				.supplyAsync(() -> runApplicationAndGetJobIDs(dispatcher), executor)
+				.supplyAsync(() -> runApplicationAndGetJobIDs(dispatcher, true), executor)
 				.thenCompose(applicationIds -> getApplicationResult(dispatcher, applicationIds));
 
 		applicationExecutionFuture.whenComplete((r, t) -> {
 					if (t != null) {
 						LOG.warn("Application FAILED: ", t);
+						applicationStatusFuture.completeExceptionally(t);
 					} else {
 						LOG.info("Application completed SUCCESSFULLY");
+						applicationStatusFuture.complete(null);
 					}
-					dispatcher.shutDownCluster();
 				});
-		return applicationExecutionFuture;
+
+		return applicationStatusFuture.handle((r, t) -> dispatcher.shutDownCluster().join());
 	}
 
 	@VisibleForTesting
-	List<JobID> runApplicationAndGetJobIDs(final DispatcherGateway dispatcher) {
-		final List<JobID> applicationJobIds = runApplication(dispatcher, application, configuration);
+	List<JobID> runApplicationAndGetJobIDs(final DispatcherGateway dispatcher, final boolean enforceSingleJobExecution) {
+		final List<JobID> applicationJobIds = runApplication(dispatcher, application, configuration, enforceSingleJobExecution);
 		if (applicationJobIds.isEmpty()) {
 			throw new CompletionException(new ApplicationExecutionException("The application contains no execute() calls."));
 		}
@@ -131,7 +143,8 @@ public class ApplicationDispatcherBootstrap extends AbstractDispatcherBootstrap 
 	private List<JobID> runApplication(
 			final DispatcherGateway dispatcherGateway,
 			final PackagedProgram program,
-			final Configuration configuration) {
+			final Configuration configuration,
+			final boolean enforceSingleJobExecution) {
 
 		final List<JobID> applicationJobIds =
 				new ArrayList<>(getRecoveredJobIds(recoveredJobs));
@@ -140,7 +153,7 @@ public class ApplicationDispatcherBootstrap extends AbstractDispatcherBootstrap 
 				new EmbeddedExecutorServiceLoader(applicationJobIds, dispatcherGateway);
 
 		try {
-			ClientUtils.executeProgram(executorServiceLoader, configuration, program, true);
+			ClientUtils.executeProgram(executorServiceLoader, configuration, program, enforceSingleJobExecution);
 		} catch (ProgramInvocationException e) {
 			LOG.warn("Could not execute application: ", e);
 			throw new CompletionException("Could not execute application.", e);

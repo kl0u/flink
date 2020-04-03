@@ -32,6 +32,7 @@ import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.SerializedThrowable;
 
 import org.junit.Test;
@@ -45,6 +46,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import static org.hamcrest.CoreMatchers.equalTo;
@@ -61,18 +63,6 @@ public class ApplicationDispatcherBootstrapTest {
 
 	private static final String MULTI_EXECUTE_JOB_CLASS_NAME = "org.apache.flink.client.testjar.MultiExecuteJob";
 
-	private PackagedProgram getProgram(int noOfJobs) throws FlinkException {
-		try {
-			return PackagedProgram.newBuilder()
-					.setUserClassPaths(Collections.singletonList(new File(CliFrontendTestUtils.getTestJarPath()).toURI().toURL()))
-					.setEntryPointClassName(MULTI_EXECUTE_JOB_CLASS_NAME)
-					.setArguments(String.valueOf(noOfJobs))
-					.build();
-		} catch (ProgramInvocationException | FileNotFoundException | MalformedURLException e) {
-			throw new FlinkException("Could not load the provided entrypoint class.", e);
-		}
-	}
-
 	/**
 	 * Tests that the {@link org.apache.flink.client.deployment.application.executors.EmbeddedExecutorServiceLoader}
 	 * collects the ids of the submitted jobs correctly after submission. These will be used later to check the status
@@ -84,7 +74,7 @@ public class ApplicationDispatcherBootstrapTest {
 	@Test
 	public void testJobIdCollection() throws Exception {
 		final int noOfJobs = 3;
-		final List<JobID> jobIDs = submitAndGetJobIDs(noOfJobs);
+		final List<JobID> jobIDs = submitAndGetJobIDs(noOfJobs, false);
 		assertThat(jobIDs.size(), is(equalTo(noOfJobs)));
 	}
 
@@ -92,9 +82,20 @@ public class ApplicationDispatcherBootstrapTest {
 	public void testExceptionThrownWhenApplicationContainsNoJobs() throws Throwable {
 		final int noOfJobs = 0;
 		try {
-			submitAndGetJobIDs(noOfJobs);
+			submitAndGetJobIDs(noOfJobs, false);
 		} catch (CompletionException e) {
 			throw e.getCause();
+		}
+		fail("Test should have failed with ApplicationExecutionException.");
+	}
+
+	@Test(expected = FlinkRuntimeException.class)
+	public void testExceptionThrownWithMultiJobApplicationIfOnlyOneJobIsAllowed() throws Throwable {
+		final int noOfJobs = 3;
+		try {
+			submitAndGetJobIDs(noOfJobs, true);
+		} catch (CompletionException e) {
+			throw e.getCause().getCause();
 		}
 		fail("Test should have failed with ApplicationExecutionException.");
 	}
@@ -148,9 +149,9 @@ public class ApplicationDispatcherBootstrapTest {
 
 	@Test
 	public void testClusterShutdownWhenApplicationIsCancelled() throws Exception {
+		final ExecutorService executor = Executors.newSingleThreadExecutor();
 		final JobID testJobId = new JobID(0, 2);
 		final CompletableFuture<JobResult> jobTerminationFuture = new CompletableFuture<>();
-		final CompletableFuture<Void> clusterTerminationFuture = new CompletableFuture<>();
 
 		final PackagedProgram program = getProgram(1);
 
@@ -161,32 +162,33 @@ public class ApplicationDispatcherBootstrapTest {
 		final DispatcherGateway testingDispatcherGateway = new TestingDispatcherGateway.Builder()
 				.setSubmitFunction(jobGraph -> CompletableFuture.completedFuture(Acknowledge.get()))
 				.setRequestJobResultFunction(jobID -> jobTerminationFuture)
-				.setClusterShutdownSupplier(() -> {
-					clusterTerminationFuture.complete(null);
-					return CompletableFuture.completedFuture(Acknowledge.get());
-				})
+				.setClusterShutdownSupplier(() -> CompletableFuture.completedFuture(Acknowledge.get()))
 				.build();
 
 		final ApplicationDispatcherBootstrap bootstrap = new ApplicationDispatcherBootstrap(program, Collections.emptyList(), configuration);
-		final CompletableFuture<Void> applicationCompletionFuture =
-				bootstrap.runApplicationToCompletionAsync(testingDispatcherGateway, Executors.newSingleThreadScheduledExecutor());
 
+		final CompletableFuture<Acknowledge> clusterShutdownFuture =
+				bootstrap.runApplicationAndShutdownClusterAsync(testingDispatcherGateway, executor);
+
+		final CompletableFuture<Void> applicationCompletionFuture = bootstrap.getApplicationStatusFuture();
 		assertFalse(applicationCompletionFuture.isDone());
 
 		bootstrap.stop();
-		clusterTerminationFuture.get();
+		clusterShutdownFuture.get();
 
 		assertTrue(applicationCompletionFuture.isDone() && applicationCompletionFuture.isCancelled());
+		executor.shutdownNow();
 	}
 
 	@Test
 	public void testClusterShutdownWhenApplicationSucceeds() throws Exception {
+		final ExecutorService executor = Executors.newSingleThreadExecutor();
 		final JobID testJobId = new JobID(0, 2);
 		final CompletableFuture<JobResult> jobTerminationFuture = new CompletableFuture<>();
 		final CompletableFuture<Void> clusterTerminationFuture = new CompletableFuture<>();
 
 		final CompletableFuture<Void> applicationCompletionFuture =
-				submitSingleJobApplication(testJobId, jobTerminationFuture, clusterTerminationFuture);
+				runSingleJobApplication(executor, testJobId, jobTerminationFuture, clusterTerminationFuture);
 
 		assertFalse(applicationCompletionFuture.isDone());
 
@@ -197,16 +199,18 @@ public class ApplicationDispatcherBootstrapTest {
 				applicationCompletionFuture.isDone()
 				&& !applicationCompletionFuture.isCompletedExceptionally()
 				&& !applicationCompletionFuture.isCancelled());
+		executor.shutdownNow();
 	}
 
 	@Test
 	public void testClusterShutdownWhenApplicationFails() throws Exception {
+		final ExecutorService executor = Executors.newSingleThreadExecutor();
 		final JobID testJobId = new JobID(0, 2);
 		final CompletableFuture<JobResult> jobTerminationFuture = new CompletableFuture<>();
 		final CompletableFuture<Void> clusterTerminationFuture = new CompletableFuture<>();
 
 		final CompletableFuture<Void> applicationCompletionFuture =
-				submitSingleJobApplication(testJobId, jobTerminationFuture, clusterTerminationFuture);
+				runSingleJobApplication(executor, testJobId, jobTerminationFuture, clusterTerminationFuture);
 
 		assertFalse(applicationCompletionFuture.isDone());
 
@@ -214,9 +218,11 @@ public class ApplicationDispatcherBootstrapTest {
 		clusterTerminationFuture.get();
 
 		assertTrue(applicationCompletionFuture.isDone() && applicationCompletionFuture.isCompletedExceptionally());
+		executor.shutdownNow();
 	}
 
-	private CompletableFuture<Void> submitSingleJobApplication(
+	private CompletableFuture<Void> runSingleJobApplication(
+			ExecutorService executorService,
 			JobID testJobId,
 			CompletableFuture<JobResult> jobTerminationFuture,
 			CompletableFuture<Void> clusterTerminationFuture) throws FlinkException {
@@ -237,10 +243,11 @@ public class ApplicationDispatcherBootstrapTest {
 				.build();
 
 		final ApplicationDispatcherBootstrap bootstrap = new ApplicationDispatcherBootstrap(program, Collections.emptyList(), configuration);
-		return bootstrap.runApplicationToCompletionAsync(testingDispatcherGateway, Executors.newSingleThreadScheduledExecutor());
+		bootstrap.runApplicationAndShutdownClusterAsync(testingDispatcherGateway, executorService);
+		return bootstrap.getApplicationStatusFuture();
 	}
 
-	private List<JobID> submitAndGetJobIDs(int noOfJobs) throws FlinkException {
+	private List<JobID> submitAndGetJobIDs(int noOfJobs, boolean enforceSingleJobExecution) throws FlinkException {
 		final PackagedProgram program = getProgram(noOfJobs);
 
 		final Configuration configuration =  new Configuration();
@@ -251,7 +258,7 @@ public class ApplicationDispatcherBootstrapTest {
 				.build();
 
 		final ApplicationDispatcherBootstrap bootstrap = new ApplicationDispatcherBootstrap(program, Collections.emptyList(), configuration);
-		return bootstrap.runApplicationAndGetJobIDs(testingDispatcherGateway);
+		return bootstrap.runApplicationAndGetJobIDs(testingDispatcherGateway, enforceSingleJobExecution);
 	}
 
 	private void successfullyTerminateJob(Map<JobID, CompletableFuture<JobResult>> pendingJobResults, int jobIdx) {
@@ -270,6 +277,18 @@ public class ApplicationDispatcherBootstrapTest {
 			jobResults.put(new JobID(0, i), new CompletableFuture<>());
 		}
 		return jobResults;
+	}
+
+	private PackagedProgram getProgram(int noOfJobs) throws FlinkException {
+		try {
+			return PackagedProgram.newBuilder()
+					.setUserClassPaths(Collections.singletonList(new File(CliFrontendTestUtils.getTestJarPath()).toURI().toURL()))
+					.setEntryPointClassName(MULTI_EXECUTE_JOB_CLASS_NAME)
+					.setArguments(String.valueOf(noOfJobs))
+					.build();
+		} catch (ProgramInvocationException | FileNotFoundException | MalformedURLException e) {
+			throw new FlinkException("Could not load the provided entrypoint class.", e);
+		}
 	}
 
 	private CompletableFuture<Void> getApplicationTerminationFuture(final Map<JobID, CompletableFuture<JobResult>> jobResults) throws FlinkException {
