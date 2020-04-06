@@ -27,6 +27,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.PipelineOptionsInternal;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.PipelineExecutor;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 
@@ -38,6 +39,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import static java.util.Objects.requireNonNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A {@link PipelineExecutor} that is expected to be executed on the same machine as the
@@ -55,11 +57,15 @@ public class EmbeddedExecutor implements PipelineExecutor {
 
 	private final DispatcherGateway dispatcherGateway;
 
+	private final ScheduledExecutor retryExecutor;
+
 	public EmbeddedExecutor(
 			final Collection<JobID> applicationJobIds,
-			final DispatcherGateway gateway) {
+			final DispatcherGateway gateway,
+			final ScheduledExecutor retryExecutor) {
 		this.applicationJobIds = requireNonNull(applicationJobIds);
 		this.dispatcherGateway = requireNonNull(gateway);
+		this.retryExecutor = checkNotNull(retryExecutor);
 	}
 
 	@Override
@@ -84,7 +90,7 @@ public class EmbeddedExecutor implements PipelineExecutor {
 		LOG.info("Job {} was recovered successfully.", jobId);
 
 		return CompletableFuture.completedFuture(
-				new EmbeddedClient(jobId, configuration, dispatcherGateway)
+				new EmbeddedClient(jobId, configuration, dispatcherGateway, retryExecutor)
 		);
 	}
 
@@ -95,9 +101,9 @@ public class EmbeddedExecutor implements PipelineExecutor {
 		this.applicationJobIds.add(actualJobId);
 		LOG.info("Submitting job {}.", actualJobId);
 
-		final EmbeddedClient embeddedClient = new EmbeddedClient(actualJobId, configuration, dispatcherGateway);
+		final EmbeddedClient embeddedClient = new EmbeddedClient(actualJobId, configuration, dispatcherGateway, retryExecutor);
 		return embeddedClient
-				.submitJob(jobGraph) // TODO: 03.04.20 handle directly hte BlobClient and not instantiate it in the classs and remove the configuration
+				.submitJob(jobGraph)
 				.thenApplyAsync(jobID -> embeddedClient);
 	}
 }

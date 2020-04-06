@@ -29,9 +29,11 @@ import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.client.ClientUtils;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.util.FlinkException;
 
 import org.slf4j.Logger;
@@ -43,6 +45,8 @@ import java.net.InetSocketAddress;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -55,6 +59,8 @@ public class EmbeddedClient implements JobClient {
 
 	private static final Logger LOG = LoggerFactory.getLogger(EmbeddedClient.class);
 
+	private final ScheduledExecutor retryExecutor;
+
 	private final JobID jobId;
 
 	private final Configuration configuration;
@@ -66,7 +72,9 @@ public class EmbeddedClient implements JobClient {
 	public EmbeddedClient(
 			final JobID jobId,
 			final Configuration configuration,
-			final DispatcherGateway dispatcherGateway) {
+			final DispatcherGateway dispatcherGateway,
+			final ScheduledExecutor retryExecutor) {
+		this.retryExecutor = checkNotNull(retryExecutor);
 		this.jobId = checkNotNull(jobId);
 		this.configuration = checkNotNull(configuration);
 		this.dispatcherGateway = checkNotNull(dispatcherGateway);
@@ -141,16 +149,58 @@ public class EmbeddedClient implements JobClient {
 	public CompletableFuture<JobExecutionResult> getJobExecutionResult(final ClassLoader userClassloader) {
 		checkNotNull(userClassloader);
 
-		// TODO: 03.04.20 have asyncpoll and configurable timeout 
-		return dispatcherGateway
-				.requestJobResult(jobId, timeout)
-				.thenApply((jobResult) -> {
-					try {
-						return jobResult.toJobExecutionResult(userClassloader);
-					} catch (Throwable t) {
-						throw new CompletionException(
-								new Exception("Job " + jobId + " failed", t));
-					}
-				});
+		return pollJobResultAsync(
+				() -> dispatcherGateway.requestJobStatus(jobId, timeout),
+				() -> dispatcherGateway.requestJobResult(jobId, timeout),
+				100L
+		).thenApply((jobResult) -> {
+			try {
+				return jobResult.toJobExecutionResult(userClassloader);
+			} catch (Throwable t) {
+				throw new CompletionException(new Exception("Job " + jobId + " failed", t));
+			}
+		});
+	}
+
+	private CompletableFuture<JobResult> pollJobResultAsync(
+			final Supplier<CompletableFuture<JobStatus>> jobStatusSupplier,
+			final Supplier<CompletableFuture<JobResult>> jobResultSupplier,
+			final long retryMsTimeout) {
+		return pollJobResultAsync(jobStatusSupplier, jobResultSupplier, new CompletableFuture<>(), retryMsTimeout, 0);
+	}
+
+	private CompletableFuture<JobResult> pollJobResultAsync(
+			final Supplier<CompletableFuture<JobStatus>> jobStatusSupplier,
+			final Supplier<CompletableFuture<JobResult>> jobResultSupplier,
+			final CompletableFuture<JobResult> resultFuture,
+			final long retryMsTimeout,
+			final long attempt) {
+
+		jobStatusSupplier.get().whenComplete((jobStatus, throwable) -> {
+			if (throwable != null) {
+				resultFuture.completeExceptionally(throwable);
+			} else {
+				if (jobStatus.isGloballyTerminalState()) {
+					jobResultSupplier.get().whenComplete((jobResult, t) -> {
+
+						if (LOG.isDebugEnabled()) {
+							LOG.debug("Retrieved Job Result for Job {} after {} attempts.", jobId, attempt);
+						}
+
+						if  (t != null) {
+							resultFuture.completeExceptionally(t);
+						} else {
+							resultFuture.complete(jobResult);
+						}
+					});
+				} else {
+					retryExecutor.schedule(() -> {
+						pollJobResultAsync(jobStatusSupplier, jobResultSupplier, resultFuture, retryMsTimeout, attempt + 1);
+					}, retryMsTimeout, TimeUnit.MILLISECONDS);
+				}
+			}
+		});
+
+		return resultFuture;
 	}
 }

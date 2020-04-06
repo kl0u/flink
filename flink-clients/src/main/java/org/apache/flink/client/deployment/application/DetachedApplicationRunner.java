@@ -28,6 +28,7 @@ import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.util.FlinkRuntimeException;
 
@@ -74,7 +75,7 @@ public class DetachedApplicationRunner implements ApplicationRunner {
 
 		final List<JobID> applicationJobIds = new ArrayList<>();
 		final PipelineExecutorServiceLoader executorServiceLoader =
-				new EmbeddedExecutorServiceLoader(applicationJobIds, dispatcherGateway);
+				new EmbeddedExecutorServiceLoader(applicationJobIds, dispatcherGateway, null);
 
 		try {
 			ClientUtils.executeProgram(executorServiceLoader, configuration, program, enforceSingleJobExecution);

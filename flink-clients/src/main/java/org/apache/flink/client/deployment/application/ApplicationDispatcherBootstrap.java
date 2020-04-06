@@ -21,6 +21,7 @@ package org.apache.flink.client.deployment.application;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.deployment.application.executors.EmbeddedExecutorServiceLoader;
@@ -29,11 +30,13 @@ import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.dispatcher.AbstractDispatcherBootstrap;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.dispatcher.DispatcherBootstrap;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.util.SerializedThrowable;
 
@@ -46,7 +49,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -99,7 +103,8 @@ public class ApplicationDispatcherBootstrap extends AbstractDispatcherBootstrap 
 
 		runApplicationAndShutdownClusterAsync(
 				dispatcher,
-				dispatcher.getRpcService().getExecutor());
+				dispatcher.getRpcService().getScheduledExecutor());
+		// TODO: 06.04.20 Do we need the main thread executor?
 	}
 
 	@Override
@@ -112,11 +117,11 @@ public class ApplicationDispatcherBootstrap extends AbstractDispatcherBootstrap 
 	@VisibleForTesting
 	CompletableFuture<Acknowledge> runApplicationAndShutdownClusterAsync(
 			final DispatcherGateway dispatcher,
-			final Executor executor) {
+			final ScheduledExecutor scheduledExecutor) {
 
 		applicationExecutionFuture = CompletableFuture
-				.supplyAsync(() -> runApplicationAndGetJobIDs(dispatcher, true), executor)
-				.thenCompose(applicationIds -> getApplicationResult(dispatcher, applicationIds));
+				.supplyAsync(() -> runApplicationAndGetJobIDs(dispatcher, scheduledExecutor, true), scheduledExecutor)
+				.thenCompose(applicationIds -> getApplicationResult(dispatcher, applicationIds, scheduledExecutor));
 
 		applicationExecutionFuture.whenComplete((r, t) -> {
 					if (t != null) {
@@ -132,8 +137,11 @@ public class ApplicationDispatcherBootstrap extends AbstractDispatcherBootstrap 
 	}
 
 	@VisibleForTesting
-	List<JobID> runApplicationAndGetJobIDs(final DispatcherGateway dispatcher, final boolean enforceSingleJobExecution) {
-		final List<JobID> applicationJobIds = runApplication(dispatcher, application, configuration, enforceSingleJobExecution);
+	List<JobID> runApplicationAndGetJobIDs(
+			final DispatcherGateway dispatcher,
+			final ScheduledExecutor scheduledExecutor,
+			final boolean enforceSingleJobExecution) {
+		final List<JobID> applicationJobIds = runApplication(dispatcher, application, configuration, scheduledExecutor, enforceSingleJobExecution);
 		if (applicationJobIds.isEmpty()) {
 			throw new CompletionException(new ApplicationExecutionException("The application contains no execute() calls."));
 		}
@@ -144,13 +152,14 @@ public class ApplicationDispatcherBootstrap extends AbstractDispatcherBootstrap 
 			final DispatcherGateway dispatcherGateway,
 			final PackagedProgram program,
 			final Configuration configuration,
+			final ScheduledExecutor scheduledExecutor,
 			final boolean enforceSingleJobExecution) {
 
 		final List<JobID> applicationJobIds =
 				new ArrayList<>(getRecoveredJobIds(recoveredJobs));
 
 		final PipelineExecutorServiceLoader executorServiceLoader =
-				new EmbeddedExecutorServiceLoader(applicationJobIds, dispatcherGateway);
+				new EmbeddedExecutorServiceLoader(applicationJobIds, dispatcherGateway, scheduledExecutor);
 
 		try {
 			ClientUtils.executeProgram(executorServiceLoader, configuration, program, enforceSingleJobExecution);
@@ -165,10 +174,11 @@ public class ApplicationDispatcherBootstrap extends AbstractDispatcherBootstrap 
 	@VisibleForTesting
 	CompletableFuture<Void> getApplicationResult(
 			final DispatcherGateway dispatcherGateway,
-			final Collection<JobID> applicationJobIds) {
+			final Collection<JobID> applicationJobIds,
+			final ScheduledExecutor scheduledExecutor) {
 		final CompletableFuture<?>[] jobResultFutures = applicationJobIds
 				.stream()
-				.map(jobId -> getJobResult(dispatcherGateway, jobId))
+				.map(jobId -> getJobResult(dispatcherGateway, jobId, scheduledExecutor))
 				.toArray(CompletableFuture<?>[]::new);
 
 		final CompletableFuture<Void> allStatusFutures = CompletableFuture.allOf(jobResultFutures);
@@ -180,23 +190,79 @@ public class ApplicationDispatcherBootstrap extends AbstractDispatcherBootstrap 
 		return allStatusFutures;
 	}
 
-	private CompletableFuture<Void> getJobResult(final DispatcherGateway dispatcherGateway, final JobID jobId) {
-		final Time timeout = Time.milliseconds(configuration.getLong(WebOptions.TIMEOUT));
-
+	private CompletableFuture<Void> getJobResult(final DispatcherGateway dispatcherGateway, final JobID jobId, final ScheduledExecutor scheduledExecutor) {
 		final CompletableFuture<Void> jobFuture = new CompletableFuture<>();
-		dispatcherGateway
-				.requestJobResult(jobId, timeout)
-				.thenAccept(result -> {
-					final Optional<SerializedThrowable> optionalThrowable = result.getSerializedThrowable();
-					if (optionalThrowable.isPresent()) {
-						final SerializedThrowable t = optionalThrowable.get();
-						LOG.warn("Job {} FAILED: {}", jobId, t.getFullStringifiedStackTrace());
-						jobFuture.completeExceptionally(t);
+		getJobStatus(dispatcherGateway, jobId, scheduledExecutor)
+				.whenComplete((result, throwable) -> {
+					if (throwable != null) {
+						LOG.warn("Job {} FAILED: {}", jobId, throwable);
+						jobFuture.completeExceptionally(throwable);
 					} else {
-						jobFuture.complete(null);
+						final Optional<SerializedThrowable> optionalThrowable = result.getSerializedThrowable();
+						if (optionalThrowable.isPresent()) {
+							final SerializedThrowable t = optionalThrowable.get();
+							LOG.warn("Job {} FAILED: {}", jobId, t.getFullStringifiedStackTrace());
+							jobFuture.completeExceptionally(t);
+						} else {
+							jobFuture.complete(null);
+						}
 					}
 				});
 		return jobFuture;
+	}
+
+	public CompletableFuture<JobResult> getJobStatus(
+			final DispatcherGateway dispatcherGateway,
+			final JobID jobId,
+			final ScheduledExecutor scheduledExecutor) {
+		final Time timeout = Time.milliseconds(configuration.getLong(WebOptions.TIMEOUT));
+
+		return pollJobResultAsync(
+				() -> dispatcherGateway.requestJobStatus(jobId, timeout),
+				() -> dispatcherGateway.requestJobResult(jobId, timeout),
+				scheduledExecutor,
+				100L
+		);
+	}
+
+	private CompletableFuture<JobResult> pollJobResultAsync(
+			final Supplier<CompletableFuture<JobStatus>> jobStatusSupplier,
+			final Supplier<CompletableFuture<JobResult>> jobResultSupplier,
+			final ScheduledExecutor scheduledExecutor,
+			final long retryMsTimeout) {
+		return pollJobResultAsync(jobStatusSupplier, jobResultSupplier, scheduledExecutor, new CompletableFuture<>(), retryMsTimeout, 0);
+	}
+
+	private CompletableFuture<JobResult> pollJobResultAsync(
+			final Supplier<CompletableFuture<JobStatus>> jobStatusSupplier,
+			final Supplier<CompletableFuture<JobResult>> jobResultSupplier,
+			final ScheduledExecutor scheduledExecutor,
+			final CompletableFuture<JobResult> resultFuture,
+			final long retryMsTimeout,
+			final long attempt) {
+
+		jobStatusSupplier.get().whenComplete((jobStatus, throwable) -> {
+			if (throwable != null) {
+				resultFuture.completeExceptionally(throwable);
+			} else {
+				if (jobStatus.isGloballyTerminalState()) {
+					jobResultSupplier.get().whenComplete((jobResult, t) -> {
+
+						if  (t != null) {
+							resultFuture.completeExceptionally(t);
+						} else {
+							resultFuture.complete(jobResult);
+						}
+					});
+				} else {
+					scheduledExecutor.schedule(() -> {
+						pollJobResultAsync(jobStatusSupplier, jobResultSupplier, scheduledExecutor, resultFuture, retryMsTimeout, attempt + 1);
+					}, retryMsTimeout, TimeUnit.MILLISECONDS);
+				}
+			}
+		});
+
+		return resultFuture;
 	}
 
 	private List<JobID> getRecoveredJobIds(final Collection<JobGraph> recoveredJobs) {

@@ -23,12 +23,14 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.PipelineExecutorFactory;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 
 import java.util.Collection;
 import java.util.stream.Stream;
 
 import static java.util.Objects.requireNonNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A {@link PipelineExecutorServiceLoader} that always returns an {@link EmbeddedExecutorFactory}.
@@ -41,6 +43,7 @@ public class EmbeddedExecutorServiceLoader implements PipelineExecutorServiceLoa
 
 	private final DispatcherGateway dispatcherGateway;
 
+	private final ScheduledExecutor retryExecutor;
 
 	/**
 	 * Creates a {@link EmbeddedExecutorServiceLoader}.
@@ -52,14 +55,16 @@ public class EmbeddedExecutorServiceLoader implements PipelineExecutorServiceLoa
 	 */
 	public EmbeddedExecutorServiceLoader(
 			final Collection<JobID> applicationJobIds,
-			final DispatcherGateway dispatcherGateway) {
+			final DispatcherGateway dispatcherGateway,
+			final ScheduledExecutor retryExecutor) {
 		this.applicationJobIds = requireNonNull(applicationJobIds);
 		this.dispatcherGateway = requireNonNull(dispatcherGateway);
+		this.retryExecutor = checkNotNull(retryExecutor);
 	}
 
 	@Override
 	public PipelineExecutorFactory getExecutorFactory(final Configuration configuration) {
-		return new EmbeddedExecutorFactory(applicationJobIds, dispatcherGateway);
+		return new EmbeddedExecutorFactory(applicationJobIds, dispatcherGateway, retryExecutor);
 	}
 
 	@Override
