@@ -19,13 +19,16 @@
 package org.apache.flink.api.java.utils;
 
 import org.apache.flink.api.common.Plan;
+import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.operators.DataSink;
+import org.apache.flink.api.java.tuple.Tuple2;
 
 import org.junit.Test;
 
-import java.util.Collections;
+import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.junit.Assert.assertEquals;
 
@@ -36,24 +39,39 @@ public class PlanGeneratorTest {
 
 	@Test
 	public void testGenerate() {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(10);
 
-		DataSink<?> sink = env
-				.fromElements(1, 3, 5)
+		final String fileA = "fileA";
+		final String fileB = "fileB";
+
+		final Map<String, DistributedCache.DistributedCacheEntry> originalArtifacts = Stream.of(
+				Tuple2.of(fileA, new DistributedCache.DistributedCacheEntry("test1", true)),
+				Tuple2.of(fileB, new DistributedCache.DistributedCacheEntry("test2", false))
+		).collect(Collectors.toMap(x -> x.f0, x -> x.f1));
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(10);
+		env.registerCachedFile("test1", fileA, true);
+		env.registerCachedFile("test2", fileB, false);
+
+		env.fromElements(1, 3, 5)
 				.map((MapFunction<Integer, String>) value -> String.valueOf(value + 1))
 				.writeAsText("/tmp/csv");
 
-		PlanGenerator generator = new PlanGenerator(
-				Collections.singletonList(sink),
-				env.getConfig(),
-				env.getParallelism(),
-				Collections.emptyList(),
-				"test");
-		Plan plan = generator.generate();
-		assertEquals(1, plan.getDataSinks().size());
-		assertEquals(10, plan.getDefaultParallelism());
-		assertEquals(env.getConfig(), plan.getExecutionConfig());
-		assertEquals("test", plan.getJobName());
+		final Plan generatedPlanUnderTest = env.createProgramPlan("test");
+
+		final Map<String, DistributedCache.DistributedCacheEntry> retrievedArtifacts =
+				generatedPlanUnderTest
+						.getCachedFiles()
+						.stream()
+						.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+
+		assertEquals(1, generatedPlanUnderTest.getDataSinks().size());
+		assertEquals(10, generatedPlanUnderTest.getDefaultParallelism());
+		assertEquals(env.getConfig(), generatedPlanUnderTest.getExecutionConfig());
+		assertEquals("test", generatedPlanUnderTest.getJobName());
+
+		assertEquals(originalArtifacts.size(), retrievedArtifacts.size());
+		assertEquals(originalArtifacts.get(fileA), retrievedArtifacts.get(fileA));
+		assertEquals(originalArtifacts.get(fileB), retrievedArtifacts.get(fileB));
 	}
 }

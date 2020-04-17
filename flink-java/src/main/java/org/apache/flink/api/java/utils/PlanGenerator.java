@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.utils;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.cache.DistributedCache;
@@ -42,7 +43,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * A generator that generates a {@link Plan} from a graph of {@link Operator}s.
  */
+@Internal
 public class PlanGenerator {
+
 	private static final Logger LOG = LoggerFactory.getLogger(PlanGenerator.class);
 
 	private final List<DataSink<?>> sinks;
@@ -59,24 +62,17 @@ public class PlanGenerator {
 			String jobName) {
 		this.sinks = checkNotNull(sinks);
 		this.config = checkNotNull(config);
-		this.defaultParallelism = defaultParallelism;
 		this.cacheFile = checkNotNull(cacheFile);
 		this.jobName = checkNotNull(jobName);
+		this.defaultParallelism = defaultParallelism;
 	}
 
 	public Plan generate() {
-		Plan plan = createPlan();
+		final Plan plan = createPlan();
+		registerGenericTypeInfoIfConfigured(plan);
+		registerCachedFiles(plan);
 
-		checkAndRegisterGenericTypeInfo(plan);
-
-		try {
-			registerCachedFilesWithPlan(plan);
-		} catch (Exception e) {
-			throw new RuntimeException("Error while registering cached files: " + e.getMessage(), e);
-		}
-
-		printLog();
-
+		logTypeRegistrationDetails();
 		return plan;
 	}
 
@@ -86,8 +82,8 @@ public class PlanGenerator {
 	 * @return the generated plan.
 	 */
 	private Plan createPlan() {
-		OperatorTranslation translator = new OperatorTranslation();
-		Plan plan = translator.translateToPlan(sinks, jobName);
+		final OperatorTranslation translator = new OperatorTranslation();
+		final Plan plan = translator.translateToPlan(sinks, jobName);
 
 		if (defaultParallelism > 0) {
 			plan.setDefaultParallelism(defaultParallelism);
@@ -101,7 +97,7 @@ public class PlanGenerator {
 	 *
 	 * @param plan the generated plan.
 	 */
-	private void checkAndRegisterGenericTypeInfo(Plan plan) {
+	private void registerGenericTypeInfoIfConfigured(Plan plan) {
 		if (!config.isAutoTypeRegistrationDisabled()) {
 			plan.accept(new Visitor<Operator<?>>() {
 
@@ -125,6 +121,14 @@ public class PlanGenerator {
 		}
 	}
 
+	private void registerCachedFiles(Plan plan) {
+		try {
+			registerCachedFilesWithPlan(plan);
+		} catch (Exception e) {
+			throw new RuntimeException("Error while registering cached files: " + e.getMessage(), e);
+		}
+	}
+
 	/**
 	 * Registers all files that were registered at this execution environment's cache registry of the
 	 * given plan's cache registry.
@@ -138,28 +142,23 @@ public class PlanGenerator {
 		}
 	}
 
-	/**
-	 * All types are registered now. Print information.
-	 */
-	private void printLog() {
+	private void logTypeRegistrationDetails() {
 		int registeredTypes = getNumberOfRegisteredTypes();
 		int defaultKryoSerializers = getNumberOfDefaultKryoSerializers();
-		LOG.info("The job has {} registered types and {} default Kryo serializers", registeredTypes,
-				defaultKryoSerializers);
+
+		LOG.info("The job has {} registered types and {} default Kryo serializers", registeredTypes, defaultKryoSerializers);
 
 		if (config.isForceKryoEnabled() && config.isForceAvroEnabled()) {
-			LOG.warn(
-					"In the ExecutionConfig, both Avro and Kryo are enforced. Using Kryo serializer for serializing POJOs");
+			LOG.warn("In the ExecutionConfig, both Avro and Kryo are enforced. Using Kryo serializer for serializing POJOs");
 		} else if (config.isForceKryoEnabled()) {
 			LOG.info("Using KryoSerializer for serializing POJOs");
 		} else if (config.isForceAvroEnabled()) {
 			LOG.info("Using AvroSerializer for serializing POJOs");
 		}
 
-		logDebuggingTypeDetails();
-
-		// print information about static code analysis
-		LOG.debug("Static code analysis mode: {}", config.getCodeAnalysisMode());
+		if (LOG.isDebugEnabled()) {
+			logDebuggingTypeDetails();
+		}
 	}
 
 	private int getNumberOfRegisteredTypes() {
@@ -175,17 +174,18 @@ public class PlanGenerator {
 	}
 
 	private void logDebuggingTypeDetails() {
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("Registered Kryo types: {}", config.getRegisteredKryoTypes().toString());
-			LOG.debug("Registered Kryo with Serializers types: {}",
-					config.getRegisteredTypesWithKryoSerializers().entrySet().toString());
-			LOG.debug("Registered Kryo with Serializer Classes types: {}",
-					config.getRegisteredTypesWithKryoSerializerClasses().entrySet().toString());
-			LOG.debug("Registered Kryo default Serializers: {}",
-					config.getDefaultKryoSerializers().entrySet().toString());
-			LOG.debug("Registered Kryo default Serializers Classes {}",
-					config.getDefaultKryoSerializerClasses().entrySet().toString());
-			LOG.debug("Registered POJO types: {}", config.getRegisteredPojoTypes().toString());
-		}
+		LOG.debug("Registered Kryo types: {}", config.getRegisteredKryoTypes().toString());
+		LOG.debug("Registered Kryo with Serializers types: {}",
+				config.getRegisteredTypesWithKryoSerializers().entrySet().toString());
+		LOG.debug("Registered Kryo with Serializer Classes types: {}",
+				config.getRegisteredTypesWithKryoSerializerClasses().entrySet().toString());
+		LOG.debug("Registered Kryo default Serializers: {}",
+				config.getDefaultKryoSerializers().entrySet().toString());
+		LOG.debug("Registered Kryo default Serializers Classes {}",
+				config.getDefaultKryoSerializerClasses().entrySet().toString());
+		LOG.debug("Registered POJO types: {}", config.getRegisteredPojoTypes().toString());
+
+		// print information about static code analysis
+		LOG.debug("Static code analysis mode: {}", config.getCodeAnalysisMode());
 	}
 }

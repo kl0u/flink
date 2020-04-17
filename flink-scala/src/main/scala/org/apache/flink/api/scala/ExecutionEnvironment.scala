@@ -17,6 +17,7 @@
  */
 package org.apache.flink.api.scala
 
+import com.esotericsoftware.kryo.Serializer
 import org.apache.flink.annotation.{Public, PublicEvolving}
 import org.apache.flink.api.common.io.{FileInputFormat, InputFormat}
 import org.apache.flink.api.common.restartstrategy.RestartStrategies.RestartStrategyConfiguration
@@ -33,8 +34,6 @@ import org.apache.flink.core.execution.{JobClient, JobListener, PipelineExecutor
 import org.apache.flink.core.fs.Path
 import org.apache.flink.types.StringValue
 import org.apache.flink.util.{NumberSequenceIterator, Preconditions, SplittableIterator}
-
-import com.esotericsoftware.kryo.Serializer
 
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
