@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.functions.sink.filesystem;
 
+import org.apache.flink.api.common.serialization.SimpleStringEncoder;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
@@ -66,8 +67,8 @@ public class BucketStateSerializerTest {
 
 		final SimpleVersionedSerializer<BucketState<String>> serializer =
 				new BucketStateSerializer<>(
-						writer.getResumeRecoverableSerializer(),
-						writer.getCommitRecoverableSerializer(),
+						new OutputStreamBasedPartFileWriter.OutputStreamBasedInProgressFileRecoverableSerializer(writer.getResumeRecoverableSerializer()),
+						new OutputStreamBasedPartFileWriter.OutputStreamBasedPendingFileRecoverableSerializer(writer.getCommitRecoverableSerializer()),
 						SimpleVersionedStringSerializer.INSTANCE
 				);
 
@@ -75,8 +76,8 @@ public class BucketStateSerializerTest {
 		final BucketState<String> recoveredState =  SimpleVersionedSerialization.readVersionAndDeSerialize(serializer, bytes);
 
 		Assert.assertEquals(testBucket, recoveredState.getBucketPath());
-		Assert.assertNull(recoveredState.getInProgressResumableFile());
-		Assert.assertTrue(recoveredState.getCommittableFilesPerCheckpoint().isEmpty());
+		Assert.assertNull(recoveredState.getInProgressFileRecoverable());
+		Assert.assertTrue(recoveredState.getPendingFileRecoverables().isEmpty());
 	}
 
 	@Test
@@ -93,12 +94,12 @@ public class BucketStateSerializerTest {
 		final RecoverableWriter.ResumeRecoverable current = stream.persist();
 
 		final BucketState<String> bucketState = new BucketState<>(
-				"test", testBucket, Long.MAX_VALUE, current, new HashMap<>());
+				"test", testBucket, Long.MAX_VALUE, new OutputStreamBasedPartFileWriter.OutputStreamBasedInProgressFileRecoverable(current), new HashMap<>());
 
 		final SimpleVersionedSerializer<BucketState<String>> serializer =
 				new BucketStateSerializer<>(
-						writer.getResumeRecoverableSerializer(),
-						writer.getCommitRecoverableSerializer(),
+					new OutputStreamBasedPartFileWriter.OutputStreamBasedInProgressFileRecoverableSerializer(writer.getResumeRecoverableSerializer()),
+					new OutputStreamBasedPartFileWriter.OutputStreamBasedPendingFileRecoverableSerializer(writer.getCommitRecoverableSerializer()),
 						SimpleVersionedStringSerializer.INSTANCE
 				);
 
@@ -126,21 +127,22 @@ public class BucketStateSerializerTest {
 		final File testFolder = tempFolder.newFolder();
 		final FileSystem fs = FileSystem.get(testFolder.toURI());
 		final RecoverableWriter writer = fs.createRecoverableWriter();
+		final PartFileWriter.PartFileFactory partFileFactory = new RowWisePartWriter.Factory(writer, new SimpleStringEncoder());
 
 		final Path bucketPath = new Path(testFolder.getPath());
 
 		// pending for checkpoints
-		final Map<Long, List<RecoverableWriter.CommitRecoverable>> commitRecoverables = new HashMap<>();
+		final Map<Long, List<PartFileWriter.PendingFileRecoverable>> pendingFileRecoverableList = new HashMap<>();
 		for (int i = 0; i < noOfTasks; i++) {
-			final List<RecoverableWriter.CommitRecoverable> recoverables = new ArrayList<>();
+			final List<PartFileWriter.PendingFileRecoverable> pendingFileRecoverables = new ArrayList<>();
 			for (int j = 0; j < 2 + i; j++) {
 				final Path part = new Path(bucketPath, "part-" + i + '-' + j);
 
 				final RecoverableFsDataOutputStream stream = writer.open(part);
 				stream.write((PENDING_CONTENT + '-' + j).getBytes(Charset.forName("UTF-8")));
-				recoverables.add(stream.closeForCommit().getRecoverable());
+				pendingFileRecoverables.add(new OutputStreamBasedPartFileWriter.OutputStreamBasedPendingFileRecoverable(stream.closeForCommit().getRecoverable()));
 			}
-			commitRecoverables.put((long) i, recoverables);
+			pendingFileRecoverableList.put((long) i, pendingFileRecoverables);
 		}
 
 		// in-progress
@@ -151,11 +153,15 @@ public class BucketStateSerializerTest {
 		final RecoverableWriter.ResumeRecoverable current = stream.persist();
 
 		final BucketState<String> bucketState = new BucketState<>(
-				"test-2", bucketPath, Long.MAX_VALUE, current, commitRecoverables);
+				"test-2",
+			bucketPath,
+			Long.MAX_VALUE,
+			new OutputStreamBasedPartFileWriter.OutputStreamBasedInProgressFileRecoverable(current),
+			pendingFileRecoverableList);
 		final SimpleVersionedSerializer<BucketState<String>> serializer =
 				new BucketStateSerializer<>(
-						writer.getResumeRecoverableSerializer(),
-						writer.getCommitRecoverableSerializer(),
+						new OutputStreamBasedPartFileWriter.OutputStreamBasedInProgressFileRecoverableSerializer(writer.getResumeRecoverableSerializer()),
+						new OutputStreamBasedPartFileWriter.OutputStreamBasedPendingFileRecoverableSerializer(writer.getCommitRecoverableSerializer()),
 						SimpleVersionedStringSerializer.INSTANCE
 				);
 		stream.close();
@@ -166,13 +172,13 @@ public class BucketStateSerializerTest {
 
 		Assert.assertEquals(bucketPath, recoveredState.getBucketPath());
 
-		final Map<Long, List<RecoverableWriter.CommitRecoverable>> recoveredRecoverables = recoveredState.getCommittableFilesPerCheckpoint();
+		final Map<Long, List<PartFileWriter.PendingFileRecoverable>> recoveredRecoverables = recoveredState.getPendingFileRecoverables();
 		Assert.assertEquals(5L, recoveredRecoverables.size());
 
 		// recover and commit
-		for (Map.Entry<Long, List<RecoverableWriter.CommitRecoverable>> entry: recoveredRecoverables.entrySet()) {
-			for (RecoverableWriter.CommitRecoverable recoverable: entry.getValue()) {
-				writer.recoverForCommit(recoverable).commit();
+		for (Map.Entry<Long, List<PartFileWriter.PendingFileRecoverable>> entry: recoveredRecoverables.entrySet()) {
+			for (PartFileWriter.PendingFileRecoverable pendingFileRecoverable: entry.getValue()) {
+				partFileFactory.recoverPendingFile(pendingFileRecoverable).commit();
 			}
 		}
 
@@ -205,31 +211,32 @@ public class BucketStateSerializerTest {
 		final File testFolder = tempFolder.newFolder();
 		final FileSystem fs = FileSystem.get(testFolder.toURI());
 		final RecoverableWriter writer = fs.createRecoverableWriter();
+		final PartFileWriter.PartFileFactory partFileFactory = new RowWisePartWriter.Factory(writer, new SimpleStringEncoder());
 
 		final Path bucketPath = new Path(testFolder.getPath());
 
 		// pending for checkpoints
-		final Map<Long, List<RecoverableWriter.CommitRecoverable>> commitRecoverables = new HashMap<>();
+		final Map<Long, List<PartFileWriter.PendingFileRecoverable>> pendingFileRecoverablesList = new HashMap<>();
 		for (int i = 0; i < noOfTasks; i++) {
-			final List<RecoverableWriter.CommitRecoverable> recoverables = new ArrayList<>();
+			final List<PartFileWriter.PendingFileRecoverable> pendingFileRecoverables = new ArrayList<>();
 			for (int j = 0; j < 2 + i; j++) {
 				final Path part = new Path(bucketPath, "test-" + i + '-' + j);
 
 				final RecoverableFsDataOutputStream stream = writer.open(part);
 				stream.write((PENDING_CONTENT + '-' + j).getBytes(Charset.forName("UTF-8")));
-				recoverables.add(stream.closeForCommit().getRecoverable());
+				pendingFileRecoverables.add(new OutputStreamBasedPartFileWriter.OutputStreamBasedPendingFileRecoverable(stream.closeForCommit().getRecoverable()));
 			}
-			commitRecoverables.put((long) i, recoverables);
+			pendingFileRecoverablesList.put((long) i, pendingFileRecoverables);
 		}
 
 		final RecoverableWriter.ResumeRecoverable current = null;
 
 		final BucketState<String> bucketState = new BucketState<>(
-				"", bucketPath, Long.MAX_VALUE, current, commitRecoverables);
+				"", bucketPath, Long.MAX_VALUE, null, pendingFileRecoverablesList);
 
 		final SimpleVersionedSerializer<BucketState<String>> serializer = new BucketStateSerializer<>(
-				writer.getResumeRecoverableSerializer(),
-				writer.getCommitRecoverableSerializer(),
+				new OutputStreamBasedPartFileWriter.OutputStreamBasedInProgressFileRecoverableSerializer(writer.getResumeRecoverableSerializer()),
+				new OutputStreamBasedPartFileWriter.OutputStreamBasedPendingFileRecoverableSerializer(writer.getCommitRecoverableSerializer()),
 				SimpleVersionedStringSerializer.INSTANCE
 		);
 
@@ -238,15 +245,15 @@ public class BucketStateSerializerTest {
 		final BucketState<String> recoveredState =  SimpleVersionedSerialization.readVersionAndDeSerialize(serializer, bytes);
 
 		Assert.assertEquals(bucketPath, recoveredState.getBucketPath());
-		Assert.assertNull(recoveredState.getInProgressResumableFile());
+		Assert.assertNull(recoveredState.getInProgressFileRecoverable());
 
-		final Map<Long, List<RecoverableWriter.CommitRecoverable>> recoveredRecoverables = recoveredState.getCommittableFilesPerCheckpoint();
+		final Map<Long, List<PartFileWriter.PendingFileRecoverable>> recoveredRecoverables = recoveredState.getPendingFileRecoverables();
 		Assert.assertEquals(5L, recoveredRecoverables.size());
 
 		// recover and commit
-		for (Map.Entry<Long, List<RecoverableWriter.CommitRecoverable>> entry: recoveredRecoverables.entrySet()) {
-			for (RecoverableWriter.CommitRecoverable recoverable: entry.getValue()) {
-				writer.recoverForCommit(recoverable).commit();
+		for (Map.Entry<Long, List<PartFileWriter.PendingFileRecoverable>> entry: recoveredRecoverables.entrySet()) {
+			for (PartFileWriter.PendingFileRecoverable pendingFileRecoverable: entry.getValue()) {
+				partFileFactory.recoverPendingFile(pendingFileRecoverable).commit();
 			}
 		}
 

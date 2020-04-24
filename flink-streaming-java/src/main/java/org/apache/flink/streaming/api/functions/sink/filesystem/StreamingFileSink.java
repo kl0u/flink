@@ -289,7 +289,7 @@ public class StreamingFileSink<IN>
 					basePath,
 					bucketAssigner,
 					bucketFactory,
-					new RowWisePartWriter.Factory<>(encoder),
+					new RowWisePartWriter.Factory<>(FileSystem.get(basePath.toUri()).createRecoverableWriter(), encoder),
 					rollingPolicy,
 					subtaskIndex,
 					outputFileConfig);
@@ -399,7 +399,7 @@ public class StreamingFileSink<IN>
 					basePath,
 					bucketAssigner,
 					bucketFactory,
-					new BulkPartWriter.Factory<>(writerFactory),
+					new BulkPartWriter.Factory<>(FileSystem.get(basePath.toUri()).createRecoverableWriter(), writerFactory),
 					rollingPolicy,
 					subtaskIndex,
 					outputFileConfig);
