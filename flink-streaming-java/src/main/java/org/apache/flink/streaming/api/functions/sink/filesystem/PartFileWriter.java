@@ -28,7 +28,7 @@ import java.io.IOException;
  * The {@link Bucket} uses the {@link PartFileWriter} to write element to a part file.
  */
 @Internal
-interface PartFileWriter<IN, BucketID> extends PartFileInfo<BucketID> {
+public interface PartFileWriter<IN, BucketID> extends PartFileInfo<BucketID> {
 
 	/**
 	 * Write a element to the part file.

@@ -186,7 +186,7 @@ public class StreamingFileSink<IN>
 	/**
 	 * The base abstract class for the {@link RowFormatBuilder} and {@link BulkFormatBuilder}.
 	 */
-	private abstract static class BucketsBuilder<IN, BucketID, T extends BucketsBuilder<IN, BucketID, T>> implements Serializable {
+	public abstract static class BucketsBuilder<IN, BucketID, T extends BucketsBuilder<IN, BucketID, T>> implements Serializable {
 
 		private static final long serialVersionUID = 1L;
 
@@ -227,7 +227,7 @@ public class StreamingFileSink<IN>
 		}
 
 		protected RowFormatBuilder(
-				Path basePath,
+			Path basePath,
 				Encoder<IN> encoder,
 				BucketAssigner<IN, BucketID> assigner,
 				RollingPolicy<IN, BucketID> policy,
