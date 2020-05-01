@@ -319,8 +319,8 @@ public class BucketsTest {
 				new RowWisePartWriter.Factory<>(FileSystem.get(path.toUri()).createRecoverableWriter(), new SimpleStringEncoder<>()),
 				DefaultRollingPolicy.builder().build(),
 				2,
-				OutputFileConfig.builder().build()
-		);
+				OutputFileConfig.builder().build(),
+				null);
 
 		buckets.onElement(
 				"test",
@@ -393,8 +393,8 @@ public class BucketsTest {
 				new RowWisePartWriter.Factory<>(FileSystem.get(basePath.toUri()).createRecoverableWriter(), new SimpleStringEncoder<>()),
 				rollingPolicy,
 				subtaskIdx,
-				outputFileConfig
-		);
+				outputFileConfig,
+				null);
 	}
 
 	private static Buckets<String, String> restoreBuckets(

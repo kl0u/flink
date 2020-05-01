@@ -56,6 +56,8 @@ public class HadoopPathBasedBulkFormatBuilder<IN, BucketID, T extends HadoopPath
 
 	private OutputFileConfig outputFileConfig;
 
+	private BucketLifeCycleListener<IN, BucketID> bucketLifeCycleListener;
+
 	public HadoopPathBasedBulkFormatBuilder(
 		org.apache.hadoop.fs.Path basePath,
 		HadoopPathBasedBulkWriterFactory<IN> writerFactory,
@@ -126,6 +128,11 @@ public class HadoopPathBasedBulkFormatBuilder<IN, BucketID, T extends HadoopPath
 		return self();
 	}
 
+	public T withBucketLifeCycleListener(BucketLifeCycleListener<IN, BucketID> bucketLifeCycleListener) {
+		this.bucketLifeCycleListener = bucketLifeCycleListener;
+		return self();
+	}
+
 	@Override
 	public Buckets<IN, BucketID> createBuckets(int subtaskIndex) throws IOException {
 		return new Buckets<>(
@@ -138,6 +145,7 @@ public class HadoopPathBasedBulkFormatBuilder<IN, BucketID, T extends HadoopPath
 				fileCommitterFactory),
 			rollingPolicy,
 			subtaskIndex,
-			outputFileConfig);
+			outputFileConfig,
+			bucketLifeCycleListener);
 	}
 }

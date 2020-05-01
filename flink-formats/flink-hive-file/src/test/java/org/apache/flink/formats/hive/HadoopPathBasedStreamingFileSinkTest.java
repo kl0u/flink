@@ -23,6 +23,8 @@ import org.apache.flink.api.java.io.TextOutputFormat;
 import org.apache.flink.runtime.fs.hdfs.HadoopDataOutputStream;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.filesystem.Bucket;
+import org.apache.flink.streaming.api.functions.sink.filesystem.BucketLifeCycleListener;
 import org.apache.flink.streaming.api.functions.sink.filesystem.HadoopPathBasedBulkFormatBuilder;
 import org.apache.flink.streaming.api.functions.sink.filesystem.PathBasedBulkWriter;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
@@ -76,12 +78,26 @@ public class HadoopPathBasedStreamingFileSinkTest extends AbstractTestBase {
 				new Path("file://" + folder.getAbsolutePath()),
 				new TestHadoopPathBasedBulkWriterFactory(),
 				configuration,
-				new DateTimeBucketAssigner<>());
+				new DateTimeBucketAssigner<>())
+			.withBucketLifeCycleListener(new TestBucketLifeCycleListener());
 
 		stream.addSink(new TestFileSink<>(builder, 1000));
 
 		env.execute();
 //		validateResults(folder, SpecificData.get(), data);
+	}
+
+	private static class TestBucketLifeCycleListener implements BucketLifeCycleListener<String, String> {
+
+		@Override
+		public void bucketCreated(Bucket<String, String> bucket) {
+			System.out.println(bucket.getBucketId() + " created");
+		}
+
+		@Override
+		public void bucketInactive(Bucket<String, String> bucket) {
+			System.out.println(bucket.getBucketId() + " in active");
+		}
 	}
 
 	private static class TestHadoopPathBasedBulkWriterFactory extends HadoopPathBasedBulkWriterFactory<String> {

@@ -292,7 +292,8 @@ public class StreamingFileSink<IN>
 					new RowWisePartWriter.Factory<>(FileSystem.get(basePath.toUri()).createRecoverableWriter(), encoder),
 					rollingPolicy,
 					subtaskIndex,
-					outputFileConfig);
+					outputFileConfig,
+					null);
 		}
 	}
 
@@ -402,7 +403,8 @@ public class StreamingFileSink<IN>
 					new BulkPartWriter.Factory<>(FileSystem.get(basePath.toUri()).createRecoverableWriter(), writerFactory),
 					rollingPolicy,
 					subtaskIndex,
-					outputFileConfig);
+					outputFileConfig,
+					null);
 		}
 	}
 

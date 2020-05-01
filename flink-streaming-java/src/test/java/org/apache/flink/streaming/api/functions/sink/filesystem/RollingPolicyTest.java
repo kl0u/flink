@@ -205,8 +205,8 @@ public class RollingPolicyTest {
 				new RowWisePartWriter.Factory<>(FileSystem.get(basePath.toUri()).createRecoverableWriter(), new SimpleStringEncoder<>()),
 				rollingPolicyToTest,
 				0,
-				OutputFileConfig.builder().build()
-		);
+				OutputFileConfig.builder().build(),
+				null);
 	}
 
 	/**

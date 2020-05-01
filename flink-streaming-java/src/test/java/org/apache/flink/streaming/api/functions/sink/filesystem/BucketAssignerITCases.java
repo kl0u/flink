@@ -58,8 +58,8 @@ public class BucketAssignerITCases {
 			new RowWisePartWriter.Factory<>(FileSystem.get(basePath.toUri()).createRecoverableWriter(), new SimpleStringEncoder<>()),
 			rollingPolicy,
 			0,
-			OutputFileConfig.builder().build()
-		);
+			OutputFileConfig.builder().build(),
+			null);
 
 		Bucket<String, String> bucket =
 			buckets.onElement("abc", new TestUtils.MockSinkContext(time, time, time));

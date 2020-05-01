@@ -79,6 +79,9 @@ public class Buckets<IN, BucketID> {
 
 	private final BucketStateSerializer<BucketID> bucketStateSerializer;
 
+	@Nullable
+	private final BucketLifeCycleListener<IN, BucketID> bucketLifeCycleListener;
+
 	/**
 	 * A constructor creating a new empty bucket manager.
 	 *
@@ -95,7 +98,8 @@ public class Buckets<IN, BucketID> {
 			final PartFileWriter.PartFileFactory<IN, BucketID> partFileWriterFactory,
 			final RollingPolicy<IN, BucketID> rollingPolicy,
 			final int subtaskIndex,
-			final OutputFileConfig outputFileConfig) throws IOException {
+			final OutputFileConfig outputFileConfig,
+			@Nullable final BucketLifeCycleListener<IN, BucketID> bucketLifeCycleListener) throws IOException {
 
 		this.basePath = Preconditions.checkNotNull(basePath);
 		this.bucketAssigner = Preconditions.checkNotNull(bucketAssigner);
@@ -114,6 +118,8 @@ public class Buckets<IN, BucketID> {
 			partFileWriterFactory.getPendingFileRecoverableSerializer(),
 			bucketAssigner.getSerializer());
 		this.maxPartCounter = 0L;
+
+		this.bucketLifeCycleListener = bucketLifeCycleListener;
 	}
 
 	/**
@@ -205,6 +211,10 @@ public class Buckets<IN, BucketID> {
 				// We've dealt with all the pending files and the writer for this bucket is not currently open.
 				// Therefore this bucket is currently inactive and we can remove it from our state.
 				activeBucketIt.remove();
+
+				if (bucketLifeCycleListener != null) {
+					bucketLifeCycleListener.bucketInactive(bucket);
+				}
 			}
 		}
 	}
@@ -280,6 +290,10 @@ public class Buckets<IN, BucketID> {
 					rollingPolicy,
 					outputFileConfig);
 			activeBuckets.put(bucketId, bucket);
+
+			if (bucketLifeCycleListener != null) {
+				bucketLifeCycleListener.bucketCreated(bucket);
+			}
 		}
 		return bucket;
 	}

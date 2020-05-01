@@ -150,15 +150,15 @@ public class Bucket<IN, BucketID> {
 		}
 	}
 
-	BucketID getBucketId() {
+	public BucketID getBucketId() {
 		return bucketId;
 	}
 
-	Path getBucketPath() {
+	public Path getBucketPath() {
 		return bucketPath;
 	}
 
-	long getPartCounter() {
+	public long getPartCounter() {
 		return partCounter;
 	}
 
