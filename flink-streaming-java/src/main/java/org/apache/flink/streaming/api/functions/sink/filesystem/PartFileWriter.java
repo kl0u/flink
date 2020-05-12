@@ -147,7 +147,7 @@ public interface PartFileWriter<IN, BucketID> extends PartFileInfo<BucketID> {
 	}
 
 	 /**
-	  *
+	  * todo why do we need both the below.
 	 * A handle can be used to recover in-progress file..
 	 */
 	interface InProgressFileRecoverable extends PendingFileRecoverable {}
@@ -183,6 +183,8 @@ public interface PartFileWriter<IN, BucketID> extends PartFileInfo<BucketID> {
 		void commitAfterRecovery() throws IOException;
 
 		/**
+		 * TODO why is this needed? A pending file can  only be committed either normally or after recovery
+		 *
 		 * Gets a recoverable object to recover the pending file The recovered pending file
 		 * will commit the file with the exact same data as this pending file would commit
 		 * it.
