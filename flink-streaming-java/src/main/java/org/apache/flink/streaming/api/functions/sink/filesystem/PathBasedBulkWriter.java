@@ -24,7 +24,7 @@ import org.apache.flink.core.fs.Path;
 import java.io.Serializable;
 
 /**
- * Specialized
+ * TODO THIS CAN GO TO HIVE
  */
 public interface PathBasedBulkWriter<T> extends BulkWriter<T> {
 

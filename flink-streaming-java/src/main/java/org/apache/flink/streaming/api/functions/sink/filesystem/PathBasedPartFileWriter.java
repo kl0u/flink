@@ -18,7 +18,6 @@
 
 package org.apache.flink.streaming.api.functions.sink.filesystem;
 
-import org.apache.flink.api.common.typeutils.base.VoidSerializer;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 
@@ -29,7 +28,7 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
 /**
- *
+ * TODO THIS CAN GO TO HIVE
  */
 public abstract class PathBasedPartFileWriter<IN, BucketID> implements PartFileWriter<IN, BucketID> {
 	private final BucketID bucketID;
