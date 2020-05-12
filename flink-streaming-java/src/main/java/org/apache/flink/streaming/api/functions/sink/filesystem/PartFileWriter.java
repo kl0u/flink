@@ -88,6 +88,9 @@ public interface PartFileWriter<IN, BucketID> extends PartFileInfo<BucketID> {
 			final long creationTime) throws IOException;
 
 		/**
+		 * todo we have PendingFileRecoverable and InProgressFileRecoverable but only one method for both????
+		 * WHY DO WE NEED BOTH???
+		 *
 		 * Recovers a pending file for finalizing and committing.
 		 * @param pendingFileRecoverable The handle with the recovery information.
 		 * @return A pending file
@@ -144,6 +147,7 @@ public interface PartFileWriter<IN, BucketID> extends PartFileInfo<BucketID> {
 	}
 
 	 /**
+	  *
 	 * A handle can be used to recover in-progress file..
 	 */
 	interface InProgressFileRecoverable extends PendingFileRecoverable {}
