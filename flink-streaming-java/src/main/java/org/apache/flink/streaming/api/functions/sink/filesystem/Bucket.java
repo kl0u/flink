@@ -245,6 +245,8 @@ public class Bucket<IN, BucketID> {
 		if (inProgressPart != null) {
 			inProgressFileRecoverable = inProgressPart.persist();
 			inProgressFileCreationTime = inProgressPart.getCreationTime();
+
+			// TODO: 12.05.20 here there was a note about an optimization for the memory consumption of the map. 
 			this.inProgressFileRecoverablesPerCheckpoint.put(checkpointId, inProgressFileRecoverable);
 		}
 
