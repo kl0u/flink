@@ -87,6 +87,8 @@ public interface PartFileWriter<IN, BucketID> extends PartFileInfo<BucketID> {
 			final InProgressFileRecoverable inProgressFileSnapshot,
 			final long creationTime) throws IOException;
 
+		WriterProperties getProperties();
+
 		/**
 		 * todo we have PendingFileRecoverable and InProgressFileRecoverable but only one method for both????
 		 * WHY DO WE NEED BOTH???
@@ -97,55 +99,18 @@ public interface PartFileWriter<IN, BucketID> extends PartFileInfo<BucketID> {
 		 */
 		PendingFile recoverPendingFile(final PendingFileRecoverable pendingFileRecoverable) throws IOException;
 
-		WriterProperties getProperties();
-
-//		/**
-//		 * Marks if requiring to do any additional cleanup/freeing of resources occupied
-//		 * as part of a {@link InProgressFileRecoverable}.
-//		 *
-//		 * <p>In case cleanup is required, then {@link #cleanupInProgressFileRecoverable(InProgressFileRecoverable)} should
-//		 * be called.
-//		 *
-//		 * @return {@code true} if cleanup is required, {@code false} otherwise.
-//		 */
-//		boolean requiresCleanupOfInProgressFileRecoverableState();
-
-//		/**
-//		 * Frees up any resources that were previously occupied in order to be able to
-//		 * recover from a (potential) failure.
-//		 *
-//		 * <p><b>NOTE:</b> This operation should not throw an exception if the {@link InProgressFileRecoverable} has already
-//		 * been cleaned up and the resources have been freed. But the contract is that it will throw
-//		 * an {@link UnsupportedOperationException} if it is called for a {@link PartFileFactory}
-//		 * whose {@link #requiresCleanupOfInProgressFileRecoverableState()} returns {@code false}.
-//		 *
-//		 * @param inProgressFileRecoverable the {@link InProgressFileRecoverable} whose state we want to clean-up.
-//		 * @return {@code true} if the resources were successfully freed, {@code false} otherwise
-//		 * (e.g. the file to be deleted was not there for any reason - already deleted or never created).
-//		 */
-//		boolean cleanupInProgressFileRecoverable(final InProgressFileRecoverable inProgressFileRecoverable) throws IOException;
-
-
 		/**
-		 * @return the serializer for the {@link PendingFileRecoverable}.
+		 * Frees up any resources that were previously occupied in order to be able to
+		 * recover from a (potential) failure.
+		 *
+		 * <p><b>NOTE:</b> This operation should not throw an exception.
+		 *
+		 * @param inProgressFileRecoverable the {@link InProgressFileRecoverable} whose state we want to clean-up.
+		 * @return {@code true} if the resources were successfully freed, {@code false} otherwise
+		 * (e.g. the writer does not require clean-up or the file to be deleted was not there for any reason
+		 * - already deleted or never created).
 		 */
-		SimpleVersionedSerializer<? extends PendingFileRecoverable> getPendingFileRecoverableSerializer();
-
-		/**
-		 * @return the serializer for the {@link InProgressFileRecoverable}.
-		 */
-		SimpleVersionedSerializer<? extends InProgressFileRecoverable> getInProgressFileRecoverableSerializer();
-
-//		/**
-//		 * Checks whether the {@link PartFileWriter} supports resuming (appending to) files after
-//		 * recovery (via the {@link #resumeFrom(Object, InProgressFileRecoverable, long)} method).
-//		 *
-//		 * <p>If true, then this writer supports the {@link #resumeFrom(Object, InProgressFileRecoverable, long)} method.
-//		 * If false, then that method may not be supported and file can only be recovered via
-//		 * {@link #recoverPendingFile(PendingFileRecoverable)}.
-//		 * TODO:: why we needs this? if the
-//		 */
-//		boolean supportsResume();
+		boolean cleanupInProgressFileRecoverable(final InProgressFileRecoverable inProgressFileRecoverable) throws IOException;
 	}
 
 	 /**

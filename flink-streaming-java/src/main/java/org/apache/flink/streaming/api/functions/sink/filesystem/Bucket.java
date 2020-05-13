@@ -130,7 +130,7 @@ public class Bucket<IN, BucketID> {
 		// we try to resume the previous in-progress file
 		final PartFileWriter.InProgressFileRecoverable inProgressFileRecoverable = state.getInProgressFileRecoverable();
 
-		if (partFileFactory.supportsResume()) {
+		if (partFileFactory.getProperties().supportsResume()) {
 			inProgressPart = partFileFactory.resumeFrom(
 					bucketId, inProgressFileRecoverable, state.getInProgressFileCreationTime());
 		} else {
@@ -298,13 +298,12 @@ public class Bucket<IN, BucketID> {
 			// list when the requiresCleanupOfInProgressFileRecoverableState() returns true, but having it makes
 			// the code more readable.
 
-			if (partFileFactory.requiresCleanupOfInProgressFileRecoverableState()) {
-				final boolean successfullyDeleted = partFileFactory.cleanupInProgressFileRecoverable(inProgressFileRecoverable);
+			final boolean successfullyDeleted = partFileFactory.cleanupInProgressFileRecoverable(inProgressFileRecoverable);
 
-				if (LOG.isDebugEnabled() && successfullyDeleted) {
-					LOG.debug("Subtask {} successfully deleted incomplete part for bucket id={}.", subtaskIndex, bucketId);
-				}
+			if (LOG.isDebugEnabled() && successfullyDeleted) {
+				LOG.debug("Subtask {} successfully deleted incomplete part for bucket id={}.", subtaskIndex, bucketId);
 			}
+
 			it.remove();
 		}
 	}
