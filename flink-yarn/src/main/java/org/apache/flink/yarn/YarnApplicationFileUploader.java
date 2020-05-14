@@ -150,32 +150,24 @@ class YarnApplicationFileUploader implements AutoCloseable {
 
 		addToRemotePaths(whetherToAddToRemotePaths, resourcePath);
 
+		if (Utils.isRemotePath(resourcePath.toString())) {
+			final FileStatus fileStatus = fileSystem.getFileStatus(resourcePath);
+			LOG.debug("Using remote file {} to register local resource", fileStatus.getPath());
+
+			final YarnLocalResourceDescriptor descriptor = YarnLocalResourceDescriptor
+					.fromFileStatus(key, fileStatus, LocalResourceVisibility.APPLICATION);
+			addToEnvShipResourceList(whetherToAddToEnvShipResourceList, descriptor);
+			localResources.put(key, descriptor.toLocalResource());
+			return descriptor;
+		}
+
 		final FileStatus fileStatus = providedSharedLibs.get(resourcePath.getName());
 		if (fileStatus != null) {
 			LOG.debug("Using provided file {} instead of the local {}", fileStatus.getPath(), resourcePath);
 
-			final YarnLocalResourceDescriptor descriptor = new YarnLocalResourceDescriptor(
-				fileStatus.getPath().getName(),
-				fileStatus.getPath(),
-				fileStatus.getLen(),
-				fileStatus.getModificationTime(),
-				LocalResourceVisibility.PUBLIC);
+			final YarnLocalResourceDescriptor descriptor = YarnLocalResourceDescriptor
+					.fromFileStatus(key, fileStatus, LocalResourceVisibility.PUBLIC);
 			addToEnvShipResourceList(whetherToAddToEnvShipResourceList, descriptor);
-			return descriptor;
-		}
-
-		if (Utils.isRemotePath(resourcePath.toString())) {
-			final FileStatus remoteFileStatus = fileSystem.getFileStatus(resourcePath);
-			LOG.debug("Using remote file {} to register local resource", remoteFileStatus.getPath());
-
-			final YarnLocalResourceDescriptor descriptor = new YarnLocalResourceDescriptor(
-				key,
-				remoteFileStatus.getPath(),
-				remoteFileStatus.getLen(),
-				remoteFileStatus.getModificationTime(),
-				LocalResourceVisibility.APPLICATION);
-			addToEnvShipResourceList(whetherToAddToEnvShipResourceList, descriptor);
-			localResources.put(key, descriptor.toLocalResource());
 			return descriptor;
 		}
 
