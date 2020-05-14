@@ -681,14 +681,12 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
 		final List<Path> providedLibDirs = getRemoteSharedPaths(configuration);
 
-		final int yarnFileReplication = yarnConfiguration.getInt(DFSConfigKeys.DFS_REPLICATION_KEY, DFSConfigKeys.DFS_REPLICATION_DEFAULT);
-		final int fileReplication = configuration.getInteger(YarnConfigOptions.FILE_REPLICATION);
 		final YarnApplicationFileUploader fileUploader = YarnApplicationFileUploader.from(
 			fs,
 			fs.getHomeDirectory(),
 			providedLibDirs,
 			appContext.getApplicationId(),
-			fileReplication > 0 ? fileReplication : yarnFileReplication);
+			getFileReplication());
 
 		// The files need to be shipped and added to classpath.
 		Set<File> systemShipFiles = new HashSet<>(shipFiles.size());
@@ -1059,6 +1057,12 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		// since deployment was successful, remove the hook
 		ShutdownHookUtil.removeShutdownHook(deploymentFailureHook, getClass().getSimpleName(), LOG);
 		return report;
+	}
+
+	private int getFileReplication() {
+		final int yarnFileReplication = yarnConfiguration.getInt(DFSConfigKeys.DFS_REPLICATION_KEY, DFSConfigKeys.DFS_REPLICATION_DEFAULT);
+		final int fileReplication = flinkConfiguration.getInteger(YarnConfigOptions.FILE_REPLICATION);
+		return fileReplication > 0 ? fileReplication : yarnFileReplication;
 	}
 
 	private List<Path> getRemoteSharedPaths(Configuration configuration) throws IOException, FlinkException {
