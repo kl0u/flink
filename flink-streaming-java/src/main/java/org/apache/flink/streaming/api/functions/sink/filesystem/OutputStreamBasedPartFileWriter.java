@@ -89,12 +89,12 @@ public abstract class OutputStreamBasedPartFileWriter<IN, BucketID> implements P
 		}
 
 		@Override
-		public PartFileWriter<IN, BucketID> openNew(final BucketID bucketID, final Path path, final long creationTime) throws IOException {
+		public PartFileWriter<IN, BucketID> openNewInProgressFile(final BucketID bucketID, final Path path, final long creationTime) throws IOException {
 			return openNew(bucketID, recoverableWriter.open(path), path, creationTime);
 		}
 
 		@Override
-		public PartFileWriter<IN, BucketID> resumeFrom(final BucketID bucketID, final InProgressFileRecoverable inProgressFileRecoverable, final long creationTime) throws IOException {
+		public PartFileWriter<IN, BucketID> resumeInProgressFileFrom(final BucketID bucketID, final InProgressFileRecoverable inProgressFileRecoverable, final long creationTime) throws IOException {
 			final OutputStreamBasedInProgressFileRecoverable outputStreamBasedInProgressRecoverable = (OutputStreamBasedInProgressFileRecoverable) inProgressFileRecoverable;
 			return resumeFrom(
 				bucketID,

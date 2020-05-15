@@ -99,7 +99,7 @@ public class HadoopPathBasedPartFileWriter<IN, BucketID> extends PathBasedPartFi
 		}
 
 		@Override
-		public PartFileWriter<IN, BucketID> openNew(BucketID bucketID, org.apache.flink.core.fs.Path flinkPath, long creationTime) throws IOException {
+		public PartFileWriter<IN, BucketID> openNewInProgressFile(BucketID bucketID, org.apache.flink.core.fs.Path flinkPath, long creationTime) throws IOException {
 			Path path = new Path(flinkPath.toUri());
 			HadoopFileCommitter fileCommitter = fileCommitterFactory.create(configuration, path);
 

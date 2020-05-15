@@ -70,7 +70,7 @@ public interface PartFileWriter<IN, BucketID> extends PartFileInfo<BucketID> {
 		 * @param creationTime the creation time of the file.
 		 * @return the new {@link PartFileWriter}
 		 */
-		PartFileWriter<IN, BucketID> openNew(
+		PartFileWriter<IN, BucketID> openNewInProgressFile(
 			final BucketID bucketID,
 			final Path path,
 			final long creationTime) throws IOException;
@@ -82,7 +82,7 @@ public interface PartFileWriter<IN, BucketID> extends PartFileInfo<BucketID> {
 		 * @param creationTime the creation time of the file.
 		 * @return the resumed {@link PartFileWriter}
 		 */
-		PartFileWriter<IN, BucketID> resumeFrom(
+		PartFileWriter<IN, BucketID> resumeInProgressFileFrom(
 			final BucketID bucketID,
 			final InProgressFileRecoverable inProgressFileSnapshot,
 			final long creationTime) throws IOException;

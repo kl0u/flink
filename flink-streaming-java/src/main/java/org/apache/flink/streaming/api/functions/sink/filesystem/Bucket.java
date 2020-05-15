@@ -131,7 +131,7 @@ public class Bucket<IN, BucketID> {
 		final PartFileWriter.InProgressFileRecoverable inProgressFileRecoverable = state.getInProgressFileRecoverable();
 
 		if (partFileFactory.getProperties().supportsResume()) {
-			inProgressPart = partFileFactory.resumeFrom(
+			inProgressPart = partFileFactory.resumeInProgressFileFrom(
 					bucketId, inProgressFileRecoverable, state.getInProgressFileCreationTime());
 		} else {
 			// if the writer does not support resume, then we close the
@@ -206,7 +206,7 @@ public class Bucket<IN, BucketID> {
 		closePartFile();
 
 		final Path partFilePath = assembleNewPartPath();
-		inProgressPart = partFileFactory.openNew(bucketId, partFilePath, currentTime);
+		inProgressPart = partFileFactory.openNewInProgressFile(bucketId, partFilePath, currentTime);
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Subtask {} opening new part file \"{}\" for bucket id={}.",

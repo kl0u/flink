@@ -156,7 +156,7 @@ public abstract class PathBasedPartFileWriter<IN, BucketID> implements PartFileW
 	public abstract static class Factory<IN, BucketID> implements PartFileFactory<IN, BucketID> {
 
 		@Override
-		public PartFileWriter<IN, BucketID> resumeFrom(BucketID bucketID, InProgressFileRecoverable inProgressFileSnapshot, long creationTime) throws IOException {
+		public PartFileWriter<IN, BucketID> resumeInProgressFileFrom(BucketID bucketID, InProgressFileRecoverable inProgressFileSnapshot, long creationTime) throws IOException {
 			throw new UnsupportedOperationException("Resume is not supported");
 		}
 
