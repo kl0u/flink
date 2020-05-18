@@ -330,13 +330,13 @@ public class BucketStateSerializerTest {
 			OutputFileConfig.builder().build());
 	}
 
-	private static RowWisePartWriter.RowWiseBucketWriter<String, String> createBucketWriter() {
-		return new RowWisePartWriter.RowWiseBucketWriter<>(
+	private static RowWiseBucketWriter<String, String> createBucketWriter() {
+		return new RowWiseBucketWriter<>(
 			new TestUtils.LocalRecoverableWriterForBucketStateMigrationTest(), new SimpleStringEncoder<>());
 	}
 
 	private static SimpleVersionedSerializer<BucketState<String>> bucketStateSerializer() {
-		final RowWisePartWriter.RowWiseBucketWriter factory = createBucketWriter();
+		final RowWiseBucketWriter factory = createBucketWriter();
 		return new BucketStateSerializer<>(
 			factory.getProperties().getInProgressFileRecoverableSerializer(),
 			factory.getProperties().getPendingFileRecoverableSerializer(),

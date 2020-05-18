@@ -364,7 +364,7 @@ public class BucketTest {
 				bucketId,
 				bucketPath,
 				initialPartCounter,
-				new RowWisePartWriter.RowWiseBucketWriter<>(writer, ENCODER),
+				new RowWiseBucketWriter<>(writer, ENCODER),
 				rollingPolicy,
 				outputFileConfig);
 	}
@@ -379,7 +379,7 @@ public class BucketTest {
 		return Bucket.restore(
 				subtaskIndex,
 				initialPartCounter,
-				new RowWisePartWriter.RowWiseBucketWriter<>(writer, ENCODER),
+				new RowWiseBucketWriter<>(writer, ENCODER),
 				rollingPolicy,
 				bucketState,
 				outputFileConfig);
@@ -410,7 +410,7 @@ public class BucketTest {
 		return Bucket.restore(
 			0,
 			1L,
-			new RowWisePartWriter.RowWiseBucketWriter<>(writer, ENCODER),
+			new RowWiseBucketWriter<>(writer, ENCODER),
 			rollingPolicy,
 			stateWithOnlyInProgressFile,
 			OutputFileConfig.builder().build());
@@ -430,7 +430,7 @@ public class BucketTest {
 		return Bucket.restore(
 			0,
 			1L,
-			new RowWisePartWriter.RowWiseBucketWriter<>(writer, ENCODER),
+			new RowWiseBucketWriter<>(writer, ENCODER),
 			rollingPolicy,
 			initStateWithOnlyInProgressFile, OutputFileConfig.builder().build());
 	}

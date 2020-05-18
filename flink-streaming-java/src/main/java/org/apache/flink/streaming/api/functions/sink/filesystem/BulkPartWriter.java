@@ -36,7 +36,7 @@ final class BulkPartWriter<IN, BucketID> extends OutputStreamBasedPartFileWriter
 
 	private final BulkWriter<IN> writer;
 
-	private BulkPartWriter(
+	BulkPartWriter(
 			final BucketID bucketId,
 			final RecoverableFsDataOutputStream currentPartStream,
 			final BulkWriter<IN> writer,
@@ -61,48 +61,5 @@ final class BulkPartWriter<IN, BucketID> extends OutputStreamBasedPartFileWriter
 		writer.flush();
 		writer.finish();
 		return super.closeForCommit();
-	}
-
-	/**
-	 * A factory that creates {@link BulkPartWriter BulkPartWriters}.
-	 * @param <IN> The type of input elements.
-	 * @param <BucketID> The type of ids for the buckets, as returned by the {@link BucketAssigner}.
-	 */
-	static class BulkBucketWriter<IN, BucketID> extends OutputStreamBasedBucketWriter<IN, BucketID> {
-
-		private final BulkWriter.Factory<IN> writerFactory;
-
-		BulkBucketWriter(final RecoverableWriter recoverableWriter, BulkWriter.Factory<IN> writerFactory) throws IOException {
-			super(recoverableWriter);
-			this.writerFactory = writerFactory;
-		}
-
-		@Override
-		public InProgressFileWriter<IN, BucketID> resumeFrom(
-				final BucketID bucketId,
-				final RecoverableFsDataOutputStream stream,
-				final RecoverableWriter.ResumeRecoverable resumable,
-				final long creationTime) throws IOException {
-
-			Preconditions.checkNotNull(stream);
-			Preconditions.checkNotNull(resumable);
-
-			final BulkWriter<IN> writer = writerFactory.create(stream);
-			return new BulkPartWriter<>(bucketId, stream, writer, creationTime);
-		}
-
-		@Override
-		public InProgressFileWriter<IN, BucketID> openNew(
-				final BucketID bucketId,
-				final RecoverableFsDataOutputStream stream,
-				final Path path,
-				final long creationTime) throws IOException {
-
-			Preconditions.checkNotNull(stream);
-			Preconditions.checkNotNull(path);
-
-			final BulkWriter<IN> writer = writerFactory.create(stream);
-			return new BulkPartWriter<>(bucketId, stream, writer, creationTime);
-		}
 	}
 }

@@ -25,29 +25,44 @@ import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.util.Preconditions;
 
-import java.io.IOException;
-
 /**
- * A {@link InProgressFileWriter} for row-wise formats that use an {@link Encoder}.
- * This also implements the {@link PartFileInfo}.
+ * A factory that creates {@link RowWisePartWriter RowWisePartWriters}.
+ * @param <IN> The type of input elements.
+ * @param <BucketID> The type of ids for the buckets, as returned by the {@link BucketAssigner}.
  */
 @Internal
-final class RowWisePartWriter<IN, BucketID> extends OutputStreamBasedPartFileWriter<IN, BucketID> {
+class RowWiseBucketWriter<IN, BucketID> extends OutputStreamBasedPartFileWriter.OutputStreamBasedBucketWriter<IN, BucketID> {
 
 	private final Encoder<IN> encoder;
 
-	RowWisePartWriter(
-			final BucketID bucketId,
-			final RecoverableFsDataOutputStream currentPartStream,
-			final Encoder<IN> encoder,
-			final long creationTime) {
-		super(bucketId, currentPartStream, creationTime);
-		this.encoder = Preconditions.checkNotNull(encoder);
+	RowWiseBucketWriter(final RecoverableWriter recoverableWriter, final Encoder<IN> encoder) {
+		super(recoverableWriter);
+		this.encoder = encoder;
 	}
 
 	@Override
-	public void write(final IN element, final long currentTime) throws IOException {
-		encoder.encode(element, currentPartStream);
-		markWrite(currentTime);
+	public InProgressFileWriter<IN, BucketID> resumeFrom(
+			final BucketID bucketId,
+			final RecoverableFsDataOutputStream stream,
+			final RecoverableWriter.ResumeRecoverable resumable,
+			final long creationTime) {
+
+		Preconditions.checkNotNull(stream);
+		Preconditions.checkNotNull(resumable);
+
+		return new RowWisePartWriter<>(bucketId, stream, encoder, creationTime);
+	}
+
+	@Override
+	public InProgressFileWriter<IN, BucketID> openNew(
+			final BucketID bucketId,
+			final RecoverableFsDataOutputStream stream,
+			final Path path,
+			final long creationTime) {
+
+		Preconditions.checkNotNull(stream);
+		Preconditions.checkNotNull(path);
+
+		return new RowWisePartWriter<>(bucketId, stream, encoder, creationTime);
 	}
 }
