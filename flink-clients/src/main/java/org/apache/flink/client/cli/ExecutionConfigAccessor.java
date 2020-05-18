@@ -19,7 +19,6 @@
 package org.apache.flink.client.cli;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
@@ -73,15 +72,11 @@ public class ExecutionConfigAccessor {
 	}
 
 	public List<URL> getJars() throws MalformedURLException {
-		return decodeUrlList(configuration, PipelineOptions.JARS);
+		return ConfigUtils.decodeListFromConfig(configuration, PipelineOptions.JARS, URL::new);
 	}
 
 	public List<URL> getClasspaths() throws MalformedURLException {
-		return decodeUrlList(configuration, PipelineOptions.CLASSPATHS);
-	}
-
-	private List<URL> decodeUrlList(final Configuration configuration, final ConfigOption<List<String>> configOption) throws MalformedURLException {
-		return ConfigUtils.decodeListFromConfig(configuration, configOption, URL::new);
+		return ConfigUtils.decodeListFromConfig(configuration, PipelineOptions.CLASSPATHS, URL::new);
 	}
 
 	public int getParallelism() {
