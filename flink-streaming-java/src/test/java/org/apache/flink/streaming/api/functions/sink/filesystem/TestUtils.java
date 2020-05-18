@@ -23,6 +23,9 @@ import org.apache.flink.api.common.serialization.Encoder;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
+import org.apache.flink.core.fs.local.LocalFileSystem;
+import org.apache.flink.core.fs.local.LocalRecoverableWriter;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.SimpleVersionedStringSerializer;
@@ -40,6 +43,7 @@ import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
@@ -412,6 +416,52 @@ public class TestUtils {
 		@Override
 		public void clear() {
 			backingList.clear();
+		}
+	}
+
+	static class LocalRecoverableWriterForBucketStateMigrationTest extends LocalRecoverableWriter {
+
+		final String prefix = "src/test/resources/";
+
+		LocalRecoverableWriterForBucketStateMigrationTest() {
+			super(new LocalFileSystem());
+		}
+
+		public RecoverableFsDataOutputStream open(Path filePath) throws IOException {
+			RecoverableFsDataOutputStream recoverableFsDataOutputStream = super.open(filePath);
+			try {
+				final Field targetFileField = recoverableFsDataOutputStream.getClass().getDeclaredField("targetFile");
+				targetFileField.setAccessible(true);
+				final File targetFile = (File) targetFileField.get(recoverableFsDataOutputStream);
+				final int indexOfTargetFileRelativePath = targetFile.toString().indexOf(prefix);
+				final File relativeTargetFile = new FileForBucketSateMigrationTest(targetFile.toString().substring(indexOfTargetFileRelativePath));
+				targetFileField.set(recoverableFsDataOutputStream, relativeTargetFile);
+
+				final Field tempFileField = recoverableFsDataOutputStream.getClass().getDeclaredField("tempFile");
+				tempFileField.setAccessible(true);
+				final File tempFile = (File) tempFileField.get(recoverableFsDataOutputStream);
+				final int indexOfTempFileRelativePath = tempFile.toString().indexOf(prefix);
+				final File relativeTemptFile = new FileForBucketSateMigrationTest(tempFile.toString().substring(indexOfTempFileRelativePath));
+				tempFileField.set(recoverableFsDataOutputStream, relativeTemptFile);
+
+			} catch (NoSuchFieldException | IllegalAccessException e) {
+				e.printStackTrace();
+				return null;
+			}
+			return recoverableFsDataOutputStream;
+		}
+	}
+
+	static class FileForBucketSateMigrationTest extends File {
+
+		FileForBucketSateMigrationTest(String pathname) {
+			super(pathname);
+		}
+
+		@Override
+		@Nonnull
+		public String getAbsolutePath() {
+			return getPath();
 		}
 	}
 }
