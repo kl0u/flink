@@ -70,11 +70,11 @@ public abstract class OutputStreamBasedPartFileWriter<IN, BucketID> extends Abst
 		return currentPartStream.getPos();
 	}
 
-	abstract static class OutputStreamBasedPartFileFactory<IN, BucketID> implements BucketWriter<IN, BucketID> {
+	abstract static class OutputStreamBasedBucketWriter<IN, BucketID> implements BucketWriter<IN, BucketID> {
 
 		private final RecoverableWriter recoverableWriter;
 
-		OutputStreamBasedPartFileFactory(final RecoverableWriter recoverableWriter) {
+		OutputStreamBasedBucketWriter(final RecoverableWriter recoverableWriter) {
 			this.recoverableWriter = recoverableWriter;
 		}
 

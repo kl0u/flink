@@ -81,14 +81,14 @@ public class Bucket<IN, BucketID> {
 			final BucketID bucketId,
 			final Path bucketPath,
 			final long initialPartCounter,
-			final BucketWriter<IN, BucketID> partFileFactory,
+			final BucketWriter<IN, BucketID> bucketWriter,
 			final RollingPolicy<IN, BucketID> rollingPolicy,
 			final OutputFileConfig outputFileConfig) {
 		this.subtaskIndex = subtaskIndex;
 		this.bucketId = checkNotNull(bucketId);
 		this.bucketPath = checkNotNull(bucketPath);
 		this.partCounter = initialPartCounter;
-		this.bucketWriter = checkNotNull(partFileFactory);
+		this.bucketWriter = checkNotNull(bucketWriter);
 		this.rollingPolicy = checkNotNull(rollingPolicy);
 
 		this.pendingFileRecoverablesForCurrentCheckpoint = new ArrayList<>();
@@ -341,7 +341,7 @@ public class Bucket<IN, BucketID> {
 	 * @param bucketId the identifier of the bucket, as returned by the {@link BucketAssigner}.
 	 * @param bucketPath the path to where the part files for the bucket will be written to.
 	 * @param initialPartCounter the initial counter for the part files of the bucket.
-	 * @param partFileFactory the {@link BucketWriter} the factory creating part file writers.
+	 * @param bucketWriter the {@link BucketWriter} used to write part files in the bucket.
 	 * @param <IN> the type of input elements to the sink.
 	 * @param <BucketID> the type of the identifier of the bucket, as returned by the {@link BucketAssigner}
 	 * @param outputFileConfig the part file configuration.
@@ -352,17 +352,17 @@ public class Bucket<IN, BucketID> {
 			final BucketID bucketId,
 			final Path bucketPath,
 			final long initialPartCounter,
-			final BucketWriter<IN, BucketID> partFileFactory,
+			final BucketWriter<IN, BucketID> bucketWriter,
 			final RollingPolicy<IN, BucketID> rollingPolicy,
 			final OutputFileConfig outputFileConfig) {
-		return new Bucket<>(subtaskIndex, bucketId, bucketPath, initialPartCounter, partFileFactory, rollingPolicy, outputFileConfig);
+		return new Bucket<>(subtaskIndex, bucketId, bucketPath, initialPartCounter, bucketWriter, rollingPolicy, outputFileConfig);
 	}
 
 	/**
 	 * Restores a {@code Bucket} from the state included in the provided {@link BucketState}.
 	 * @param subtaskIndex the index of the subtask creating the bucket.
 	 * @param initialPartCounter the initial counter for the part files of the bucket.
-	 * @param partFileFactory the {@link BucketWriter} the factory creating part file writers.
+	 * @param bucketWriter the {@link BucketWriter} used to write part files in the bucket.
 	 * @param bucketState the initial state of the restored bucket.
 	 * @param <IN> the type of input elements to the sink.
 	 * @param <BucketID> the type of the identifier of the bucket, as returned by the {@link BucketAssigner}
@@ -372,10 +372,10 @@ public class Bucket<IN, BucketID> {
 	static <IN, BucketID> Bucket<IN, BucketID> restore(
 			final int subtaskIndex,
 			final long initialPartCounter,
-			final BucketWriter<IN, BucketID> partFileFactory,
+			final BucketWriter<IN, BucketID> bucketWriter,
 			final RollingPolicy<IN, BucketID> rollingPolicy,
 			final BucketState<BucketID> bucketState,
 			final OutputFileConfig outputFileConfig) throws IOException {
-		return new Bucket<>(subtaskIndex, initialPartCounter, partFileFactory, rollingPolicy, bucketState, outputFileConfig);
+		return new Bucket<>(subtaskIndex, initialPartCounter, bucketWriter, rollingPolicy, bucketState, outputFileConfig);
 	}
 }
