@@ -56,11 +56,11 @@ final class RowWisePartWriter<IN, BucketID> extends OutputStreamBasedPartFileWri
 	 * @param <IN> The type of input elements.
 	 * @param <BucketID> The type of ids for the buckets, as returned by the {@link BucketAssigner}.
 	 */
-	static class Factory<IN, BucketID> extends OutputStreamBasedBucketWriter<IN, BucketID> {
+	static class RowWiseBucketWriter<IN, BucketID> extends OutputStreamBasedBucketWriter<IN, BucketID> {
 
 		private final Encoder<IN> encoder;
 
-		Factory(final RecoverableWriter recoverableWriter, final Encoder<IN> encoder) {
+		RowWiseBucketWriter(final RecoverableWriter recoverableWriter, final Encoder<IN> encoder) {
 			super(recoverableWriter);
 			this.encoder = encoder;
 		}

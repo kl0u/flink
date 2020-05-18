@@ -55,7 +55,7 @@ public class BucketAssignerITCases {
 			basePath,
 			new BasePathBucketAssigner<>(),
 			new DefaultBucketFactoryImpl<>(),
-			new RowWisePartWriter.Factory<>(FileSystem.get(basePath.toUri()).createRecoverableWriter(), new SimpleStringEncoder<>()),
+			new RowWisePartWriter.RowWiseBucketWriter<>(FileSystem.get(basePath.toUri()).createRecoverableWriter(), new SimpleStringEncoder<>()),
 			rollingPolicy,
 			null,
 			0,

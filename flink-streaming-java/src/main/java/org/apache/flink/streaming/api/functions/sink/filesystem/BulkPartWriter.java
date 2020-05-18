@@ -68,11 +68,11 @@ final class BulkPartWriter<IN, BucketID> extends OutputStreamBasedPartFileWriter
 	 * @param <IN> The type of input elements.
 	 * @param <BucketID> The type of ids for the buckets, as returned by the {@link BucketAssigner}.
 	 */
-	static class Factory<IN, BucketID> extends OutputStreamBasedBucketWriter<IN, BucketID> {
+	static class BulkBucketWriter<IN, BucketID> extends OutputStreamBasedBucketWriter<IN, BucketID> {
 
 		private final BulkWriter.Factory<IN> writerFactory;
 
-		Factory(final RecoverableWriter recoverableWriter, BulkWriter.Factory<IN> writerFactory) throws IOException {
+		BulkBucketWriter(final RecoverableWriter recoverableWriter, BulkWriter.Factory<IN> writerFactory) throws IOException {
 			super(recoverableWriter);
 			this.writerFactory = writerFactory;
 		}
