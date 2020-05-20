@@ -23,6 +23,7 @@ import org.apache.flink.client.cli.CliArgsException;
 import org.apache.flink.client.cli.CliFrontend;
 import org.apache.flink.client.deployment.ClusterClientFactory;
 import org.apache.flink.client.deployment.ClusterClientServiceLoader;
+import org.apache.flink.client.deployment.ClusterDeploymentException;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
 import org.apache.flink.client.program.ClusterClient;
@@ -292,7 +293,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 	}
 
 	@Override
-	public boolean isActive(CommandLine commandLine) {
+	public boolean isActive(CommandLine commandLine) throws ClusterDeploymentException {
 		final String jobManagerOption = commandLine.getOptionValue(addressOption.getOpt(), null);
 		final boolean yarnJobManager = ID.equals(jobManagerOption);
 		final boolean hasYarnAppId = commandLine.hasOption(applicationId.getOpt())

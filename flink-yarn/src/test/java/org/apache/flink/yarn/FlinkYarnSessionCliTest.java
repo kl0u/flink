@@ -182,7 +182,7 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 		validateExecutorCLIisPrioritised(configuration, argsUnderTest);
 	}
 
-	private void validateExecutorCLIisPrioritised(Configuration configuration, String[] argsUnderTest) throws IOException, CliArgsException {
+	private void validateExecutorCLIisPrioritised(Configuration configuration, String[] argsUnderTest) throws Exception {
 		final List<CustomCommandLine> customCommandLines = CliFrontend.loadCustomCommandLines(
 				configuration,
 				tmp.newFile().getAbsolutePath());
@@ -193,7 +193,7 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 				argsUnderTest,
 				true);
 
-		final CustomCommandLine customCommandLine = cli.getActiveCustomCommandLine(commandLine);
+		final CustomCommandLine customCommandLine = cli.validateAndGetActiveCommandLine(commandLine);
 		assertTrue(customCommandLine instanceof ExecutorCLI);
 	}
 

@@ -18,6 +18,7 @@
 
 package org.apache.flink.client.cli;
 
+import org.apache.flink.client.deployment.ClusterDeploymentException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.FlinkException;
 
@@ -34,7 +35,7 @@ public interface CustomCommandLine {
 	 * @param commandLine The command-line options
 	 * @return True if the command-line wants to run, False otherwise
 	 */
-	boolean isActive(CommandLine commandLine);
+	boolean isActive(CommandLine commandLine) throws ClusterDeploymentException;
 
 	/**
 	 * Gets the unique identifier of this CustomCommandLine.
