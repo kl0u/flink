@@ -19,6 +19,7 @@
 package org.apache.flink.client.deployment;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.util.ExceptionUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,6 +27,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
 import java.util.stream.Collectors;
 
@@ -38,38 +40,70 @@ public class DefaultClusterClientServiceLoader implements ClusterClientServiceLo
 
 	private static final Logger LOG = LoggerFactory.getLogger(DefaultClusterClientServiceLoader.class);
 
-	private static final ServiceLoader<ClusterClientFactory> defaultLoader = ServiceLoader.load(ClusterClientFactory.class);
+	private static final ServiceLoader<ClusterClientFactory> defaultLoader =
+			ServiceLoader.load(ClusterClientFactory.class);
+
+	private static final ServiceLoader<FallbackClusterClientFactory> fallbackLoader =
+			ServiceLoader.load(FallbackClusterClientFactory.class);
 
 	@Override
 	public <ClusterID> ClusterClientFactory<ClusterID> getClusterClientFactory(final Configuration configuration) {
 		checkNotNull(configuration);
 
-		final List<ClusterClientFactory> compatibleFactories = new ArrayList<>();
-		final Iterator<ClusterClientFactory> factories = defaultLoader.iterator();
+		final List<ClusterClientFactory> compatibleFactories = loadCompatibleFactories(configuration);
+		if (compatibleFactories.size() > 1) {
+			throw new IllegalStateException(
+					"Multiple compatible client factories found for:\n" +
+							configurationToString(configuration) + ".");
+		}
+
+		if (!compatibleFactories.isEmpty()) {
+			return (ClusterClientFactory<ClusterID>) compatibleFactories.get(0);
+		}
+
+		final List<FallbackClusterClientFactory> fallbackFactories = loadFallbackFactories(configuration);
+		if (!fallbackFactories.isEmpty()) {
+			return (ClusterClientFactory) fallbackFactories.get(0);
+		}
+
+		throw new IllegalArgumentException(
+				"No compatible ClusterClientFactory found. The provided configuration was:\n" +
+						configurationToString(configuration));
+	}
+
+	private List<ClusterClientFactory> loadCompatibleFactories(Configuration configuration) {
+		return loadAllCompatibleFactories(defaultLoader, configuration);
+	}
+
+	private List<FallbackClusterClientFactory> loadFallbackFactories(Configuration configuration) {
+		return loadAllCompatibleFactories(fallbackLoader, configuration);
+	}
+
+	private <T extends  ClusterClientFactory> List<T> loadAllCompatibleFactories(
+			final ServiceLoader<T> serviceLoader,
+			final Configuration configuration) {
+		final List<T> compatibleFactories = new ArrayList<>();
+		final Iterator<T> factories = serviceLoader.iterator();
 		while (factories.hasNext()) {
 			try {
-				final ClusterClientFactory factory = factories.next();
+				final T factory = factories.next();
 				if (factory != null && factory.isCompatibleWith(configuration)) {
 					compatibleFactories.add(factory);
 				}
-			} catch (Throwable e) {
-				if (e.getCause() instanceof NoClassDefFoundError) {
+			} catch (ServiceConfigurationError e) {
+				if (ExceptionUtils.findThrowable(e, NoClassDefFoundError.class).isPresent()) {
 					LOG.info("Could not load factory due to missing dependencies.");
 				} else {
 					throw e;
 				}
 			}
 		}
+		return compatibleFactories;
+	}
 
-		if (compatibleFactories.size() > 1) {
-			final List<String> configStr =
-					configuration.toMap().entrySet().stream()
-							.map(e -> e.getKey() + "=" + e.getValue())
-							.collect(Collectors.toList());
-
-			throw new IllegalStateException("Multiple compatible client factories found for:\n" + String.join("\n", configStr) + ".");
-		}
-
-		return compatibleFactories.isEmpty() ? null : (ClusterClientFactory<ClusterID>) compatibleFactories.get(0);
+	private static String configurationToString(final Configuration configuration) {
+		return configuration.toMap().entrySet().stream()
+				.map(e -> e.getKey() + "=" + e.getValue())
+				.collect(Collectors.joining("\n"));
 	}
 }

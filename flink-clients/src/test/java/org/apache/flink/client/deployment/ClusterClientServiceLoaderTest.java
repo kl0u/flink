@@ -65,7 +65,7 @@ public class ClusterClientServiceLoaderTest {
 	}
 
 	@Test
-	public void testFactoryDiscovery() {
+	public void testFactoryDiscovery() throws ClusterDeploymentException {
 		final Configuration config = new Configuration();
 		config.setString(DeploymentOptions.TARGET, VALID_TARGET);
 

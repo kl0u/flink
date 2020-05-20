@@ -41,7 +41,7 @@ public interface ClusterClientFactory<ClusterID> {
 	 * @param configuration containing the configuration options relevant for the {@link ClusterDescriptor}
 	 * @return the corresponding {@link ClusterDescriptor}.
 	 */
-	ClusterDescriptor<ClusterID> createClusterDescriptor(Configuration configuration);
+	ClusterDescriptor<ClusterID> createClusterDescriptor(Configuration configuration) throws ClusterDeploymentException;
 
 	/**
 	 * Returns the cluster id if a cluster id is specified in the provided configuration, otherwise it returns {@code null}.
@@ -52,7 +52,7 @@ public interface ClusterClientFactory<ClusterID> {
 	 * @return Cluster id identifying the cluster to deploy jobs to or null
 	 */
 	@Nullable
-	ClusterID getClusterId(Configuration configuration);
+	ClusterID getClusterId(Configuration configuration) throws ClusterDeploymentException;
 
 	/**
 	 * Returns the {@link ClusterSpecification} specified by the configuration and the command
@@ -61,5 +61,5 @@ public interface ClusterClientFactory<ClusterID> {
 	 * @param configuration containing the configuration options relevant for the {@link ClusterSpecification}
 	 * @return the corresponding {@link ClusterSpecification} for a new Flink cluster
 	 */
-	ClusterSpecification getClusterSpecification(Configuration configuration);
+	ClusterSpecification getClusterSpecification(Configuration configuration) throws ClusterDeploymentException;
 }

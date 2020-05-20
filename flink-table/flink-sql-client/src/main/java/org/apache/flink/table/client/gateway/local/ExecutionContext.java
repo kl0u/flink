@@ -28,6 +28,7 @@ import org.apache.flink.client.cli.ExecutionConfigAccessor;
 import org.apache.flink.client.cli.ProgramOptions;
 import org.apache.flink.client.deployment.ClusterClientFactory;
 import org.apache.flink.client.deployment.ClusterClientServiceLoader;
+import org.apache.flink.client.deployment.ClusterDeploymentException;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.configuration.Configuration;
@@ -219,7 +220,7 @@ public class ExecutionContext<ClusterID> {
 		return clusterId;
 	}
 
-	public ClusterDescriptor<ClusterID> createClusterDescriptor() {
+	public ClusterDescriptor<ClusterID> createClusterDescriptor() throws ClusterDeploymentException {
 		return clusterClientFactory.createClusterDescriptor(flinkConfig);
 	}
 
@@ -345,7 +346,7 @@ public class ExecutionContext<ClusterID> {
 		}
 	}
 
-	private static CustomCommandLine findActiveCommandLine(List<CustomCommandLine> availableCommandLines, CommandLine commandLine) {
+	private static CustomCommandLine findActiveCommandLine(List<CustomCommandLine> availableCommandLines, CommandLine commandLine) throws ClusterDeploymentException {
 		for (CustomCommandLine cli : availableCommandLines) {
 			if (cli.isActive(commandLine)) {
 				return cli;
