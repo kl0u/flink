@@ -66,9 +66,7 @@ public class DefaultClusterClientServiceLoader implements ClusterClientServiceLo
 			return (ClusterClientFactory) fallbackFactories.get(0);
 		}
 
-		throw new IllegalArgumentException(
-				"No compatible ClusterClientFactory found. The provided configuration was:\n" +
-						configurationToString(configuration));
+		return null;
 	}
 
 	private List<ClusterClientFactory> loadCompatibleFactories(Configuration configuration) {
