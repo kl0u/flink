@@ -71,20 +71,20 @@ public class ScalaShellStreamEnvironment extends StreamExecutionEnvironment {
 
 	@Override
 	public JobClient executeAsync(StreamGraph streamGraph) throws Exception {
-		addDependentJars();
+		updateDependencies();
 		return super.executeAsync(streamGraph);
 	}
 
-	public Configuration getClientConfiguration() {
-		return getConfiguration();
-	}
-
-	private void addDependentJars() throws Exception {
+	private void updateDependencies() throws Exception {
 		final Configuration configuration = getConfiguration();
 		checkState(configuration.getBoolean(DeploymentOptions.ATTACHED), "Only ATTACHED mode is supported by the scala shell.");
 
 		final List<URL> updatedJarFiles = getUpdatedJarFiles();
 		ConfigUtils.encodeCollectionToConfig(configuration, PipelineOptions.JARS, updatedJarFiles, URL::toString);
+	}
+
+	public Configuration getClientConfiguration() {
+		return getConfiguration();
 	}
 
 	private List<URL> getUpdatedJarFiles() throws MalformedURLException {

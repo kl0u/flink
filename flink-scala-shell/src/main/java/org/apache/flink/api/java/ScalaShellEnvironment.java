@@ -70,7 +70,13 @@ public class ScalaShellEnvironment extends ExecutionEnvironment {
 		return checkNotNull(configuration);
 	}
 
-	private void addDependentJars() throws Exception {
+	@Override
+	public JobClient executeAsync(String jobName) throws Exception {
+		updateDependencies();
+		return super.executeAsync(jobName);
+	}
+
+	private void updateDependencies() throws Exception {
 		final Configuration configuration = getConfiguration();
 		checkState(configuration.getBoolean(DeploymentOptions.ATTACHED), "Only ATTACHED mode is supported by the scala shell.");
 
@@ -83,12 +89,6 @@ public class ScalaShellEnvironment extends ExecutionEnvironment {
 		final List<URL> allJarFiles = new ArrayList<>(jarFiles);
 		allJarFiles.add(jarUrl);
 		return allJarFiles;
-	}
-
-	@Override
-	public JobClient executeAsync(String jobName) throws Exception {
-		addDependentJars();
-		return super.executeAsync(jobName);
 	}
 
 	public static void disableAllContextAndOtherEnvironments() {
