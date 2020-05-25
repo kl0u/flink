@@ -968,9 +968,7 @@ public class CliFrontend {
 		final Configuration configuration = GlobalConfiguration.loadConfiguration(configurationDirectory);
 
 		// 3. load the custom command lines
-		final List<CustomCommandLine> customCommandLines = loadCustomCommandLines(
-			configuration,
-			configurationDirectory);
+		final List<CustomCommandLine> customCommandLines = loadCustomCommandLines(configuration);
 
 		try {
 			final CliFrontend cli = new CliFrontend(
@@ -1033,7 +1031,7 @@ public class CliFrontend {
 		config.setInteger(RestOptions.PORT, address.getPort());
 	}
 
-	public static List<CustomCommandLine> loadCustomCommandLines(Configuration configuration, String configurationDirectory) {
+	public static List<CustomCommandLine> loadCustomCommandLines(Configuration configuration) {
 		List<CustomCommandLine> customCommandLines = new ArrayList<>();
 		customCommandLines.add(new ExecutorCLI(configuration));
 
@@ -1044,7 +1042,6 @@ public class CliFrontend {
 			customCommandLines.add(
 				loadCustomCommandLine(flinkYarnSessionCLI,
 					configuration,
-					configurationDirectory,
 					"y",
 					"yarn"));
 		} catch (NoClassDefFoundError | Exception e) {

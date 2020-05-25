@@ -937,7 +937,6 @@ public abstract class YarnTestBase extends TestLogger {
 	protected static class Runner extends Thread {
 		private final String[] args;
 		private final org.apache.flink.configuration.Configuration configuration;
-		private final String configurationDirectory;
 		private final int expectedReturnValue;
 
 		private final PrintStream stdinPrintStream;
@@ -955,8 +954,12 @@ public abstract class YarnTestBase extends TestLogger {
 				PrintStream stdinPrintStream) {
 
 			this.args = args;
+
 			this.configuration = Preconditions.checkNotNull(configuration);
-			this.configurationDirectory = Preconditions.checkNotNull(configurationDirectory);
+			YarnTestUtils.configureLogFile(
+					this.configuration,
+					Preconditions.checkNotNull(configurationDirectory));
+
 			this.type = type;
 			this.expectedReturnValue = expectedReturnValue;
 			this.stdinPrintStream = Preconditions.checkNotNull(stdinPrintStream);
@@ -970,7 +973,6 @@ public abstract class YarnTestBase extends TestLogger {
 					case YARN_SESSION:
 						yCli = new FlinkYarnSessionCli(
 							configuration,
-							configurationDirectory,
 							"",
 							"",
 							true);
@@ -980,7 +982,7 @@ public abstract class YarnTestBase extends TestLogger {
 						try {
 							CliFrontend cli = new CliFrontend(
 								configuration,
-								CliFrontend.loadCustomCommandLines(configuration, configurationDirectory));
+								CliFrontend.loadCustomCommandLines(configuration));
 							returnValue = cli.parseParameters(args);
 						} catch (Exception e) {
 							throw new RuntimeException("Failed to execute the following args with CliFrontend: "

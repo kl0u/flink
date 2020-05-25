@@ -232,12 +232,9 @@ object FlinkShell {
     val effectiveConfig = new Configuration(flinkConfig)
     val args = parseYarnArgList(config, "yarn-cluster")
 
-    val configurationDirectory =
-      config.configDir.getOrElse(CliFrontend.getConfigurationDirectoryFromEnv)
-
     val frontend = new CliFrontend(
       effectiveConfig,
-      CliFrontend.loadCustomCommandLines(effectiveConfig, configurationDirectory))
+      CliFrontend.loadCustomCommandLines(effectiveConfig))
 
     val commandOptions = CliFrontendParser.getRunCommandOptions
     val commandLineOptions = CliFrontendParser.mergeOptions(commandOptions,
@@ -270,13 +267,10 @@ object FlinkShell {
 
     val effectiveConfig = new Configuration(flinkConfig)
     val args = parseYarnArgList(config, mode)
-
-    val configurationDirectory =
-      config.configDir.getOrElse(CliFrontend.getConfigurationDirectoryFromEnv)
-
+    
     val frontend = new CliFrontend(
       effectiveConfig,
-      CliFrontend.loadCustomCommandLines(effectiveConfig, configurationDirectory))
+      CliFrontend.loadCustomCommandLines(effectiveConfig))
 
     val commandOptions = CliFrontendParser.getRunCommandOptions
     val commandLineOptions = CliFrontendParser.mergeOptions(commandOptions,

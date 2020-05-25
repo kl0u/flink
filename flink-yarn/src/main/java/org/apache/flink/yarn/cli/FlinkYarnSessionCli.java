@@ -20,7 +20,6 @@ package org.apache.flink.yarn.cli;
 
 import org.apache.flink.client.cli.AbstractCustomCommandLine;
 import org.apache.flink.client.cli.CliArgsException;
-import org.apache.flink.client.cli.CliFrontend;
 import org.apache.flink.client.deployment.ClusterClientFactory;
 import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.deployment.ClusterSpecification;
@@ -44,7 +43,6 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.ShutdownHookUtil;
 import org.apache.flink.yarn.YarnClusterDescriptor;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
-import org.apache.flink.yarn.configuration.YarnLogConfigUtil;
 import org.apache.flink.yarn.executors.YarnJobClusterExecutor;
 import org.apache.flink.yarn.executors.YarnSessionClusterExecutor;
 
@@ -139,8 +137,6 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 
 	private final boolean acceptInteractiveInput;
 
-	private final String configurationDirectory;
-
 	private final Properties yarnPropertiesFile;
 
 	private final ApplicationId yarnApplicationIdFromYarnProperties;
@@ -154,31 +150,27 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 
 	public FlinkYarnSessionCli(
 			Configuration configuration,
-			String configurationDirectory,
 			String shortPrefix,
 			String longPrefix) throws FlinkException {
-		this(configuration, new DefaultClusterClientServiceLoader(), configurationDirectory, shortPrefix, longPrefix, true);
+		this(configuration, new DefaultClusterClientServiceLoader(), shortPrefix, longPrefix, true);
 	}
 
 	public FlinkYarnSessionCli(
 			Configuration configuration,
-			String configurationDirectory,
 			String shortPrefix,
 			String longPrefix,
 			boolean acceptInteractiveInput) throws FlinkException {
-		this(configuration, new DefaultClusterClientServiceLoader(), configurationDirectory, shortPrefix, longPrefix, acceptInteractiveInput);
+		this(configuration, new DefaultClusterClientServiceLoader(), shortPrefix, longPrefix, acceptInteractiveInput);
 	}
 
 	public FlinkYarnSessionCli(
 			Configuration configuration,
 			ClusterClientServiceLoader clusterClientServiceLoader,
-			String configurationDirectory,
 			String shortPrefix,
 			String longPrefix,
 			boolean acceptInteractiveInput) throws FlinkException {
 		super(configuration);
 		this.clusterClientServiceLoader = checkNotNull(clusterClientServiceLoader);
-		this.configurationDirectory = checkNotNull(configurationDirectory);
 		this.acceptInteractiveInput = acceptInteractiveInput;
 
 		// Create the command line options
@@ -432,8 +424,6 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 			final String nodeLabelValue = commandLine.getOptionValue(this.nodeLabel.getOpt());
 			configuration.setString(YarnConfigOptions.NODE_LABEL, nodeLabelValue);
 		}
-
-		YarnLogConfigUtil.setLogConfigFileInConfig(configuration, configurationDirectory);
 	}
 
 	private boolean isYarnPropertiesFileMode(CommandLine commandLine) {
@@ -731,8 +721,6 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 	}
 
 	public static void main(final String[] args) {
-		final String configurationDirectory = CliFrontend.getConfigurationDirectoryFromEnv();
-
 		final Configuration flinkConfiguration = GlobalConfiguration.loadConfiguration();
 
 		int retCode;
@@ -740,7 +728,6 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 		try {
 			final FlinkYarnSessionCli cli = new FlinkYarnSessionCli(
 				flinkConfiguration,
-				configurationDirectory,
 				"",
 				""); // no prefix for the YARN session
 

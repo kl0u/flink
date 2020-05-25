@@ -66,13 +66,13 @@ public class CliFrontendRunWithYarnTest extends CliFrontendTestBase {
 		configuration.setString(JobManagerOptions.ADDRESS, "localhost");
 		configuration.setInteger(JobManagerOptions.PORT, 8081);
 		configuration.set(TaskManagerOptions.TOTAL_FLINK_MEMORY, MemorySize.parse("1g"));
+		YarnTestUtils.configureLogFile(configuration, tmp.getRoot().getAbsolutePath());
 
 		final ClusterClientServiceLoader testServiceLoader = new DefaultClusterClientServiceLoader();
 
 		final FlinkYarnSessionCli yarnCLI = new FlinkYarnSessionCli(
 			configuration,
 			testServiceLoader,
-			tmp.getRoot().getAbsolutePath(),
 			"y",
 			"yarn",
 			true);

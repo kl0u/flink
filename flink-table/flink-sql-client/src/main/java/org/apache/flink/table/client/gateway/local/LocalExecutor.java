@@ -132,7 +132,7 @@ public class LocalExecutor implements Executor {
 			FileSystem.initialize(flinkConfig, PluginUtils.createPluginManagerFromRootFolder(flinkConfig));
 
 			// load command lines for deployment
-			this.commandLines = CliFrontend.loadCustomCommandLines(flinkConfig, flinkConfigDir);
+			this.commandLines = CliFrontend.loadCustomCommandLines(flinkConfig);
 			this.commandLineOptions = collectCommandLineOptions(commandLines);
 		} catch (Exception e) {
 			throw new SqlClientException("Could not load Flink configuration.", e);

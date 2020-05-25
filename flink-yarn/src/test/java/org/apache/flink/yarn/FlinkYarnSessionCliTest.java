@@ -86,7 +86,6 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 
 		FlinkYarnSessionCli cli = new FlinkYarnSessionCli(
 			new Configuration(),
-			tmp.getRoot().getAbsolutePath(),
 			"",
 			"",
 			false);
@@ -182,10 +181,8 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 		validateExecutorCLIisPrioritised(configuration, argsUnderTest);
 	}
 
-	private void validateExecutorCLIisPrioritised(Configuration configuration, String[] argsUnderTest) throws IOException, CliArgsException {
-		final List<CustomCommandLine> customCommandLines = CliFrontend.loadCustomCommandLines(
-				configuration,
-				tmp.newFile().getAbsolutePath());
+	private void validateExecutorCLIisPrioritised(Configuration configuration, String[] argsUnderTest) throws CliArgsException {
+		final List<CustomCommandLine> customCommandLines = CliFrontend.loadCustomCommandLines(configuration);
 
 		final CliFrontend cli = new CliFrontend(configuration, customCommandLines);
 		final CommandLine commandLine = cli.getCommandLine(
@@ -498,9 +495,9 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 	}
 
 	private FlinkYarnSessionCli createFlinkYarnSessionCli(Configuration configuration) throws FlinkException {
+		YarnTestUtils.configureLogFile(configuration, tmp.getRoot().getAbsolutePath());
 		return new FlinkYarnSessionCli(
 			configuration,
-			tmp.getRoot().getAbsolutePath(),
 			"y",
 			"yarn");
 	}

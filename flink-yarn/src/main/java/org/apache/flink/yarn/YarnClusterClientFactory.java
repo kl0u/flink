@@ -19,12 +19,14 @@
 package org.apache.flink.yarn;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.client.cli.CliFrontend;
 import org.apache.flink.client.deployment.AbstractContainerizedClusterClientFactory;
 import org.apache.flink.client.deployment.ClusterClientFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.configuration.YarnDeploymentTarget;
+import org.apache.flink.yarn.configuration.YarnLogConfigUtil;
 
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.client.api.YarnClient;
@@ -51,6 +53,10 @@ public class YarnClusterClientFactory extends AbstractContainerizedClusterClient
 	@Override
 	public YarnClusterDescriptor createClusterDescriptor(Configuration configuration) {
 		checkNotNull(configuration);
+
+		final String configurationDirectory = CliFrontend.getConfigurationDirectoryFromEnv();
+		YarnLogConfigUtil.setLogConfigFileInConfig(configuration, configurationDirectory);
+
 		return getClusterDescriptor(configuration);
 	}
 
