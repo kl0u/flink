@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
@@ -42,6 +43,7 @@ import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.transformations.PhysicalTransformation;
 import org.apache.flink.streaming.api.transformations.SelectTransformation;
+import org.apache.flink.streaming.api.transformations.ShuffleMode;
 import org.apache.flink.streaming.api.transformations.SideOutputTransformation;
 import org.apache.flink.streaming.api.transformations.SinkTransformation;
 import org.apache.flink.streaming.api.transformations.SourceTransformation;
@@ -346,6 +348,26 @@ public class StreamGraphGenerator {
 		Collection<Integer> transformedIds = transform(input);
 		for (Integer transformedId: transformedIds) {
 			int virtualId = Transformation.getNewNodeId();
+
+			boolean allPredecessorsBounded = partition.getTransitivePredecessors()
+				.stream()
+				.filter(transformation -> transformation instanceof SourceTransformation ||
+					transformation instanceof LegacySourceTransformation ||
+					transformation instanceof PartitionTransformation)
+				.allMatch(
+					transformation -> {
+						if (transformation instanceof PartitionTransformation) {
+							return ((PartitionTransformation<?>) transformation).getShuffleMode() !=
+								ShuffleMode.PIPELINED;
+						} else if (transformation instanceof SourceTransformation) {
+							return ((SourceTransformation<?>) transformation).getOperatorFactory().getBoundedness() ==
+								Boundedness.BOUNDED;
+						}
+
+						return false;
+					}
+				);
+
 			streamGraph.addVirtualPartitionNode(
 					transformedId, virtualId, partition.getPartitioner(), partition.getShuffleMode());
 			resultIds.add(virtualId);
