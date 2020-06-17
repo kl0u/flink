@@ -351,25 +351,26 @@ public class StreamGraphGenerator {
 
 			boolean allPredecessorsBounded = partition.getTransitivePredecessors()
 				.stream()
-				.filter(transformation -> transformation instanceof SourceTransformation ||
-					transformation instanceof LegacySourceTransformation ||
-					transformation instanceof PartitionTransformation)
-				.allMatch(
+				.filter(transformation ->
+						transformation instanceof SourceTransformation ||
+						transformation instanceof LegacySourceTransformation
+				).allMatch(
 					transformation -> {
-						if (transformation instanceof PartitionTransformation) {
-							return ((PartitionTransformation<?>) transformation).getShuffleMode() !=
-								ShuffleMode.PIPELINED;
-						} else if (transformation instanceof SourceTransformation) {
-							return ((SourceTransformation<?>) transformation).getOperatorFactory().getBoundedness() ==
-								Boundedness.BOUNDED;
+						// TODO: 17.06.20 iterationsssssss????
+						if (transformation instanceof SourceTransformation) {
+							return ((SourceTransformation<?>) transformation).getOperatorFactory().getBoundedness() == Boundedness.BOUNDED;
 						}
-
 						return false;
 					}
 				);
 
+			final ShuffleMode shuffleMode = allPredecessorsBounded
+					? partition.getShuffleMode()
+					: ShuffleMode.PIPELINED;
+
 			streamGraph.addVirtualPartitionNode(
-					transformedId, virtualId, partition.getPartitioner(), partition.getShuffleMode());
+					transformedId, virtualId, partition.getPartitioner(), shuffleMode);
+
 			resultIds.add(virtualId);
 		}
 

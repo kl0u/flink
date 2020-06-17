@@ -552,6 +552,7 @@ public class StreamingJobGraphGenerator {
 
 		downStreamConfig.setNumberOfInputs(downStreamConfig.getNumberOfInputs() + 1);
 
+		// this is for the cross-chain edge partitioner
 		StreamPartitioner<?> partitioner = edge.getPartitioner();
 
 		ResultPartitionType resultPartitionType;

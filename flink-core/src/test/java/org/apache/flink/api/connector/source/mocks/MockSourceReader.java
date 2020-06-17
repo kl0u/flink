@@ -33,8 +33,8 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public class MockSourceReader implements SourceReader<Integer, MockSourceSplit> {
 	private final AtomicReference<CompletableFuture<Void>> availableRef;
-	private List<MockSourceSplit> assignedSplits;
-	private List<SourceEvent> receivedSourceEvents;
+	private final List<MockSourceSplit> assignedSplits;
+	private final List<SourceEvent> receivedSourceEvents;
 	private int currentSplitIndex = 0;
 	private boolean started;
 	private boolean closed;

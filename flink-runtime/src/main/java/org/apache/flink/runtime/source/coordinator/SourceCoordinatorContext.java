@@ -261,8 +261,8 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
 	 * @param subtaskId the subtask id of the source reader.
 	 */
 	void unregisterSourceReader(int subtaskId) {
-		Preconditions.checkNotNull(registeredReaders.remove(subtaskId), String.format(
-				"Failed to unregister source reader of id %s because it is not registered.", subtaskId));
+//		Preconditions.checkNotNull(registeredReaders.remove(subtaskId), String.format(
+//				"Failed to unregister source reader of id %s because it is not registered.", subtaskId));
 	}
 
 	/**

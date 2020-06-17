@@ -154,6 +154,8 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT> implements 
 			try {
 				LOG.info("Handling subtask {} failure of source {}.", subtaskId, operatorName);
 				List<SplitT> splitsToAddBack = context.getAndRemoveUncheckpointedAssignment(subtaskId);
+				// TODO: 24.06.20 here we should not simply fail with an NPE because the
+				//  failure may be due to not enough resources, i.e. failure to register
 				context.unregisterSourceReader(subtaskId);
 				LOG.debug("Adding {} back to the split enumerator of source {}.", splitsToAddBack, operatorName);
 				enumerator.addSplitsBack(splitsToAddBack, subtaskId);

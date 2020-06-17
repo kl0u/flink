@@ -39,15 +39,16 @@ import static org.junit.Assert.assertThat;
  * A test class for testing setting a correct {@link ShuffleMode} by {@link StreamGraphGenerator}.
  */
 public class StreamGraphGeneratorShuffleModeTest {
+
 	public static final CoMapFunction<Integer, Integer, Object> NO_OP_CO_MAPPER =
 		new CoMapFunction<Integer, Integer, Object>() {
 			@Override
-			public Object map1(Integer value) throws Exception {
+			public Object map1(Integer value) {
 				return null;
 			}
 
 			@Override
-			public Object map2(Integer value) throws Exception {
+			public Object map2(Integer value) {
 				return null;
 			}
 		};
@@ -65,7 +66,7 @@ public class StreamGraphGeneratorShuffleModeTest {
 
 		StreamGraph graph = env.getStreamGraph();
 		StreamNode keyedResultNode = graph.getStreamNode(keyedResult.getId());
-		assertThat(keyedResultNode.getInEdges().get(0).getShuffleMode(), equalTo(ShuffleMode.BATCH));
+		assertThat(keyedResultNode.getInEdges().get(0).getShuffleMode(), equalTo(ShuffleMode.UNDEFINED));
 	}
 
 	@Test
@@ -81,7 +82,7 @@ public class StreamGraphGeneratorShuffleModeTest {
 
 		StreamGraph graph = env.getStreamGraph();
 		StreamNode keyedResultNode = graph.getStreamNode(keyedResult.getId());
-		assertThat(keyedResultNode.getInEdges().get(0).getShuffleMode(), equalTo(ShuffleMode.UNDEFINED));
+		assertThat(keyedResultNode.getInEdges().get(0).getShuffleMode(), equalTo(ShuffleMode.PIPELINED));
 	}
 
 	@Test
@@ -98,7 +99,7 @@ public class StreamGraphGeneratorShuffleModeTest {
 
 		SingleOutputStreamOperator<Integer> firstShuffle = boundedSource
 			.keyBy(value -> value)
-			.map(new NoOpIntMap());
+			.map(new NoOpIntMap()).setParallelism(5);
 
 		SingleOutputStreamOperator<Object> secondShuffle = firstShuffle.connect(continuousSource)
 			.keyBy(value -> value, value -> value)
@@ -109,8 +110,39 @@ public class StreamGraphGeneratorShuffleModeTest {
 		StreamNode firstShuffleNode = graph.getStreamNode(firstShuffle.getId());
 		StreamNode secondShuffleNode = graph.getStreamNode(secondShuffle.getId());
 
-		assertThat(firstShuffleNode.getInEdges().get(0).getShuffleMode(), equalTo(ShuffleMode.BATCH));
-		assertThat(secondShuffleNode.getInEdges().get(0).getShuffleMode(), equalTo(ShuffleMode.BATCH));
+		assertThat(firstShuffleNode.getInEdges().get(0).getShuffleMode(), equalTo(ShuffleMode.UNDEFINED));
+		assertThat(secondShuffleNode.getInEdges().get(0).getShuffleMode(), equalTo(ShuffleMode.UNDEFINED)); // TODO: 17.06.20 this should be translated to blocking 
+		assertThat(secondShuffleNode.getInEdges().get(1).getShuffleMode(), equalTo(ShuffleMode.PIPELINED));
+	}
+
+	@Test
+	public void testSecondMixedSourcesShuffleHaveBatchShuffleMode() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		DataStreamSource<Integer> boundedSource = env.continuousSource(
+				new MockSource(Boundedness.BOUNDED, 2),
+				WatermarkStrategy.noWatermarks(),
+				"bounded");
+		DataStreamSource<Integer> continuousSource = env.continuousSource(
+				new MockSource(Boundedness.CONTINUOUS_UNBOUNDED, 2),
+				WatermarkStrategy.noWatermarks(),
+				"unbounded");
+
+		SingleOutputStreamOperator<Integer> firstShuffle = continuousSource
+				.keyBy(value -> value)
+				.map(new NoOpIntMap()).setParallelism(5);
+
+		SingleOutputStreamOperator<Object> secondShuffle = firstShuffle.connect(boundedSource)
+				.keyBy(value -> value, value -> value)
+				.map(NO_OP_CO_MAPPER);
+		secondShuffle.addSink(new DiscardingSink<>());
+
+		StreamGraph graph = env.getStreamGraph();
+		StreamNode firstShuffleNode = graph.getStreamNode(firstShuffle.getId());
+		StreamNode secondShuffleNode = graph.getStreamNode(secondShuffle.getId());
+
+		assertThat(firstShuffleNode.getInEdges().get(0).getShuffleMode(), equalTo(ShuffleMode.PIPELINED));
+		assertThat(secondShuffleNode.getInEdges().get(0).getShuffleMode(), equalTo(ShuffleMode.PIPELINED));
 		assertThat(secondShuffleNode.getInEdges().get(1).getShuffleMode(), equalTo(ShuffleMode.UNDEFINED));
 	}
+
 }
