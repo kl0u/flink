@@ -173,8 +173,8 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		this.userJarInclusion = getUserJarInclusionMode(flinkConfiguration);
 
 		getLocalFlinkDistPath(flinkConfiguration).ifPresent(this::setLocalJarPath);
-		decodeFilesToShipToCluster(flinkConfiguration, YarnConfigOptions.SHIP_DIRECTORIES).ifPresent(this::addShipFiles);
-		decodeFilesToShipToCluster(flinkConfiguration, YarnConfigOptions.SHIP_ARCHIVES).ifPresent(this::addShipArchives);
+		decodeItemsToShipToCluster(flinkConfiguration, YarnConfigOptions.SHIP_DIRECTORIES).ifPresent(this::addShipFiles);
+		decodeItemsToShipToCluster(flinkConfiguration, YarnConfigOptions.SHIP_ARCHIVES).ifPresent(this::addShipArchives);
 
 		this.yarnQueue = flinkConfiguration.getString(YarnConfigOptions.APPLICATION_QUEUE);
 		this.customName = flinkConfiguration.getString(YarnConfigOptions.APPLICATION_NAME);
@@ -185,8 +185,11 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		this.zookeeperNamespace = flinkConfiguration.getString(HighAvailabilityOptions.HA_CLUSTER_ID, null);
 	}
 
-	private Optional<List<File>> decodeFilesToShipToCluster(final Configuration configuration, ConfigOption<List<String>> configOption) {
+	private Optional<List<File>> decodeItemsToShipToCluster(
+			final Configuration configuration,
+			final ConfigOption<List<String>> configOption) {
 		checkNotNull(configuration);
+		checkNotNull(configOption);
 
 		final List<File> files = ConfigUtils.decodeListFromConfig(configuration, configOption, File::new);
 		return files.isEmpty() ? Optional.empty() : Optional.of(files);
@@ -272,12 +275,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		this.shipFiles.addAll(shipFiles);
 	}
 
-	/**
-	 * Adds the given files to the list of archives to ship.
-	 **
-	 * @param shipArchives archives to ship
-	 */
-	public void addShipArchives(List<File> shipArchives) {
+	private void addShipArchives(List<File> shipArchives) {
 		checkArgument(isArchiveOnlyIncludedInShipArchiveFiles(shipArchives), "Non-archive files are included.");
 		this.shipArchives.addAll(shipArchives);
 	}
@@ -287,7 +285,8 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 			.filter(File::isFile)
 			.map(File::getName)
 			.map(String::toLowerCase)
-			.allMatch(name -> name.endsWith(".tar.gz") ||
+			.allMatch(name ->
+				name.endsWith(".tar.gz") ||
 				name.endsWith(".tar") ||
 				name.endsWith(".tgz") ||
 				name.endsWith(".dst") ||
@@ -818,7 +817,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 			userJarFiles,
 			userJarInclusion == YarnConfigOptions.UserJarInclusion.DISABLED ?
 				ConfigConstants.DEFAULT_FLINK_USR_LIB_DIR : Path.CUR_DIR,
-				LocalResourceType.FILE);
+			LocalResourceType.FILE);
 
 		if (userJarInclusion == YarnConfigOptions.UserJarInclusion.ORDER) {
 			systemClassPaths.addAll(userClassPaths);
@@ -861,9 +860,9 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 					jobGraphFilename,
 					new Path(tmpJobGraphFile.toURI()),
 					"",
+					LocalResourceType.FILE,
 					true,
-					false,
-					LocalResourceType.FILE);
+					false);
 				classPathBuilder.append(jobGraphFilename).append(File.pathSeparator);
 			} catch (Exception e) {
 				LOG.warn("Add job graph to local resource fail.");
@@ -887,9 +886,9 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 				flinkConfigKey,
 				new Path(tmpConfigurationFile.toURI()),
 				"",
+				LocalResourceType.FILE,
 				true,
-				true,
-				LocalResourceType.FILE);
+				true);
 			classPathBuilder.append("flink-conf.yaml").append(File.pathSeparator);
 		} finally {
 			if (tmpConfigurationFile != null && !tmpConfigurationFile.delete()) {
@@ -918,9 +917,9 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 				Utils.YARN_SITE_FILE_NAME,
 				yarnSitePath,
 				"",
+				LocalResourceType.FILE,
 				false,
-				false,
-				LocalResourceType.FILE).getPath();
+				false).getPath();
 
 			String krb5Config = System.getProperty("java.security.krb5.conf");
 			if (krb5Config != null && krb5Config.length() != 0) {
@@ -931,9 +930,9 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 					Utils.KRB5_FILE_NAME,
 					krb5ConfPath,
 					"",
+					LocalResourceType.FILE,
 					false,
-					false,
-					LocalResourceType.FILE).getPath();
+					false).getPath();
 				hasKrb5 = true;
 			}
 		}
@@ -951,9 +950,9 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 					localizedKeytabPath,
 					new Path(keytab),
 					"",
+					LocalResourceType.FILE,
 					false,
-					false,
-					LocalResourceType.FILE).getPath();
+					false).getPath();
 			} else {
 				// // Assume Keytab is pre-installed in the container.
 				localizedKeytabPath = flinkConfiguration.getString(YarnConfigOptions.LOCALIZED_KEYTAB_PATH);

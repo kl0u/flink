@@ -156,9 +156,9 @@ class YarnApplicationFileUploader implements AutoCloseable {
 			final String key,
 			final Path resourcePath,
 			final String relativeDstPath,
+			final LocalResourceType resourceType,
 			final boolean whetherToAddToRemotePaths,
-			final boolean whetherToAddToEnvShipResourceList,
-			final LocalResourceType resourceType) throws IOException {
+			final boolean whetherToAddToEnvShipResourceList) throws IOException {
 
 		addToRemotePaths(whetherToAddToRemotePaths, resourcePath);
 
@@ -181,8 +181,7 @@ class YarnApplicationFileUploader implements AutoCloseable {
 			localFile.length(),
 			remoteFileInfo.f1,
 			LocalResourceVisibility.APPLICATION,
-			resourceType
-		);
+			resourceType);
 		addToEnvShipResourceList(whetherToAddToEnvShipResourceList, descriptor);
 		localResources.put(key, descriptor.toLocalResource());
 		return descriptor;
@@ -228,8 +227,7 @@ class YarnApplicationFileUploader implements AutoCloseable {
 	List<String> registerMultipleLocalResources(
 			final Collection<Path> shipFiles,
 			final String localResourcesDirectory,
-			final LocalResourceType resourceType
-			) throws IOException {
+			final LocalResourceType resourceType) throws IOException {
 
 		final List<Path> localPaths = new ArrayList<>();
 		final List<Path> relativePaths = new ArrayList<>();
@@ -276,10 +274,9 @@ class YarnApplicationFileUploader implements AutoCloseable {
 						key,
 						localPath,
 						relativePath.getParent().toString(),
+						resourceType,
 						true,
-						true,
-						resourceType
-					);
+						true);
 
 				if (!resourceDescriptor.alreadyRegisteredAsLocalResource()) {
 					if (key.endsWith("jar")) {
@@ -312,10 +309,9 @@ class YarnApplicationFileUploader implements AutoCloseable {
 				localJarPath.getName(),
 				localJarPath,
 				"",
+				LocalResourceType.FILE,
 				true,
-				false,
-				LocalResourceType.FILE
-		);
+				false);
 		return flinkDist;
 	}
 

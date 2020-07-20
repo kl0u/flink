@@ -62,7 +62,7 @@ class YarnLocalResourceDescriptor {
 		this.size = resourceSize;
 		this.modificationTime = modificationTime;
 		this.visibility = checkNotNull(visibility);
-		this.resourceType = resourceType;
+		this.resourceType = checkNotNull(resourceType);
 	}
 
 	boolean alreadyRegisteredAsLocalResource() {
