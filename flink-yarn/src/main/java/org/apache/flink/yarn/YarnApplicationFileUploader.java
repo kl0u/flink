@@ -322,34 +322,26 @@ class YarnApplicationFileUploader implements AutoCloseable {
 	 * @return list of class paths with the file name
 	 */
 	List<String> registerProvidedLocalResources() {
-		return registerLocalResources(providedSharedLibs, LocalResourceVisibility.PUBLIC, LocalResourceType.FILE);
-	}
-
-	List<String> registerLocalResources(
-			Map<String, FileStatus> resources,
-			LocalResourceVisibility resourceVisibility,
-			LocalResourceType resourceType) {
 		checkNotNull(localResources);
 
 		final ArrayList<String> classPaths = new ArrayList<>();
-		resources.forEach(
-			(fileName, fileStatus) -> {
-				final Path filePath = fileStatus.getPath();
-				LOG.debug("Using remote file {} to register local resource", filePath);
+		providedSharedLibs.forEach(
+				(fileName, fileStatus) -> {
+					final Path filePath = fileStatus.getPath();
+					LOG.debug("Using remote file {} to register local resource", filePath);
 
-				final YarnLocalResourceDescriptor descriptor = YarnLocalResourceDescriptor
-					.fromFileStatus(fileName, fileStatus, resourceVisibility, resourceType);
-				localResources.put(fileName, descriptor.toLocalResource());
-				remotePaths.add(filePath);
-				envShipResourceList.add(descriptor);
+					final YarnLocalResourceDescriptor descriptor = YarnLocalResourceDescriptor
+							.fromFileStatus(fileName, fileStatus, LocalResourceVisibility.PUBLIC, LocalResourceType.FILE);
+					localResources.put(fileName, descriptor.toLocalResource());
+					remotePaths.add(filePath);
+					envShipResourceList.add(descriptor);
 
-				if (!isFlinkDistJar(filePath.getName()) && !isPlugin(filePath)) {
-					classPaths.add(fileName);
-				} else if (isFlinkDistJar(filePath.getName())) {
-					flinkDist = descriptor;
-
-				}
-			});
+					if (!isFlinkDistJar(filePath.getName()) && !isPlugin(filePath)) {
+						classPaths.add(fileName);
+					} else if (isFlinkDistJar(filePath.getName())) {
+						flinkDist = descriptor;
+					}
+				});
 		return classPaths;
 	}
 
