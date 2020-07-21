@@ -22,7 +22,6 @@ import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeutils.base.CharSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
@@ -31,7 +30,6 @@ import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.testutils.MiniClusterResource;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
-import org.apache.flink.streaming.api.environment.RemoteStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.functions.co.KeyedCoProcessFunction;
@@ -40,8 +38,6 @@ import org.apache.flink.util.Collector;
 
 import org.junit.ClassRule;
 import org.junit.Test;
-
-import java.net.URI;
 
 public class BatchExecutionITCase {
 	@ClassRule
@@ -55,15 +51,17 @@ public class BatchExecutionITCase {
 		env.disableOperatorChaining();
 		env.setParallelism(2);
 		env.setMaxParallelism(2);
+		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+
 		env.fromElements('d', 'u', 'f', 'c', 'a', 'b')
 			.assignTimestampsAndWatermarks(
-				WatermarkStrategy.<Character>noWatermarks()
+				WatermarkStrategy.<Character>forMonotonousTimestamps()
 					.withTimestampAssigner((element, recordTimestamp) -> (long) element)
 			)
 			.slotSharingGroup("group1")
 			.keyBy(value -> ((int) value) % 2 + 1)
 			.process(new TestKeyedProcessFunction())
-			.print()//.addSink(new DiscardingSink<>())
+			.print()
 			.slotSharingGroup("group2");
 
 		execute(env);
@@ -117,10 +115,37 @@ public class BatchExecutionITCase {
 		cluster.getMiniCluster().executeJobBlocking(streamGraph.getJobGraph());
 	}
 
+	/**
+	 * todo NOTE:
+	 *
+	 * For now this is broken. We do not emit Watermarks, until the MAX_WATERMARK is emitted. But at that point, the
+	 * state only contains the last element, although we wanted the intermediate results.
+	 */
 	private static class TestKeyedProcessFunction extends KeyedProcessFunction<Integer, Character, String> {
+
+		private ValueState<Character> state;
+
+		@Override
+		public void open(Configuration parameters) throws Exception {
+			state = getRuntimeContext().getState(new ValueStateDescriptor<>("myState", Character.class));
+		}
+
 		@Override
 		public void processElement(Character value, Context ctx, Collector<String> out) throws Exception {
-			out.collect("" + value);
+			if ((int) value % 2 == 0) {
+				final char prev = state.value() == null ? '*' : state.value();
+				state.update(value);
+				out.collect(prev + " - " + value);
+			} else {
+				out.collect("" + value);
+			}
+
+			ctx.timerService().registerEventTimeTimer(ctx.timestamp() + 1);
+		}
+
+		@Override
+		public void onTimer(long timestamp, OnTimerContext ctx, Collector<String> out) throws Exception {
+			out.collect("On Timer " + timestamp + " state=" + state.value());
 		}
 	}
 

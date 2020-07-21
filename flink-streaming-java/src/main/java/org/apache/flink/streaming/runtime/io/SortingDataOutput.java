@@ -44,6 +44,8 @@ public class SortingDataOutput<T, K> implements PushingAsyncDataInput.DataOutput
 	private final PushSorter<StreamElement> sorter;
 	private final PushingAsyncDataInput.DataOutput<T> chained;
 
+	private boolean emitMaxWatermark = false;
+
 	public SortingDataOutput(
 			PushingAsyncDataInput.DataOutput<T> chained,
 			Environment environment,
@@ -77,7 +79,7 @@ public class SortingDataOutput<T, K> implements PushingAsyncDataInput.DataOutput
 
 	@Override
 	public void emitWatermark(Watermark watermark) throws Exception {
-
+		emitMaxWatermark = watermark.equals(Watermark.MAX_WATERMARK);
 	}
 
 	@Override
@@ -97,6 +99,10 @@ public class SortingDataOutput<T, K> implements PushingAsyncDataInput.DataOutput
 		MutableObjectIterator<StreamElement> iterator = sorter.getIterator();
 		while ((next = iterator.next()) != null) {
 			chained.emitRecord(next.asRecord());
+		}
+
+		if (emitMaxWatermark) {
+			chained.emitWatermark(Watermark.MAX_WATERMARK);
 		}
 	}
 
