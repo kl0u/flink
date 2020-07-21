@@ -20,13 +20,10 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
-import org.apache.flink.api.common.typeutils.base.CharComparator;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.typeutils.runtime.RuntimeSerializerFactory;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
@@ -46,8 +43,6 @@ import org.apache.flink.streaming.runtime.io.StreamTaskInput;
 import org.apache.flink.streaming.runtime.io.StreamTaskNetworkInput;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
-import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
-import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StatusWatermarkValve;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
@@ -55,7 +50,6 @@ import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
-import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -101,7 +95,9 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 		if (numberOfInputs > 0) {
 			CheckpointedInputGate inputGate = createCheckpointedInputGate();
 			DataOutput<IN> output = createDataOutput(configuration);
-			StreamTaskInput<IN> input = createTaskInput(inputGate, output);
+			StatusWatermarkValve statusWatermarkValve = new StatusWatermarkValve(inputGate.getNumberOfInputChannels(), output);
+
+			StreamTaskInput<IN> input = createTaskInput(inputGate, statusWatermarkValve);
 			inputProcessor = new StreamOneInputProcessor<>(
 				input,
 				output,
@@ -143,17 +139,16 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 				elementSerializer,
 				(KeySelector<IN, Object>) (KeySelector) keySelector,
 				keyComparator,
-				this
-			);
+				this);
 		}
 		return networkOutput;
 	}
 
-	private StreamTaskInput<IN> createTaskInput(CheckpointedInputGate inputGate, DataOutput<IN> output) {
-		int numberOfInputChannels = inputGate.getNumberOfInputChannels();
-		StatusWatermarkValve statusWatermarkValve = new StatusWatermarkValve(numberOfInputChannels, output);
-
-		TypeSerializer<IN> inSerializer = configuration.getTypeSerializerIn1(getUserCodeClassLoader());
+	private StreamTaskInput<IN> createTaskInput(
+			final CheckpointedInputGate inputGate,
+			final StatusWatermarkValve statusWatermarkValve) {
+		final TypeSerializer<IN> inSerializer =
+				configuration.getTypeSerializerIn1(getUserCodeClassLoader());
 		return new StreamTaskNetworkInput<>(
 			inputGate,
 			inSerializer,
