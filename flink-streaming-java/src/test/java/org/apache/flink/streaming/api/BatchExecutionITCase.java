@@ -114,13 +114,7 @@ public class BatchExecutionITCase {
 		streamGraph.setScheduleMode(ScheduleMode.LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST);
 		cluster.getMiniCluster().executeJobBlocking(streamGraph.getJobGraph());
 	}
-
-	/**
-	 * todo NOTE:
-	 *
-	 * For now this is broken. We do not emit Watermarks, until the MAX_WATERMARK is emitted. But at that point, the
-	 * state only contains the last element, although we wanted the intermediate results.
-	 */
+	
 	private static class TestKeyedProcessFunction extends KeyedProcessFunction<Integer, Character, String> {
 
 		private ValueState<Character> state;
@@ -140,7 +134,8 @@ public class BatchExecutionITCase {
 				out.collect("" + value);
 			}
 
-			ctx.timerService().registerEventTimeTimer(ctx.timestamp() + 1);
+			System.out.println(value + " @ " + ctx.timestamp());
+			ctx.timerService().registerEventTimeTimer(ctx.timestamp());
 		}
 
 		@Override

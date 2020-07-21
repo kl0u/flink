@@ -44,7 +44,7 @@ public class SortingDataOutput<T, K> implements PushingAsyncDataInput.DataOutput
 	private final PushSorter<StreamElement> sorter;
 	private final PushingAsyncDataInput.DataOutput<T> chained;
 
-	private boolean emitMaxWatermark = false;
+	private boolean hasWatermarks = false;
 
 	public SortingDataOutput(
 			PushingAsyncDataInput.DataOutput<T> chained,
@@ -79,7 +79,8 @@ public class SortingDataOutput<T, K> implements PushingAsyncDataInput.DataOutput
 
 	@Override
 	public void emitWatermark(Watermark watermark) throws Exception {
-		emitMaxWatermark = watermark.equals(Watermark.MAX_WATERMARK);
+		// TODO: 21.07.20 this is a hack to get the time characteristic here. Find out if I can get it from a config.
+		hasWatermarks = true;
 	}
 
 	@Override
@@ -98,10 +99,14 @@ public class SortingDataOutput<T, K> implements PushingAsyncDataInput.DataOutput
 		StreamElement next;
 		MutableObjectIterator<StreamElement> iterator = sorter.getIterator();
 		while ((next = iterator.next()) != null) {
-			chained.emitRecord(next.asRecord());
+			final StreamRecord<T> element = next.asRecord();
+			chained.emitRecord(element);
+			if (hasWatermarks) {
+				chained.emitWatermark(new Watermark(element.getTimestamp()));
+			}
 		}
 
-		if (emitMaxWatermark) {
+		if (hasWatermarks) {
 			chained.emitWatermark(Watermark.MAX_WATERMARK);
 		}
 	}
