@@ -59,15 +59,15 @@ public class HadoopViewFileSystemTruncateTest {
 	@ClassRule
 	public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
 
-	private static MiniDFSCluster hdfsCluster;
+	private final FileSystemTestHelper fileSystemTestHelper = new FileSystemTestHelper("/tests");
 
+	private static MiniDFSCluster hdfsCluster;
 	private static FileSystem fHdfs;
-	private FileSystem fsView;
+	private static org.apache.flink.core.fs.FileSystem fSystem;
+
 	private Configuration fsViewConf;
 	private FileSystem fsTarget;
-	private Path targetTestRoot, mountOnNn1;
-	private FileSystemTestHelper fileSystemTestHelper = new FileSystemTestHelper("/tests");
-	private static org.apache.flink.core.fs.FileSystem fSystem;
+	private Path targetTestRoot;
 
 	@BeforeClass
 	public static void testHadoopVersion() {
@@ -76,7 +76,6 @@ public class HadoopViewFileSystemTruncateTest {
 
 	@BeforeClass
 	public static void verifyOS() {
-		System.out.println(HadoopRecoverableWriter.class.getName());
 		Assume.assumeTrue("HDFS cluster cannot be started on Windows without extensions.", !OperatingSystem.isWindows());
 	}
 
@@ -105,12 +104,12 @@ public class HadoopViewFileSystemTruncateTest {
 
 		fsViewConf = ViewFileSystemTestSetup.createConfig();
 		setupMountPoints();
-		fsView = FileSystem.get(FsConstants.VIEWFS_URI, fsViewConf);
+		FileSystem fsView = FileSystem.get(FsConstants.VIEWFS_URI, fsViewConf);
 		fSystem = new HadoopFileSystem(fsView);
 	}
 
 	private void setupMountPoints() {
-		mountOnNn1 = new Path("/mountOnNn1");
+		Path mountOnNn1 = new Path("/mountOnNn1");
 		ConfigUtil.addLink(fsViewConf, mountOnNn1.toString(), targetTestRoot.toUri());
 	}
 
@@ -160,7 +159,6 @@ public class HadoopViewFileSystemTruncateTest {
 	private static void verifyFileContent(
 			final org.apache.flink.core.fs.Path testPath,
 			final String expectedContent) throws IOException {
-
 		try (
 				FSDataInputStream in = fSystem.open(testPath);
 				InputStreamReader ir = new InputStreamReader(in, UTF_8);
