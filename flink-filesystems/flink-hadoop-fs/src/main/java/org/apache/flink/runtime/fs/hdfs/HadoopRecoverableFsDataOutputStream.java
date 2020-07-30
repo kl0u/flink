@@ -315,11 +315,8 @@ class HadoopRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream 
 	}
 
 	/**
+	 * Resolve the real path of FileSystem if it is {@link ViewFileSystem} and
 	 * revoke the lease of the file we are resuming with different FileSystem.
-	 *
-	 * <p>
-	 * resolve the real path of FileSystem if it is ViewFileSystem .
-	 * 
 	 *
 	 * @param path The path to the file we want to resume writing to.
 	 */
@@ -328,29 +325,25 @@ class HadoopRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream 
 			final ViewFileSystem vfs = (ViewFileSystem) fs;
 			final Path resolvePath = vfs.resolvePath(path);
 			final FileSystem resolveFs = resolvePath.getFileSystem(fs.getConf());
-
-			Preconditions.checkState(resolveFs instanceof DistributedFileSystem);
-			final DistributedFileSystem dfs = (DistributedFileSystem) resolveFs;
-			return waitUntilLeaseIsRevoked(dfs, resolvePath);
+			return waitUntilLeaseIsRevoked(resolveFs, resolvePath);
 		}
-		Preconditions.checkState(fs instanceof DistributedFileSystem);
-
-		final DistributedFileSystem dfs = (DistributedFileSystem) fs;
-		return waitUntilLeaseIsRevoked(dfs, path);
+		return waitUntilLeaseIsRevoked(fs, path);
 	}
 
 	/**
-	 * Called when resuming execution after a failure and waits until the lease of
-	 * the file we are resuming is free.
+	 * Called when resuming execution after a failure and waits until the lease
+	 * of the file we are resuming is free.
 	 *
-	 * <p>
-	 * The lease of the file we are resuming writing/committing to may still belong
-	 * to the process that failed previously and whose state we are recovering.
+	 * <p>The lease of the file we are resuming writing/committing to may still
+	 * belong to the process that failed previously and whose state we are
+	 * recovering.
 	 *
 	 * @param path The path to the file we want to resume writing to.
 	 */
-	private static boolean waitUntilLeaseIsRevoked(final DistributedFileSystem dfs, final Path path)
-			throws IOException {
+	private static boolean waitUntilLeaseIsRevoked(final FileSystem fs, final Path path) throws IOException {
+		Preconditions.checkState(fs instanceof DistributedFileSystem);
+
+		final DistributedFileSystem dfs = (DistributedFileSystem) fs;
 		dfs.recoverLease(path);
 
 		final Deadline deadline = Deadline.now().plus(Duration.ofMillis(LEASE_TIMEOUT));
