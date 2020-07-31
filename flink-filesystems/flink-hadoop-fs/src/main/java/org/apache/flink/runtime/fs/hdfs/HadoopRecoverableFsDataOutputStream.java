@@ -321,12 +321,12 @@ class HadoopRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream 
 	 * @param path The path to the file we want to resume writing to.
 	 */
 	private static boolean revokeLeaseByFileSystem(final FileSystem fs, final Path path) throws IOException {
-		if (fs instanceof ViewFileSystem) {
-			final ViewFileSystem vfs = (ViewFileSystem) fs;
-			final Path resolvePath = vfs.resolvePath(path);
-			final FileSystem resolveFs = resolvePath.getFileSystem(fs.getConf());
-			return waitUntilLeaseIsRevoked(resolveFs, resolvePath);
-		}
+//		if (fs instanceof ViewFileSystem) {
+//			final ViewFileSystem vfs = (ViewFileSystem) fs;
+//			final Path resolvePath = vfs.resolvePath(path);
+//			final FileSystem resolveFs = resolvePath.getFileSystem(fs.getConf());
+//			return waitUntilLeaseIsRevoked(resolveFs, resolvePath);
+//		}
 		return waitUntilLeaseIsRevoked(fs, path);
 	}
 
