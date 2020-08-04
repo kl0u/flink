@@ -344,7 +344,7 @@ public class Buckets<IN, BucketID> {
 	 * {@link BucketAssigner#getBucketId(Object, BucketAssigner.Context)}
 	 * whenever a new incoming element arrives.
 	 */
-	private static final class BucketerContext implements BucketAssigner.Context {
+	static final class BucketerContext implements BucketAssigner.Context {
 
 		@Nullable
 		private Long elementTimestamp;
@@ -353,7 +353,7 @@ public class Buckets<IN, BucketID> {
 
 		private long currentProcessingTime;
 
-		private BucketerContext() {
+		BucketerContext() {
 			this.elementTimestamp = null;
 			this.currentWatermark = Long.MIN_VALUE;
 			this.currentProcessingTime = Long.MIN_VALUE;
