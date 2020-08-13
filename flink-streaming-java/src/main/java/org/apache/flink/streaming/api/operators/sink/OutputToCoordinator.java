@@ -16,48 +16,42 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners;
+package org.apache.flink.streaming.api.operators.sink;
 
+import org.apache.flink.api.connector.sink.WriterOutput;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
+import org.apache.flink.runtime.operators.coordination.OperatorEventGateway;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
+import java.util.Collections;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Javadoc.
  */
-public class SimpleVersionedLongSerializer implements SimpleVersionedSerializer<Long> {
+public class OutputToCoordinator<Committable> implements WriterOutput<Committable> {
 
-	@Override
-	public int getVersion() {
-		return 0;
+	private final OperatorEventGateway coordinator;
+
+	private final SimpleVersionedSerializer<Committable> serializer;
+
+	public OutputToCoordinator(
+			final OperatorEventGateway coordinator,
+			final SimpleVersionedSerializer<Committable> serializer) {
+		this.coordinator = checkNotNull(coordinator);
+		this.serializer = checkNotNull(serializer);
 	}
 
 	@Override
-	public byte[] serialize(Long value) {
-		checkNotNull(value);
-		final byte[] targetBytes = new byte[Long.BYTES];
-
-		final ByteBuffer bb = ByteBuffer.wrap(targetBytes).order(ByteOrder.LITTLE_ENDIAN);
-		bb.putLong(value);
-		return targetBytes;
-	}
-
-	@Override
-	public Long deserialize(int version, byte[] serialized) throws IOException {
-		switch (version) {
-			case 0:
-				return deserializeV0(serialized);
-			default:
-				throw new IOException("Unrecognized version or corrupt state: " + version);
+	public void sendToCommit(final Committable committable) throws IOException {
+		if (committable == null) {
+			return;
 		}
-	}
 
-	private Long deserializeV0(byte[] serialized) {
-		final ByteBuffer bb = ByteBuffer.wrap(serialized).order(ByteOrder.LITTLE_ENDIAN);
-		return bb.getLong();
+		coordinator.sendEventToCoordinator(
+				new SinkOperatorEvent<>(
+						Collections.singletonList(committable),
+						serializer));
 	}
 }

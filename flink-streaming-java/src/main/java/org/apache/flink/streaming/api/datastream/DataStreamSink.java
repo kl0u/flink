@@ -21,9 +21,16 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.operators.ResourceSpec;
+import org.apache.flink.api.connector.sink.Sink;
+import org.apache.flink.api.connector.source.Boundedness;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.StreamSink;
+import org.apache.flink.streaming.api.operators.sink.BatchSinkOperatorFactory;
+import org.apache.flink.streaming.api.operators.sink.StreamingSinkOperatorFactory;
 import org.apache.flink.streaming.api.transformations.SinkTransformation;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A Stream Sink. This is used for emitting elements from a streaming topology.
@@ -38,6 +45,24 @@ public class DataStreamSink<T> {
 	@SuppressWarnings("unchecked")
 	protected DataStreamSink(DataStream<T> inputStream, StreamSink<T> operator) {
 		this.transformation = new SinkTransformation<T>(inputStream.getTransformation(), "Unnamed", operator, inputStream.getExecutionEnvironment().getParallelism());
+	}
+
+	protected DataStreamSink(
+			final DataStream<T> inputStream,
+			final Sink<T, ?, ?, ?> sink,
+			final String name,
+			final Boundedness boundedness) {
+
+		final AbstractStreamOperatorFactory<Object> sinkOperatorFactory =
+				checkNotNull(boundedness) == Boundedness.BOUNDED
+						? new BatchSinkOperatorFactory(sink)
+						: new StreamingSinkOperatorFactory(sink);
+
+		this.transformation = new SinkTransformation<>(
+				checkNotNull(inputStream).getTransformation(),
+				checkNotNull(name),
+				sinkOperatorFactory,
+				inputStream.getExecutionEnvironment().getParallelism());
 	}
 
 	/**

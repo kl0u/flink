@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api.datastream;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
@@ -40,6 +41,8 @@ import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.connector.sink.Sink;
+import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -102,6 +105,8 @@ import org.apache.flink.util.Preconditions;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * A DataStream represents a stream of elements of the same type. A DataStream
  * can be transformed into another DataStream by applying a transformation as
@@ -127,8 +132,8 @@ public class DataStream<T> {
 	 * @param environment The StreamExecutionEnvironment
 	 */
 	public DataStream(StreamExecutionEnvironment environment, Transformation<T> transformation) {
-		this.environment = Preconditions.checkNotNull(environment, "Execution Environment must not be null.");
-		this.transformation = Preconditions.checkNotNull(transformation, "Stream Transformation must not be null.");
+		this.environment = checkNotNull(environment, "Execution Environment must not be null.");
+		this.transformation = checkNotNull(transformation, "Stream Transformation must not be null.");
 	}
 
 	/**
@@ -279,7 +284,7 @@ public class DataStream<T> {
 		return new BroadcastConnectedStream<>(
 				environment,
 				this,
-				Preconditions.checkNotNull(broadcastStream),
+				checkNotNull(broadcastStream),
 				broadcastStream.getBroadcastStateDescriptor());
 	}
 
@@ -292,7 +297,7 @@ public class DataStream<T> {
 	 * @return The {@link DataStream} with partitioned state (i.e. KeyedStream)
 	 */
 	public <K> KeyedStream<T, K> keyBy(KeySelector<T, K> key) {
-		Preconditions.checkNotNull(key);
+		checkNotNull(key);
 		return new KeyedStream<>(this, clean(key));
 	}
 
@@ -305,8 +310,8 @@ public class DataStream<T> {
 	 * @return The {@link DataStream} with partitioned state (i.e. KeyedStream)
 	 */
 	public <K> KeyedStream<T, K> keyBy(KeySelector<T, K> key, TypeInformation<K> keyType) {
-		Preconditions.checkNotNull(key);
-		Preconditions.checkNotNull(keyType);
+		checkNotNull(key);
+		checkNotNull(keyType);
 		return new KeyedStream<>(this, clean(key), keyType);
 	}
 
@@ -437,7 +442,7 @@ public class DataStream<T> {
 	 */
 	@PublicEvolving
 	public BroadcastStream<T> broadcast(final MapStateDescriptor<?, ?>... broadcastStateDescriptors) {
-		Preconditions.checkNotNull(broadcastStateDescriptors);
+		checkNotNull(broadcastStateDescriptors);
 		final DataStream<T> broadcastStream = setConnectionType(new BroadcastPartitioner<>());
 		return new BroadcastStream<>(environment, broadcastStream, broadcastStateDescriptors);
 	}
@@ -1299,6 +1304,27 @@ public class DataStream<T> {
 
 		getExecutionEnvironment().addOperator(sink.getTransformation());
 		return sink;
+	}
+
+	@Experimental
+	public DataStreamSink<T> addSink(
+			final Sink<T, ?, ?, ?> sink,
+			final String name,
+			final Boundedness boundedness) {
+
+		// TODO: 19.08.20 for now we have to pass the boundedness but this will change in the future,
+		//  as it will be deduced by the rest of the graph.
+
+		checkNotNull(sink);
+		checkNotNull(name);
+		checkNotNull(boundedness);
+
+		// read the output type of the input Transform to coax out errors about MissingTypeInfo
+		transformation.getOutputType();
+
+		final DataStreamSink<T> dataSink = new DataStreamSink<>(this, sink, name, boundedness);
+		getExecutionEnvironment().addOperator(dataSink.getTransformation());
+		return dataSink;
 	}
 
 	/**

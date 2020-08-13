@@ -18,7 +18,16 @@
 
 package org.apache.flink.api.connector.sink;
 
-import java.io.Serializable;
+import org.apache.flink.metrics.MetricGroup;
 
-public interface SinkEvent extends Serializable {
+/**
+ * Javadoc.
+ */
+public interface InitContext {
+
+	int getSubtaskId();
+
+	int getAttemptID();
+
+	MetricGroup metricGroup();
 }

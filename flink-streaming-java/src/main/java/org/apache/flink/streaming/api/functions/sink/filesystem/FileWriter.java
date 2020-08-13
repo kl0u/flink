@@ -1,8 +1,26 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.flink.streaming.api.functions.sink.filesystem;
 
+import org.apache.flink.api.connector.sink.Writer;
+import org.apache.flink.api.connector.sink.WriterOutput;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.core.io.SimpleVersionedSerializer;
-import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.SimpleVersionedLongSerializer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,12 +29,14 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
-public class FileWriter<BucketID, IN> implements Writer<BucketID, IN, InProgressFileWriter.PendingFileRecoverable, FileWriterState<BucketID>, Long> {
+/**
+ * Javadoc.
+ */
+public class FileWriter<BucketID, IN> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(FileWriter.class);
 
@@ -32,12 +52,8 @@ public class FileWriter<BucketID, IN> implements Writer<BucketID, IN, InProgress
 
 	private final OutputFileConfig outputFileConfig;
 
-	private final SimpleVersionedLongSerializer sharedStateSerializer;
-
-	private final FileWriterStateSerializer<BucketID> stateSerializer;
-
 	private boolean initialized;
-	
+
 	private long partCounter;
 
 	@Nullable
@@ -46,29 +62,23 @@ public class FileWriter<BucketID, IN> implements Writer<BucketID, IN, InProgress
 	FileWriter(
 			final int subtaskIndex,
 			final BucketID bucketId,
-			final SimpleVersionedSerializer<BucketID> bucketIdSerializer,
-			final Path basePath,
+			final Path bucketPath,
+			final long initialPartCounter,
 			final BucketWriter<IN, BucketID> bucketWriter,
 			final RollingPolicy<IN, BucketID> rollingPolicy,
 			final OutputFileConfig outputFileConfig) {
 		this.subtaskIndex = subtaskIndex;
 		this.bucketId = checkNotNull(bucketId);
-		this.bucketPath = assembleBucketPath(basePath, bucketId);
+		this.bucketPath = checkNotNull(bucketPath);
+		this.partCounter = initialPartCounter;
 		this.bucketWriter = checkNotNull(bucketWriter);
 		this.rollingPolicy = checkNotNull(rollingPolicy);
 		this.outputFileConfig = checkNotNull(outputFileConfig);
-
-		this.sharedStateSerializer = new SimpleVersionedLongSerializer();
-		this.stateSerializer = new FileWriterStateSerializer<>(
-				bucketWriter.getProperties().getInProgressFileRecoverableSerializer(),
-				bucketIdSerializer);
 		this.initialized = false;
 	}
 
-	private Path assembleBucketPath(final Path basePath, final BucketID bucketId) {
-		checkNotNull(basePath);
-		final String child = bucketId.toString();
-		return "".equals(child) ? basePath : new Path(basePath, child);
+	public boolean isActive() {
+		return initialized && inProgressPart != null;
 	}
 
 	public BucketID getBucketId() {
@@ -83,63 +93,37 @@ public class FileWriter<BucketID, IN> implements Writer<BucketID, IN, InProgress
 		return partCounter;
 	}
 
-	@Override
-	public void initState(
-			final FileWriterState<BucketID> subtaskState,
-			final List<Long> commonState,
+	void init(
+			final List<FileWriterState<BucketID>> writerStates,
 			final WriterOutput<InProgressFileWriter.PendingFileRecoverable> output) throws IOException {
-		checkState(!initialized);
+		checkState(writerStates != null && !initialized);
 
-		for (Long counter : commonState) {
-			this.partCounter = Math.max(partCounter, counter);
-		}
-		// TODO: 07.08.20 also create EMPTY state 
-		if (!subtaskState.hasInProgressFileRecoverable()) {
-			return;
-		}
+		for (FileWriterState<BucketID> state : writerStates) {
+			if (!state.hasInProgressFileRecoverable()) {
+				return;
+			}
 
-		final InProgressFileWriter.InProgressFileRecoverable recoverable =
-				subtaskState.getInProgressFileRecoverable();
+			final InProgressFileWriter.InProgressFileRecoverable recoverable =
+					state.getInProgressFileRecoverable();
 
-		if (bucketWriter.getProperties().supportsResume()) {
-			inProgressPart = bucketWriter.resumeInProgressFileFrom(
-					bucketId, recoverable, subtaskState.getInProgressFileCreationTime());
-		} else {
-			// if the writer does not support resume, we close and commit the in-progress part.
-			output.collect(recoverable);
+			if (bucketWriter.getProperties().supportsResume() && inProgressPart == null) {
+				inProgressPart = bucketWriter.resumeInProgressFileFrom(
+						bucketId, recoverable, state.getInProgressFileCreationTime());
+			} else {
+				// TODO: 13.08.20 test this
+				final InProgressFileWriter.PendingFileRecoverable rec =
+						bucketWriter.resumeInProgressFileFrom(
+								bucketId, recoverable, state.getInProgressFileCreationTime()).closeForCommit();
+				output.sendToCommit(rec);
+			}
 		}
-		this.initialized = true; // TODO: 07.08.20 put this flag everywhere 
+		this.initialized = true;
 	}
 
-	@Override
-	public boolean isActive() {
-		return initialized && inProgressPart != null;
-	}
-
-	@Override
-	public void combine(
-			final Writer<BucketID, IN, InProgressFileWriter.PendingFileRecoverable, FileWriterState<BucketID>, Long> writer,
-			final WriterOutput<InProgressFileWriter.PendingFileRecoverable> output) throws Exception {
-		checkState(initialized && writer instanceof FileWriter);
-		safeCombine((FileWriter<BucketID, IN>) writer, output);
-	}
-
-	private void safeCombine(
-			final FileWriter<BucketID, IN> writer,
-			final WriterOutput<InProgressFileWriter.PendingFileRecoverable> output) throws Exception {
-		checkNotNull(output);
-		checkNotNull(writer);
-		checkState(Objects.equals(writer.bucketPath, bucketPath));
-
-		final InProgressFileWriter.PendingFileRecoverable pendingFileRecoverable = writer.closePartFile();
-		if (pendingFileRecoverable != null) {
-			output.collect(pendingFileRecoverable);
-			LOG.debug("Subtask {} merging buckets for bucket id={}", subtaskIndex, bucketId);
-		}
-	}
-
-	@Override
-	public void write(IN element, Context context, WriterOutput<InProgressFileWriter.PendingFileRecoverable> output) throws IOException {
+	public void write(
+			IN element,
+			Writer.Context<InProgressFileWriter.PendingFileRecoverable> context,
+			WriterOutput<InProgressFileWriter.PendingFileRecoverable> output) throws IOException {
 		checkState(initialized);
 
 		final long currentProcessingTime = context.currentProcessingTime();
@@ -151,17 +135,16 @@ public class FileWriter<BucketID, IN> implements Writer<BucketID, IN, InProgress
 			}
 
 			final InProgressFileWriter.PendingFileRecoverable recoverable = rollPartFile(currentProcessingTime);
-			output.collect(recoverable);
+			output.sendToCommit(recoverable);
 		}
 		inProgressPart.write(element, currentProcessingTime);
 	}
 
-	@Override
 	public FileWriterState<BucketID> getSubtaskState(WriterOutput<InProgressFileWriter.PendingFileRecoverable> output) throws IOException {
 		checkState(initialized);
 
 		final InProgressFileWriter.PendingFileRecoverable committable = prepareBucketForCheckpointing();
-		output.collect(committable);
+		output.sendToCommit(committable);
 
 		InProgressFileWriter.InProgressFileRecoverable inProgressFileRecoverable = null;
 		long inProgressFileCreationTime = Long.MAX_VALUE;
@@ -174,34 +157,18 @@ public class FileWriter<BucketID, IN> implements Writer<BucketID, IN, InProgress
 		return new FileWriterState<>(bucketId, bucketPath, inProgressFileCreationTime, inProgressFileRecoverable);
 	}
 
-	@Override
-	public Long getCommonState() {
-		checkState(initialized);
-		return partCounter;
-	}
-
-	@Override
-	public void onPeriodicCheck(long currentTime, WriterOutput<InProgressFileWriter.PendingFileRecoverable> output) throws IOException {
+	public void finalize(final WriterOutput<InProgressFileWriter.PendingFileRecoverable> output) throws Exception {
 		checkState(initialized);
 
-		if (inProgressPart != null && rollingPolicy.shouldRollOnProcessingTime(inProgressPart, currentTime)) {
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("Subtask {} closing in-progress part file for bucket id={} due to processing time rolling policy " +
-								"(in-progress file created @ {}, last updated @ {} and current time is {}).",
-						subtaskIndex, bucketId, inProgressPart.getCreationTime(), inProgressPart.getLastUpdateTime(), currentTime);
-			}
-			output.collect(closePartFile());
+		final InProgressFileWriter.PendingFileRecoverable committable = closePartFile();
+		if (committable != null) {
+			output.sendToCommit(committable);
 		}
 	}
 
-	@Override
-	public SimpleVersionedSerializer<FileWriterState<BucketID>> getSubtaskStateSerializer() {
-		return this.stateSerializer;
-	}
-
-	@Override
-	public SimpleVersionedSerializer<Long> getCommonStateSerializer() {
-		return this.sharedStateSerializer;
+	public Long getCommonState() {
+		checkState(initialized);
+		return partCounter;
 	}
 
 	private InProgressFileWriter.PendingFileRecoverable rollPartFile(final long currentTime) throws IOException {
@@ -240,5 +207,18 @@ public class FileWriter<BucketID, IN> implements Writer<BucketID, IN, InProgress
 			return closePartFile();
 		}
 		return null;
+	}
+
+	public void apply(Writer.Context<InProgressFileWriter.PendingFileRecoverable> ctx, WriterOutput<InProgressFileWriter.PendingFileRecoverable> output) throws IOException {
+		checkState(initialized);
+
+		if (inProgressPart != null && rollingPolicy.shouldRollOnProcessingTime(inProgressPart, ctx.currentProcessingTime())) {
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Subtask {} closing in-progress part file for bucket id={} due to processing time rolling policy " +
+								"(in-progress file created @ {}, last updated @ {} and current time is {}).",
+						subtaskIndex, bucketId, inProgressPart.getCreationTime(), inProgressPart.getLastUpdateTime(), ctx.currentProcessingTime());
+			}
+			output.sendToCommit(closePartFile());
+		}
 	}
 }

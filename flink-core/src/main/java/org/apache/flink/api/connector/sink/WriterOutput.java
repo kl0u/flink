@@ -18,7 +18,12 @@
 
 package org.apache.flink.api.connector.sink;
 
-public enum CommitMode {
-	STREAMING,
-	DISTRIBUTED_COMMIT
+import java.io.IOException;
+
+/**
+ * Javadoc.
+ */
+public interface WriterOutput<CommT> {
+
+	void sendToCommit(CommT committable) throws IOException;
 }

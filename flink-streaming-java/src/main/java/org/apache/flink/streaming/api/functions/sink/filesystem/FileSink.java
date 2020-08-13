@@ -1,11 +1,34 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.flink.streaming.api.functions.sink.filesystem;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.serialization.Encoder;
+import org.apache.flink.api.connector.sink.Committer;
+import org.apache.flink.api.connector.sink.InitContext;
+import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.DateTimeBucketAssigner;
+import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.SimpleVersionedLongSerializer;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy;
 import org.apache.flink.util.Preconditions;
 
@@ -14,7 +37,10 @@ import java.io.Serializable;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-public class FileSink<BucketID, IN> implements Sink<BucketID, IN, InProgressFileWriter.PendingFileRecoverable, FileWriterState<BucketID>, Long> {
+/**
+ * Javadoc.
+ */
+public class FileSink<BucketID, IN> implements Sink<IN, InProgressFileWriter.PendingFileRecoverable, FileWriterState<BucketID>, Long> {
 
 	private final BucketsBuilder<IN, BucketID, ? extends BucketsBuilder<IN, BucketID, ?>> bucketsBuilder;
 
@@ -28,14 +54,29 @@ public class FileSink<BucketID, IN> implements Sink<BucketID, IN, InProgressFile
 	}
 
 	@Override
-	public FileWriter<BucketID, IN> getWriter(final WriterContext<BucketID> context) throws IOException {
+	public FileWriterTracker<IN, BucketID> createWriter(final InitContext context) throws IOException {
 		checkNotNull(context);
 		return bucketsBuilder.createWriter(context);
 	}
 
 	@Override
-	public Committer<InProgressFileWriter.PendingFileRecoverable> getCommitter() throws IOException {
+	public Committer<InProgressFileWriter.PendingFileRecoverable> createCommitter() throws IOException {
 		return bucketsBuilder.createCommitter();
+	}
+
+	@Override
+	public SimpleVersionedSerializer<InProgressFileWriter.PendingFileRecoverable> getCommittableSerializer() throws Exception {
+		return bucketsBuilder.getCommittableSerializer();
+	}
+
+	@Override
+	public SimpleVersionedSerializer<FileWriterState<BucketID>> getStateSerializer() throws IOException {
+		return bucketsBuilder.getWriterStateSerializer();
+	}
+
+	@Override
+	public SimpleVersionedSerializer<Long> getSharedStateSerializer() {
+		return new SimpleVersionedLongSerializer();
 	}
 
 	public static <IN> DefaultRowFormatBuilder<IN> forRowFormat(
@@ -43,6 +84,9 @@ public class FileSink<BucketID, IN> implements Sink<BucketID, IN, InProgressFile
 		return new DefaultRowFormatBuilder<>(basePath, encoder, new DateTimeBucketAssigner<>());
 	}
 
+	/**
+	 * Javadoc.
+	 */
 	@Internal
 	public abstract static class BucketsBuilder<IN, BucketID, T extends BucketsBuilder<IN, BucketID, T>> implements Serializable {
 
@@ -56,13 +100,19 @@ public class FileSink<BucketID, IN> implements Sink<BucketID, IN, InProgressFile
 		}
 
 		@Internal
-		public abstract FileWriter<BucketID, IN> createWriter(final WriterContext<BucketID> context) throws IOException;
+		public abstract FileWriterTracker<IN, BucketID> createWriter(final InitContext context) throws IOException;
 
 		@Internal
 		public abstract FileCommitter createCommitter() throws IOException;
+
+		public abstract SimpleVersionedSerializer<FileWriterState<BucketID>> getWriterStateSerializer() throws IOException;
+
+		public abstract SimpleVersionedSerializer<InProgressFileWriter.PendingFileRecoverable> getCommittableSerializer() throws IOException;
 	}
 
-
+	/**
+	 * Javadoc.
+	 */
 	public static class RowFormatBuilder<IN, BucketID, T extends RowFormatBuilder<IN, BucketID, T>> extends BucketsBuilder<IN, BucketID, T> {
 
 		private static final long serialVersionUID = 1L;
@@ -144,15 +194,15 @@ public class FileSink<BucketID, IN> implements Sink<BucketID, IN, InProgressFile
 
 		@Internal
 		@Override
-		public FileWriter<BucketID, IN> createWriter(final WriterContext<BucketID> context) throws IOException {
-			return new FileWriter<>(
+		public FileWriterTracker<IN, BucketID> createWriter(final InitContext context) throws IOException {
+			return new FileWriterTracker<>(
 					context.getSubtaskId(),
-					context.getWriterID(),
-					bucketAssigner.getSerializer(),
 					basePath,
+					bucketAssigner,
 					new RowWiseBucketWriter<>(FileSystem.get(basePath.toUri()).createRecoverableWriter(), encoder),
 					rollingPolicy,
-					outputFileConfig);
+					outputFileConfig,
+					bucketCheckInterval);
 		}
 
 		@Internal
@@ -161,6 +211,22 @@ public class FileSink<BucketID, IN> implements Sink<BucketID, IN, InProgressFile
 			final BucketWriter<IN, BucketID> committer =
 					new RowWiseBucketWriter<>(FileSystem.get(basePath.toUri()).createRecoverableWriter(), encoder);
 			return new FileCommitter(committer);
+		}
+
+		@Override
+		public SimpleVersionedSerializer<FileWriterState<BucketID>> getWriterStateSerializer() throws IOException {
+			final SimpleVersionedSerializer<InProgressFileWriter.InProgressFileRecoverable> serializer =
+					new RowWiseBucketWriter<>(FileSystem.get(basePath.toUri()).createRecoverableWriter(), encoder)
+							.getProperties()
+							.getInProgressFileRecoverableSerializer();
+			return new FileWriterStateSerializer<>(bucketAssigner.getSerializer(), serializer);
+		}
+
+		@Override
+		public SimpleVersionedSerializer<InProgressFileWriter.PendingFileRecoverable> getCommittableSerializer() throws IOException {
+			return new RowWiseBucketWriter<>(FileSystem.get(basePath.toUri()).createRecoverableWriter(), encoder)
+					.getProperties()
+					.getPendingFileRecoverableSerializer();
 		}
 	}
 

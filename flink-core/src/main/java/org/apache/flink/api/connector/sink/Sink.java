@@ -1,29 +1,41 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.flink.api.connector.sink;
 
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 
 import java.io.Serializable;
-import java.util.List;
-import java.util.Optional;
 
-public interface Sink<IN, CommT, WriterState> extends Serializable {
-	Writer<IN, CommT, WriterState> createWriter(WriterInitContext<CommT> context) throws Exception;
+/**
+ * Javadoc.
+ */
+public interface Sink<IN, Committable, WriterState, SharedState> extends Serializable {
 
-	// TODO how to create committables out of this method. It might be necessary to commit some parts of the state, e.g.
-	// keep a single transaction open and commit all other
-	Writer<IN, CommT, WriterState> restoreWriter(
-		WriterInitContext<CommT> context,
-		List<WriterState> checkpoint) throws Exception;
+	Writer<IN, Committable, WriterState, SharedState> createWriter(InitContext context) throws Exception;
 
-	Optional<SinkCoordinator> getCoordinator();
+	Committer<Committable> createCommitter() throws Exception;
 
-	Committer<CommT> createCommitter() throws Exception;
+	// ---------------------------	State Stuff	---------------------------
 
-	SimpleVersionedSerializer<CommT> getCommittableSerializer() throws Exception;
+	SimpleVersionedSerializer<Committable> getCommittableSerializer() throws Exception;
 
-	SimpleVersionedSerializer<WriterState> getWriterStateSerializer() throws Exception;
+	SimpleVersionedSerializer<WriterState> getStateSerializer() throws Exception;
 
-	interface SinkCoordinator {
-		void handleEventFromSink(int subtaskId, SinkEvent event);
-	}
+	SimpleVersionedSerializer<SharedState> getSharedStateSerializer() throws Exception;
 }

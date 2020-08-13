@@ -507,7 +507,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 
 	@Override
 	public CompletableFuture<Void> getTerminationFuture() {
-		return executionGraph.getTerminationFuture().thenApply(FunctionUtils.nullFn());
+		return executionGraph.getTerminationFuture().thenApply(FunctionUtils.nullFn()); // TODO: 17.08.20 can't we add here a coordinator hook ???
 	}
 
 	@Override

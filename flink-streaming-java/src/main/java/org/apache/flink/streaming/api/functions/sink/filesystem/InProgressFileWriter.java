@@ -66,5 +66,5 @@ public interface InProgressFileWriter<IN, BucketID> extends PartFileInfo<BucketI
 	/**
 	 * The handle can be used to recover pending file.
 	 */
-	interface PendingFileRecoverable extends Committable {}
+	interface PendingFileRecoverable {}
 }

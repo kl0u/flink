@@ -16,7 +16,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.sink.event;
+package org.apache.flink.util.function;
 
-public class AddCommittableEvent extends  {
+import org.apache.flink.annotation.PublicEvolving;
+
+/**
+ * Javadoc.
+ */
+@PublicEvolving
+@FunctionalInterface
+public interface ConsumerWithException<T, E extends Throwable> {
+
+	void accept(T element) throws E;
 }
