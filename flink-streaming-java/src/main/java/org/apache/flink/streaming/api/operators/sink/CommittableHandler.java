@@ -22,11 +22,10 @@ import org.apache.flink.api.connector.sink.Committer;
 import org.apache.flink.api.connector.sink.WriterOutput;
 import org.apache.flink.core.io.SimpleVersionedSerialization;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
-import org.apache.flink.runtime.operators.coordination.OperatorEventGateway;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -35,30 +34,21 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class CommittableHandler<Committable> implements WriterOutput<Committable> {
 
-	// TODO: 17.08.20 this class has too many responsibilities. Break it.
-
 	private final Committer<Committable> committer;
 
 	private final CommitterState<Committable> committerState;
 
-	private final SimpleVersionedSerializer<Committable> committableSerializer;
-
 	private final CommitterStateSerializer<Committable> committerStateSerializer;
-
-	private final OperatorEventGateway coordinator;
 
 	private List<Committable> unstagedCommittables;
 
 	public CommittableHandler(
 			final Committer<Committable> committer,
 			final SimpleVersionedSerializer<Committable> committableSerializer,
-			final OperatorEventGateway sinkCoordinator,
 			final List<CommitterState<Committable>> initialStates) {
 		this.committer = checkNotNull(committer);
-		this.committableSerializer = checkNotNull(committableSerializer);
 		this.committerStateSerializer = new CommitterStateSerializer<>(committableSerializer);
 
-		this.coordinator = checkNotNull(sinkCoordinator);
 		this.unstagedCommittables = new ArrayList<>();
 
 		// todo this can become a method in the committerstate
@@ -68,25 +58,15 @@ public class CommittableHandler<Committable> implements WriterOutput<Committable
 		}
 	}
 
-	byte[] snapshotState(
-			final long checkpointId) throws Exception {
+	Optional<byte[]> snapshotState(final long checkpointId) throws Exception {
+		if (unstagedCommittables.isEmpty()) {
+			return Optional.empty();
+		}
+
 		this.committerState.put(checkpointId, unstagedCommittables);
 		this.unstagedCommittables = new ArrayList<>();
-		return SimpleVersionedSerialization
-				.writeVersionAndSerialize(committerStateSerializer, committerState);
-	}
-
-	void flush() throws Exception {
-		this.committerState.put(Long.MAX_VALUE, unstagedCommittables);
-		this.unstagedCommittables = new ArrayList<>();
-
-		// TODO: 17.08.20 list or single event in the sink event?
-		this.committerState.consumeUpTo(
-				Long.MAX_VALUE,
-				c -> coordinator.sendEventToCoordinator(
-						new SinkOperatorEvent<>(
-								Collections.singletonList(c),
-								committableSerializer)));
+		return Optional.of(SimpleVersionedSerialization
+				.writeVersionAndSerialize(committerStateSerializer, committerState));
 	}
 
 	void onCheckpointCompleted(final long checkpointId) throws Exception {

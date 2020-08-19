@@ -27,7 +27,6 @@ import org.apache.flink.api.connector.sink.Writer;
 import org.apache.flink.core.io.SimpleVersionedSerialization;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.runtime.operators.coordination.OperatorEventGateway;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
@@ -38,6 +37,7 @@ import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -49,8 +49,6 @@ public class StreamingSinkOperator<IN, Committable, WriterStateT, CommonStateT>
 		implements OneInputStreamOperator<IN, Object> {
 
 	private final Sink<IN, Committable, WriterStateT, CommonStateT> sink;
-
-	private final OperatorEventGateway operatorEventGateway;
 
 	// ------------------------- Runtime fields -------------------------
 
@@ -86,10 +84,8 @@ public class StreamingSinkOperator<IN, Committable, WriterStateT, CommonStateT>
 
 	public StreamingSinkOperator(
 			final Sink<IN, Committable, WriterStateT, CommonStateT> sink,
-			final OperatorEventGateway operatorEventGateway,
 			final ProcessingTimeService timeService) {
 		this.sink = checkNotNull(sink);
-		this.operatorEventGateway = checkNotNull(operatorEventGateway);
 		this.processingTimeService = checkNotNull(timeService);
 	}
 
@@ -138,7 +134,6 @@ public class StreamingSinkOperator<IN, Committable, WriterStateT, CommonStateT>
 		this.committableHandler = new CommittableHandler<>(
 				sink.createCommitter(),
 				sink.getCommittableSerializer(),
-				operatorEventGateway,
 				restoredCommitterStates);
 
 		this.writer = sink.createWriter(createInitContext());
@@ -160,11 +155,18 @@ public class StreamingSinkOperator<IN, Committable, WriterStateT, CommonStateT>
 		final long checkpointId = context.getCheckpointId();
 		if (checkpointId == Long.MAX_VALUE) {
 			// TODO: 17.08.20 this is the FINAL checkpoint before closing
-			writer.flush(committableHandler); // after this there should be no writer state.
-			committableHandler.flush();
+			//  the flag should be set in the context like: context.isFinalCheckpoint())
+			//  but in order to compile I leave it like this.
+			// Before I was sending the last bit to the coordinator to commit it.
+			writer.flush(committableHandler);
 		} else {
 			snapshotSubtaskState();
-			committerStateStore.add(committableHandler.snapshotState(checkpointId));
+		}
+
+		final Optional<byte[]> committables =
+				committableHandler.snapshotState(checkpointId);
+		if (committables.isPresent()) {
+			committerStateStore.add(committables.get());
 		}
 	}
 

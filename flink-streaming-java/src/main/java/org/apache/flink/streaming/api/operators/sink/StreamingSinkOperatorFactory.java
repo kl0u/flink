@@ -19,11 +19,7 @@
 package org.apache.flink.streaming.api.operators.sink;
 
 import org.apache.flink.api.connector.sink.Sink;
-import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
-import org.apache.flink.runtime.operators.coordination.OperatorEventGateway;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
-import org.apache.flink.streaming.api.operators.CoordinatedOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
@@ -35,7 +31,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Javadoc.
  */
 public class StreamingSinkOperatorFactory extends AbstractStreamOperatorFactory<Object>
-		implements CoordinatedOperatorFactory<Object>, ProcessingTimeServiceAware {
+		implements ProcessingTimeServiceAware {
 
 	private static final long serialVersionUID = 1L;
 
@@ -46,22 +42,14 @@ public class StreamingSinkOperatorFactory extends AbstractStreamOperatorFactory<
 	}
 
 	@Override
-	public OperatorCoordinator.Provider getCoordinatorProvider(String operatorName, OperatorID operatorID) {
-		return new SinkCoordinatorProvider<>(operatorName, operatorID, sink);
-	}
-
-	@Override
 	public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
 		return StreamingSinkOperator.class;
 	}
 
 	@Override
 	public <T extends StreamOperator<Object>> T createStreamOperator(StreamOperatorParameters<Object> parameters) {
-		final OperatorID operatorId = parameters.getStreamConfig().getOperatorID();
-		final OperatorEventGateway gateway = parameters.getOperatorEventDispatcher().getOperatorEventGateway(operatorId);
 		final ProcessingTimeService timeService = parameters.getProcessingTimeService();
-
-		final StreamingSinkOperator<?, ?, ?, ?> sinkOperator = new StreamingSinkOperator<>(sink, gateway, timeService);
+		final StreamingSinkOperator<?, ?, ?, ?> sinkOperator = new StreamingSinkOperator<>(sink, timeService);
 		sinkOperator.setup(parameters.getContainingTask(), parameters.getStreamConfig(), parameters.getOutput());
 		return (T) sinkOperator;
 	}
