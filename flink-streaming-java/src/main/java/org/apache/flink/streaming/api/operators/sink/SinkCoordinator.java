@@ -43,7 +43,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * Javadoc.
+ * Javadoc. todo the remaining bit
  */
 public class SinkCoordinator<Committable> implements OperatorCoordinator {
 
