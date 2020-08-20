@@ -35,15 +35,15 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Javadoc.
  */
-public class BatchSinkOperator<IN, Committable, WriterStateT, CommonStateT>
+public class BatchSinkOperator<IN, Committable, WriterStateT>
 		extends AbstractStreamOperator<Object>
 		implements OneInputStreamOperator<IN, Object> {
 
-	private final Sink<IN, Committable, WriterStateT, CommonStateT> sink;
+	private final Sink<IN, Committable, WriterStateT> sink;
 
 	private final OperatorEventGateway operatorEventGateway;
 
-	private Writer<IN, Committable, WriterStateT, CommonStateT> writer;
+	private Writer<IN, Committable, WriterStateT> writer;
 
 	private WriterContext<Committable> writerContext;
 
@@ -52,7 +52,7 @@ public class BatchSinkOperator<IN, Committable, WriterStateT, CommonStateT>
 	private long lastWatermark;
 
 	public BatchSinkOperator(
-			final Sink<IN, Committable, WriterStateT, CommonStateT> sink,
+			final Sink<IN, Committable, WriterStateT> sink,
 			final OperatorEventGateway operatorEventGateway,
 			final ProcessingTimeService timeService) {
 		this.sink = checkNotNull(sink);

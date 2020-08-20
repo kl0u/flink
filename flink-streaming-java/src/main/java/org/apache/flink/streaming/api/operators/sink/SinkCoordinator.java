@@ -43,13 +43,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * Javadoc.
+ * Javadoc. todo the remaining bit
  */
 public class SinkCoordinator<Committable> implements OperatorCoordinator {
 
 	private static final Logger LOG = LoggerFactory.getLogger(SinkCoordinator.class);
 
-	private final Sink<?, Committable, ?, ?> sink;
+	private final Sink<?, Committable, ?> sink;
 
 	private final String operatorName;
 
@@ -67,7 +67,7 @@ public class SinkCoordinator<Committable> implements OperatorCoordinator {
 
 	public SinkCoordinator(
 			final String sinkName,
-			final Sink<?, Committable, ?, ?> sink,
+			final Sink<?, Committable, ?> sink,
 			final Context context) {
 		this.operatorName = checkNotNull(sinkName);
 		this.sink = checkNotNull(sink);
@@ -93,8 +93,11 @@ public class SinkCoordinator<Committable> implements OperatorCoordinator {
 		LOG.debug("Sink Coordinator {} received from subtask {} event: {} .", operatorName, subtask, event);
 		try {
 			if (event instanceof SinkOperatorEvent) {
-				final List<Committable> committables = committablesPerSubtask.computeIfAbsent(subtask, k -> new ArrayList<>());
-				committables.addAll(((SinkOperatorEvent<Committable>) event).getCommittables(serializer));
+				final SinkOperatorEvent<Committable> sinkEvent = (SinkOperatorEvent<Committable>) event;
+
+				final List<Committable> committables = committablesPerSubtask
+						.computeIfAbsent(subtask, k -> new ArrayList<>());
+				committables.addAll(sinkEvent.getCommittables(serializer));
 			} else {
 				throw new IllegalStateException("Unknown message " + event.getClass().getCanonicalName());
 			}
@@ -140,9 +143,11 @@ public class SinkCoordinator<Committable> implements OperatorCoordinator {
 					.flatMap(List::stream)
 					.collect(Collectors.toList());
 			this.state.put(checkpointId, committables);
+
 			resultFuture.complete(
 					SimpleVersionedSerialization.writeVersionAndSerialize(stateSerializer, state));
-			committablesPerSubtask.clear();
+
+			this.committablesPerSubtask = new HashMap<>();
 		} catch (Exception e) {
 			resultFuture.completeExceptionally(new CompletionException(e));
 		}
@@ -150,14 +155,23 @@ public class SinkCoordinator<Committable> implements OperatorCoordinator {
 
 	@Override
 	public void checkpointComplete(long checkpointId) {
+		// do nothing as we only commit on successful completion of the application.
+	}
+
+	private void commitAll() {
 		ensureStarted();
 
+		LOG.debug("Committing pending transactions...");
 		try {
-			LOG.info("Committing for checkpoint {}.", checkpointId);
-			this.state.consumeUpTo(checkpointId, commitable -> committer.commit(commitable));
+			this.state.consumeUpTo(Long.MAX_VALUE, commitable -> committer.commit(commitable));
 		} catch (Exception e) {
-			// we do not fail but we simply warn because we will be committed in the "next" checkpoint
-			LOG.warn("Coordinator of {} failed to commit checkpoint {} due to {}.", operatorName, checkpointId, e);
+			LOG.error("Coordinator of {} failed to commit pending transactions on close() due to {}.", operatorName, e);
+			context.failJob(e);
+		}
+
+		if (!committablesPerSubtask.isEmpty()) {
+			LOG.error("Unstaged committables were expected to be empty but they are not.");
+			// TODO: 20.08.20 we should probably fail the job here.
 		}
 	}
 
@@ -165,12 +179,7 @@ public class SinkCoordinator<Committable> implements OperatorCoordinator {
 	public void close() throws Exception {
 		ensureStarted();
 		// TODO: 15.08.20 is it safe to commit here??? The javadoc is a bit unclear. Is this called also on failure???
-		try {
-			this.state.consumeUpTo(Long.MAX_VALUE, commitable -> committer.commit(commitable));
-		} catch (Exception e) {
-			LOG.error("Coordinator of {} failed to commit pending transactions on close() due to {}.", operatorName, e);
-			context.failJob(e);
-		}
+
 		this.started = false;
 	}
 

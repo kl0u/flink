@@ -49,7 +49,7 @@ public class DataStreamSink<T> {
 
 	protected DataStreamSink(
 			final DataStream<T> inputStream,
-			final Sink<T, ?, ?, ?> sink,
+			final Sink<T, ?, ?> sink,
 			final String name,
 			final Boundedness boundedness) {
 

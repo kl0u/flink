@@ -32,12 +32,12 @@ public class SinkCoordinatorProvider<Committable> extends RecreateOnResetOperato
 
 	private final String operatorName;
 
-	private final Sink<?, Committable, ?, ?> sink;
+	private final Sink<?, Committable, ?> sink;
 
 	public SinkCoordinatorProvider(
 			final String operatorName,
 			final OperatorID operatorID,
-			final Sink<?, Committable, ?, ?> sink) {
+			final Sink<?, Committable, ?> sink) {
 		super(operatorID);
 		this.operatorName = checkNotNull(operatorName);
 		this.sink = checkNotNull(sink);

@@ -52,6 +52,8 @@ public class FileWriter<BucketID, IN> {
 
 	private final OutputFileConfig outputFileConfig;
 
+	private final int attemptId;
+
 	private boolean initialized;
 
 	private long partCounter;
@@ -61,6 +63,7 @@ public class FileWriter<BucketID, IN> {
 
 	FileWriter(
 			final int subtaskIndex,
+			final int attemptId,
 			final BucketID bucketId,
 			final Path bucketPath,
 			final long initialPartCounter,
@@ -70,6 +73,7 @@ public class FileWriter<BucketID, IN> {
 		this.subtaskIndex = subtaskIndex;
 		this.bucketId = checkNotNull(bucketId);
 		this.bucketPath = checkNotNull(bucketPath);
+		this.attemptId = attemptId;
 		this.partCounter = initialPartCounter;
 		this.bucketWriter = checkNotNull(bucketWriter);
 		this.rollingPolicy = checkNotNull(rollingPolicy);
@@ -87,10 +91,6 @@ public class FileWriter<BucketID, IN> {
 
 	public Path getBucketPath() {
 		return bucketPath;
-	}
-
-	public long getPartCounter() {
-		return partCounter;
 	}
 
 	void init(
@@ -120,7 +120,7 @@ public class FileWriter<BucketID, IN> {
 		this.initialized = true;
 	}
 
-	public void write(
+	public long write(
 			IN element,
 			Writer.Context<InProgressFileWriter.PendingFileRecoverable> context,
 			WriterOutput<InProgressFileWriter.PendingFileRecoverable> output) throws IOException {
@@ -134,10 +134,15 @@ public class FileWriter<BucketID, IN> {
 						subtaskIndex, bucketId, element);
 			}
 
-			final InProgressFileWriter.PendingFileRecoverable recoverable = rollPartFile(currentProcessingTime);
-			output.sendToCommit(recoverable);
+			final InProgressFileWriter.PendingFileRecoverable recoverable =
+					rollPartFile(currentProcessingTime);
+
+			if (recoverable != null) {
+				output.sendToCommit(recoverable);
+			}
 		}
 		inProgressPart.write(element, currentProcessingTime);
+		return partCounter;
 	}
 
 	public FileWriterState<BucketID> getSubtaskState(WriterOutput<InProgressFileWriter.PendingFileRecoverable> output) throws IOException {
@@ -166,11 +171,6 @@ public class FileWriter<BucketID, IN> {
 		}
 	}
 
-	public Long getCommonState() {
-		checkState(initialized);
-		return partCounter;
-	}
-
 	private InProgressFileWriter.PendingFileRecoverable rollPartFile(final long currentTime) throws IOException {
 		final InProgressFileWriter.PendingFileRecoverable recoverable = closePartFile();
 
@@ -186,8 +186,9 @@ public class FileWriter<BucketID, IN> {
 		return recoverable;
 	}
 
+	// TODO: 20.08.20 adding the attempt id removes the need for union state.
 	private Path assembleNewPartPath() {
-		return new Path(bucketPath, outputFileConfig.getPartPrefix() + '-' + subtaskIndex + '-' + partCounter + outputFileConfig.getPartSuffix());
+		return new Path(bucketPath, outputFileConfig.getPartPrefix() + '-' + subtaskIndex + '-' + attemptId + "-" + partCounter + outputFileConfig.getPartSuffix());
 	}
 
 	private InProgressFileWriter.PendingFileRecoverable closePartFile() throws IOException {
