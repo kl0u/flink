@@ -18,10 +18,13 @@
 
 package org.apache.flink.streaming.api.operators.sink;
 
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.connector.sink.Committer;
 import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.core.io.SimpleVersionedSerialization;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
+import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 
@@ -32,6 +35,7 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -43,27 +47,26 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * Javadoc. todo the remaining bit
+ * Javadoc.
  */
-public class SinkCoordinator<Committable> implements OperatorCoordinator {
+public class SinkCoordinator<Committable> implements OperatorCoordinator, JobStatusListener {
 
 	private static final Logger LOG = LoggerFactory.getLogger(SinkCoordinator.class);
 
-	private final Sink<?, Committable, ?> sink;
-
 	private final String operatorName;
 
-	private transient Committer<Committable> committer;
-	private transient CommitterState<Committable> state;
-	private transient SimpleVersionedSerializer<Committable> serializer;
-
-	private transient CommitterStateSerializer<Committable> stateSerializer;
-
-	private transient Map<Integer, List<Committable>> committablesPerSubtask;
-
-	private transient boolean started;
+	private final Sink<?, Committable, ?> sink;
 
 	private final Context context;
+
+	private Committer<Committable> committer;
+	private CommitterState<Committable> state;
+	private SimpleVersionedSerializer<Committable> serializer;
+	private CommitterStateSerializer<Committable> stateSerializer;
+
+	private Map<Integer, List<Committable>> unstagedCommittablesPerSubtask;
+
+	private volatile boolean started;
 
 	public SinkCoordinator(
 			final String sinkName,
@@ -77,29 +80,56 @@ public class SinkCoordinator<Committable> implements OperatorCoordinator {
 	@Override
 	public void start() throws Exception {
 		this.committer = sink.createCommitter();
-		this.state = new CommitterState<>();
 		this.serializer = sink.getCommittableSerializer();
 		this.stateSerializer = new CommitterStateSerializer<>(serializer);
-		this.committablesPerSubtask = new HashMap<>();
+
+		this.state = new CommitterState<>();
+		this.unstagedCommittablesPerSubtask = new HashMap<>();
 		this.started = true;
 
-		LOG.info("Started the Sink Coordinator of the {}", operatorName);
+		LOG.info("Started the Sink Coordinator for {}.", operatorName);
+	}
+
+	@Override
+	public void close() throws Exception {
+		LOG.debug("Sink coordinator for {} terminated and all its resources were freed.", operatorName);
+		this.started = false;
+	}
+
+	@Override
+	public void jobStatusChanges(final JobID jobId, final JobStatus newJobStatus, final long timestamp, final Throwable error) {
+		ensureStarted();
+
+		if (newJobStatus == JobStatus.FINISHED) {
+			LOG.info("Job {} finished SUCCESSFULLY. Committing all pending files...", jobId);
+			commitAll();
+			LOG.info("Sink coordinator for {} of job {} committed all pending committables successfully.", operatorName, jobId);
+			started = false;
+		}
+	}
+
+	private void commitAll() {
+		ensureStarted();
+
+		// if we are in a streaming context,
+		// we have need to commit any accumulated state
+		commitStateUpToCheckpoint(Long.MAX_VALUE);
+		commitUnstagedOnFinished();
 	}
 
 	@Override
 	public void handleEventFromOperator(int subtask, OperatorEvent event) {
 		ensureStarted();
 
-		LOG.debug("Sink Coordinator {} received from subtask {} event: {} .", operatorName, subtask, event);
+		LOG.debug("Sink Coordinator for {} received from subtask {} event: {} .", operatorName, subtask, event);
 		try {
 			if (event instanceof SinkOperatorEvent) {
-				final SinkOperatorEvent<Committable> sinkEvent = (SinkOperatorEvent<Committable>) event;
+				final SinkOperatorEvent<Committable> sinkEvent =
+						(SinkOperatorEvent<Committable>) event;
 
-				final List<Committable> committables = committablesPerSubtask
+				final List<Committable> committables = unstagedCommittablesPerSubtask
 						.computeIfAbsent(subtask, k -> new ArrayList<>());
 				committables.addAll(sinkEvent.getCommittables(serializer));
-			} else {
-				throw new IllegalStateException("Unknown message " + event.getClass().getCanonicalName());
 			}
 		} catch (IOException e) {
 			context.failJob(e);
@@ -111,12 +141,12 @@ public class SinkCoordinator<Committable> implements OperatorCoordinator {
 		ensureStarted();
 
 		try {
-			LOG.debug("Handling failure of subtask " + subtask + ".");
-			for (Committable committable : committablesPerSubtask.remove(subtask)) {
+			LOG.debug("Sink coordinator for {} handling failure of subtask {}.", operatorName, subtask);
+			for (Committable committable : unstagedCommittablesPerSubtask.remove(subtask)) {
 				committer.abort(committable);
 			}
 		} catch (Exception e) {
-			LOG.error("Aborting pending transactions for subtask {} failed due to {}", subtask, e);
+			LOG.error("Sink coordinator for {} failed to abort pending transactions for failed subtask {}", operatorName, subtask, e);
 			context.failJob(e);
 		}
 	}
@@ -125,9 +155,11 @@ public class SinkCoordinator<Committable> implements OperatorCoordinator {
 	public void resetToCheckpoint(byte[] checkpointData) throws Exception {
 		ensureStarted();
 
-		this.committablesPerSubtask = new HashMap<>();
+		LOG.debug("Sink coordinator for {} resetting its state.", operatorName);
+
 		this.state = SimpleVersionedSerialization
 				.readVersionAndDeSerialize(stateSerializer, checkpointData);
+		this.unstagedCommittablesPerSubtask = new HashMap<>();
 	}
 
 	@Override
@@ -135,19 +167,13 @@ public class SinkCoordinator<Committable> implements OperatorCoordinator {
 		ensureStarted();
 
 		try {
-			LOG.debug("Taking a state snapshot on the coordinator of {} for checkpoint {}.", operatorName, checkpointId);
+			LOG.debug("Sink coordinator for {} taking state snapshot for checkpoint {}.", operatorName, checkpointId);
 
-			final List<Committable> committables = committablesPerSubtask
-					.values()
-					.stream()
-					.flatMap(List::stream)
-					.collect(Collectors.toList());
-			this.state.put(checkpointId, committables);
+			this.state.put(checkpointId, flatten(unstagedCommittablesPerSubtask.values()));
+			this.unstagedCommittablesPerSubtask = new HashMap<>();
 
 			resultFuture.complete(
 					SimpleVersionedSerialization.writeVersionAndSerialize(stateSerializer, state));
-
-			this.committablesPerSubtask = new HashMap<>();
 		} catch (Exception e) {
 			resultFuture.completeExceptionally(new CompletionException(e));
 		}
@@ -155,35 +181,41 @@ public class SinkCoordinator<Committable> implements OperatorCoordinator {
 
 	@Override
 	public void checkpointComplete(long checkpointId) {
-		// do nothing as we only commit on successful completion of the application.
+		ensureStarted();
+		commitStateUpToCheckpoint(checkpointId);
 	}
 
-	private void commitAll() {
-		ensureStarted();
-
-		LOG.debug("Committing pending transactions...");
+	private void commitStateUpToCheckpoint(final long checkpointId) {
 		try {
-			this.state.consumeUpTo(Long.MAX_VALUE, commitable -> committer.commit(commitable));
+			LOG.debug("Sink coordinator for {} committing up to checkpoint {}", operatorName, checkpointId);
+			state.consumeUpTo(checkpointId, committer::commit);
 		} catch (Exception e) {
-			LOG.error("Coordinator of {} failed to commit pending transactions on close() due to {}.", operatorName, e);
+			LOG.error("Sink coordinator for {} failing job because it failed to commit " +
+					"state on checkpoint {}'s completion.", operatorName, checkpointId, e);
 			context.failJob(e);
 		}
-
-		if (!committablesPerSubtask.isEmpty()) {
-			LOG.error("Unstaged committables were expected to be empty but they are not.");
-			// TODO: 20.08.20 we should probably fail the job here.
-		}
 	}
 
-	@Override
-	public void close() throws Exception {
-		ensureStarted();
-		// TODO: 15.08.20 is it safe to commit here??? The javadoc is a bit unclear. Is this called also on failure???
-
-		this.started = false;
+	private void commitUnstagedOnFinished() {
+		try {
+			for (Committable committable : flatten(unstagedCommittablesPerSubtask.values())) {
+				committer.commit(committable);
+			}
+		} catch (Exception e) {
+			LOG.error("Sink coordinator for {} failing job because it failed to commit " +
+					" state at the end of the job.", operatorName, e);
+			context.failJob(e);
+		}
 	}
 
 	private void ensureStarted() {
 		checkState(started, "The sink coordinator for " + operatorName + " has not been started yet.");
+	}
+
+	private static <T> List<T> flatten(final Collection<List<T>> nestedCollections) {
+		return checkNotNull(nestedCollections)
+				.stream()
+				.flatMap(Collection::stream)
+				.collect(Collectors.toList());
 	}
 }
