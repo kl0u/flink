@@ -150,18 +150,25 @@ public class StreamingSinkOperator<IN, Committable, WriterStateT, CommonStateT>
 	public void snapshotState(StateSnapshotContext context) throws Exception {
 		cleanupStateStores();
 
-		snapshotCommonState();
+		// handle writer
 
 		final long checkpointId = context.getCheckpointId();
 		if (checkpointId == Long.MAX_VALUE) {
 			// TODO: 17.08.20 this is the FINAL checkpoint before closing
-			//  the flag should be set in the context like: context.isFinalCheckpoint())
+			//  the flag should be set in the context like: StateSnapshotContext.isFinalCheckpoint())
 			//  but in order to compile I leave it like this.
 			// Before I was sending the last bit to the coordinator to commit it.
 			writer.flush(committableHandler);
-		} else {
-			snapshotSubtaskState();
 		}
+
+		// in any case we snapshot the state of the writer because the committables may
+		// have been shipped but the writer may have other state to checkpoint, e.g. in
+		// case of SUSPEND
+
+		snapshotCommonState();
+		snapshotSubtaskState();
+
+		// handle committables
 
 		final Optional<byte[]> committables =
 				committableHandler.snapshotState(checkpointId);

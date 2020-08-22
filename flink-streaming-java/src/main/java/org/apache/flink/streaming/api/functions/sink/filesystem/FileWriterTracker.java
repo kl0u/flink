@@ -63,6 +63,7 @@ public class FileWriterTracker<IN, BucketID> implements
 
 	private final int attemptId;
 
+	// TODO: 22.08.20 do we ever clean??? check the Buckets
 	private final Map<BucketID, FileWriter<BucketID, IN>> activeBuckets;
 
 	private final Buckets.BucketerContext bucketerContext;
