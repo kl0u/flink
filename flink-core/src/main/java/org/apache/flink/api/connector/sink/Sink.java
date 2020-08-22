@@ -25,9 +25,9 @@ import java.io.Serializable;
 /**
  * Javadoc.
  */
-public interface Sink<IN, Committable, WriterState> extends Serializable {
+public interface Sink<IN, Committable, WriterState, SharedState> extends Serializable {
 
-	Writer<IN, Committable, WriterState> createWriter(InitContext context) throws Exception;
+	Writer<IN, Committable, WriterState, SharedState> createWriter(InitContext context) throws Exception;
 
 	Committer<Committable> createCommitter() throws Exception;
 
@@ -36,4 +36,6 @@ public interface Sink<IN, Committable, WriterState> extends Serializable {
 	SimpleVersionedSerializer<Committable> getCommittableSerializer() throws Exception;
 
 	SimpleVersionedSerializer<WriterState> getStateSerializer() throws Exception;
+
+	SimpleVersionedSerializer<SharedState> getSharedStateSerializer() throws Exception;
 }

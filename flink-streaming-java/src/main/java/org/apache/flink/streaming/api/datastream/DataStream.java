@@ -1308,7 +1308,7 @@ public class DataStream<T> {
 
 	@Experimental
 	public DataStreamSink<T> addSink(
-			final Sink<T, ?, ?> sink,
+			final Sink<T, ?, ?, ?> sink,
 			final String name,
 			final Boundedness boundedness) {
 

@@ -28,6 +28,7 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.DateTimeBucketAssigner;
+import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.SimpleVersionedLongSerializer;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy;
 import org.apache.flink.util.Preconditions;
 
@@ -39,7 +40,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Javadoc.
  */
-public class FileSink<BucketID, IN> implements Sink<IN, InProgressFileWriter.PendingFileRecoverable, FileWriterState<BucketID>> {
+public class FileSink<BucketID, IN> implements Sink<IN, InProgressFileWriter.PendingFileRecoverable, FileWriterState<BucketID>, Long> {
 
 	private final BucketsBuilder<IN, BucketID, ? extends BucketsBuilder<IN, BucketID, ?>> bucketsBuilder;
 
@@ -71,6 +72,11 @@ public class FileSink<BucketID, IN> implements Sink<IN, InProgressFileWriter.Pen
 	@Override
 	public SimpleVersionedSerializer<FileWriterState<BucketID>> getStateSerializer() throws IOException {
 		return bucketsBuilder.getWriterStateSerializer();
+	}
+
+	@Override
+	public SimpleVersionedSerializer<Long> getSharedStateSerializer() {
+		return new SimpleVersionedLongSerializer();
 	}
 
 	public static <IN> DefaultRowFormatBuilder<IN> forRowFormat(

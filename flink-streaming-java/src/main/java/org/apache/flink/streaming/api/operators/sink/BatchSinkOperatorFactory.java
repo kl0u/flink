@@ -39,9 +39,9 @@ public class BatchSinkOperatorFactory extends AbstractStreamOperatorFactory<Obje
 
 	private static final long serialVersionUID = 1L;
 
-	private final Sink<?, ?, ?> sink;
+	private final Sink<?, ?, ?, ?> sink;
 
-	public BatchSinkOperatorFactory(final Sink<?, ?, ?> sink) {
+	public BatchSinkOperatorFactory(final Sink<?, ?, ?, ?> sink) {
 		this.sink = checkNotNull(sink);
 	}
 
@@ -61,7 +61,7 @@ public class BatchSinkOperatorFactory extends AbstractStreamOperatorFactory<Obje
 		final OperatorEventGateway gateway = parameters.getOperatorEventDispatcher().getOperatorEventGateway(operatorId);
 		final ProcessingTimeService timeService = parameters.getProcessingTimeService();
 
-		final BatchSinkOperator<?, ?, ?> sinkOperator = new BatchSinkOperator<>(sink, gateway, timeService);
+		final BatchSinkOperator<?, ?, ?, ?> sinkOperator = new BatchSinkOperator<>(sink, gateway, timeService);
 		sinkOperator.setup(parameters.getContainingTask(), parameters.getStreamConfig(), parameters.getOutput());
 		return (T) sinkOperator;
 	}

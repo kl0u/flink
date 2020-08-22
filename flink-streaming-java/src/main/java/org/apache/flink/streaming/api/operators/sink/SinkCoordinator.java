@@ -55,7 +55,7 @@ public class SinkCoordinator<Committable> implements OperatorCoordinator, JobSta
 
 	private final String operatorName;
 
-	private final Sink<?, Committable, ?> sink;
+	private final Sink<?, Committable, ?, ?> sink;
 
 	private final Context context;
 
@@ -70,7 +70,7 @@ public class SinkCoordinator<Committable> implements OperatorCoordinator, JobSta
 
 	public SinkCoordinator(
 			final String sinkName,
-			final Sink<?, Committable, ?> sink,
+			final Sink<?, Committable, ?, ?> sink,
 			final Context context) {
 		this.operatorName = checkNotNull(sinkName);
 		this.sink = checkNotNull(sink);

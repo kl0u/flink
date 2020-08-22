@@ -40,7 +40,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 @Internal
 public class FileWriterTracker<IN, BucketID> implements
-		Writer<IN, InProgressFileWriter.PendingFileRecoverable, FileWriterState<BucketID>>,
+		Writer<IN, InProgressFileWriter.PendingFileRecoverable, FileWriterState<BucketID>, Long>,
 		Writer.TimerCallback<InProgressFileWriter.PendingFileRecoverable> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(FileWriterTracker.class);
@@ -98,13 +98,26 @@ public class FileWriterTracker<IN, BucketID> implements
 	@Override
 	public void init(
 			final List<FileWriterState<BucketID>> subtaskState,
+			final List<Long> sharedState,
 			final WriterOutput<InProgressFileWriter.PendingFileRecoverable> output) throws Exception {
+		checkNotNull(subtaskState);
+		checkNotNull(sharedState);
+		checkNotNull(output);
 
-		LOG.info("Subtask {} initializing its state.", subtaskId);
+		this.maxPartCounter = getMaxCounter(sharedState);
+		LOG.info("Subtask {} initializing its state (max part counter={}).", subtaskId, maxPartCounter);
 
 		for (Map.Entry<BucketID, List<FileWriterState<BucketID>>> entry : groupByBucket(subtaskState).entrySet()) {
 			getOrCreateBucketForBucketId(entry.getKey(), entry.getValue(), output);
 		}
+	}
+
+	private long getMaxCounter(final List<Long> restoredCounters) {
+		long maxCounter = 0;
+		for (long counter : restoredCounters) {
+			maxCounter = Math.max(maxCounter, counter);
+		}
+		return maxCounter;
 	}
 
 	private Map<BucketID, List<FileWriterState<BucketID>>> groupByBucket(final List<FileWriterState<BucketID>> states) {
@@ -128,7 +141,8 @@ public class FileWriterTracker<IN, BucketID> implements
 				ctx.currentProcessingTime());
 
 		final BucketID bucketId = bucketAssigner.getBucketId(element, bucketerContext);
-		final FileWriter<BucketID, IN> bucket = getOrCreateBucketForBucketId(bucketId, Collections.emptyList(), output);
+		final FileWriter<BucketID, IN> bucket = getOrCreateBucketForBucketId(
+				bucketId, Collections.emptyList(), output);
 
 		final long unstagedPartCounter = bucket.write(element, ctx, output);
 
@@ -165,6 +179,11 @@ public class FileWriterTracker<IN, BucketID> implements
 	private Path assembleBucketPath(BucketID bucketId) {
 		final String child = bucketId.toString();
 		return "".equals(child) ? basePath : new Path(basePath, child);
+	}
+
+	@Override
+	public Long snapshotSharedState() {
+		return maxPartCounter;
 	}
 
 	@Override

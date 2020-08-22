@@ -24,15 +24,17 @@ import java.util.List;
 /**
  * Javadoc.
  */
-public interface Writer<IN, CommT, StateT> {
+public interface Writer<IN, CommT, StateT, SharedStateT> {
 
-	void init(List<StateT> subtaskState, WriterOutput<CommT> output) throws Exception;
+	void init(List<StateT> subtaskState, List<SharedStateT> sharedState, WriterOutput<CommT> output) throws Exception;
 
 	void write(IN element, Context<CommT> ctx, WriterOutput<CommT> output) throws Exception;
 
 	List<StateT> snapshotState(WriterOutput<CommT> output) throws Exception;
 
 	void flush(WriterOutput<CommT> output) throws Exception;
+
+	SharedStateT snapshotSharedState() throws Exception;
 
 	/**
 	 * Javadoc.

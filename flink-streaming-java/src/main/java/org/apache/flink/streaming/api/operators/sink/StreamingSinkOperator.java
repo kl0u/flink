@@ -44,15 +44,15 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Javadoc.
  */
-public class StreamingSinkOperator<IN, Committable, WriterStateT>
+public class StreamingSinkOperator<IN, Committable, WriterStateT, CommonStateT>
 		extends AbstractStreamOperator<Object>
 		implements OneInputStreamOperator<IN, Object> {
 
-	private final Sink<IN, Committable, WriterStateT> sink;
+	private final Sink<IN, Committable, WriterStateT, CommonStateT> sink;
 
 	// ------------------------- Runtime fields -------------------------
 
-	private Writer<IN, Committable, WriterStateT> writer;
+	private Writer<IN, Committable, WriterStateT, CommonStateT> writer;
 
 	private WriterContext<Committable> writerContext;
 
@@ -65,19 +65,25 @@ public class StreamingSinkOperator<IN, Committable, WriterStateT>
 	private static final ListStateDescriptor<byte[]> WRITER_STATE_DESC =
 			new ListStateDescriptor<>("writer-state", BytePrimitiveArraySerializer.INSTANCE);
 
+	private static final ListStateDescriptor<byte[]> SHARED_STATE_DESC =
+			new ListStateDescriptor<>("shared-state", BytePrimitiveArraySerializer.INSTANCE);
+
 	private static final ListStateDescriptor<byte[]> COMMITTER_STATE_DESC =
 			new ListStateDescriptor<>("committer-state", BytePrimitiveArraySerializer.INSTANCE);
 
 	private ListState<byte[]> committerStateStore;
+	private ListState<byte[]> sharedWriterStateStore;
 	private ListState<byte[]> writerStateStore;
 
 	private SimpleVersionedSerializer<WriterStateT> writerStateSerializer;
+	private SimpleVersionedSerializer<CommonStateT> sharedWriterStateSerializer;
 
 	private List<WriterStateT> restoredWriterStates;
+	private List<CommonStateT> restoredSharedWriterStates;
 	private List<CommitterState<Committable>> restoredCommitterStates;
 
 	public StreamingSinkOperator(
-			final Sink<IN, Committable, WriterStateT> sink,
+			final Sink<IN, Committable, WriterStateT, CommonStateT> sink,
 			final ProcessingTimeService timeService) {
 		this.sink = checkNotNull(sink);
 		this.processingTimeService = checkNotNull(timeService);
@@ -88,11 +94,14 @@ public class StreamingSinkOperator<IN, Committable, WriterStateT>
 		super.initializeState(context);
 
 		writerStateStore = context.getOperatorStateStore().getListState(WRITER_STATE_DESC);
+		sharedWriterStateStore = context.getOperatorStateStore().getUnionListState(SHARED_STATE_DESC);
 		committerStateStore = context.getOperatorStateStore().getListState(COMMITTER_STATE_DESC);
 
 		writerStateSerializer = sink.getStateSerializer();
+		sharedWriterStateSerializer = sink.getSharedStateSerializer();
 
 		restoredWriterStates = new ArrayList<>();
+		restoredSharedWriterStates = new ArrayList<>();
 		restoredCommitterStates = new ArrayList<>();
 
 		if (context.isRestored()) {
@@ -100,6 +109,7 @@ public class StreamingSinkOperator<IN, Committable, WriterStateT>
 					new CommitterStateSerializer<>(sink.getCommittableSerializer());
 
 			deserializeStates(writerStateStore, writerStateSerializer, restoredWriterStates);
+			deserializeStates(sharedWriterStateStore, sharedWriterStateSerializer, restoredSharedWriterStates);
 			deserializeStates(committerStateStore, committerStateSerializer, restoredCommitterStates);
 		}
 
@@ -127,7 +137,7 @@ public class StreamingSinkOperator<IN, Committable, WriterStateT>
 				restoredCommitterStates);
 
 		this.writer = sink.createWriter(createInitContext());
-		this.writer.init(restoredWriterStates, committableHandler);
+		this.writer.init(restoredWriterStates, restoredSharedWriterStates, committableHandler);
 
 		cleanupRestoredStates();
 
@@ -139,6 +149,8 @@ public class StreamingSinkOperator<IN, Committable, WriterStateT>
 	@Override
 	public void snapshotState(StateSnapshotContext context) throws Exception {
 		cleanupStateStores();
+
+		snapshotCommonState();
 
 		final long checkpointId = context.getCheckpointId();
 		if (checkpointId == Long.MAX_VALUE) {
@@ -156,6 +168,13 @@ public class StreamingSinkOperator<IN, Committable, WriterStateT>
 		if (committables.isPresent()) {
 			committerStateStore.add(committables.get());
 		}
+	}
+
+	private void snapshotCommonState() throws Exception {
+		final CommonStateT commonState = writer.snapshotSharedState();
+		final byte[] serializedCommonState = SimpleVersionedSerialization
+				.writeVersionAndSerialize(sharedWriterStateSerializer, commonState);
+		sharedWriterStateStore.add(serializedCommonState);
 	}
 
 	private void snapshotSubtaskState() throws Exception {
@@ -185,12 +204,14 @@ public class StreamingSinkOperator<IN, Committable, WriterStateT>
 	}
 
 	private void cleanupStateStores() {
+		sharedWriterStateStore.clear();
 		writerStateStore.clear();
 		committerStateStore.clear();
 	}
 
 	private void cleanupRestoredStates() {
 		restoredWriterStates.clear();
+		restoredSharedWriterStates.clear();
 		restoredCommitterStates.clear();
 	}
 

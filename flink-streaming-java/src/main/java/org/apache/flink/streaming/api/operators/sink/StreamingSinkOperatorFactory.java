@@ -35,9 +35,9 @@ public class StreamingSinkOperatorFactory extends AbstractStreamOperatorFactory<
 
 	private static final long serialVersionUID = 1L;
 
-	private final Sink<?, ?, ?> sink;
+	private final Sink<?, ?, ?, ?> sink;
 
-	public StreamingSinkOperatorFactory(final Sink<?, ?, ?> sink) {
+	public StreamingSinkOperatorFactory(final Sink<?, ?, ?, ?> sink) {
 		this.sink = checkNotNull(sink);
 	}
 
@@ -49,7 +49,7 @@ public class StreamingSinkOperatorFactory extends AbstractStreamOperatorFactory<
 	@Override
 	public <T extends StreamOperator<Object>> T createStreamOperator(StreamOperatorParameters<Object> parameters) {
 		final ProcessingTimeService timeService = parameters.getProcessingTimeService();
-		final StreamingSinkOperator<?, ?, ?> sinkOperator = new StreamingSinkOperator<>(sink, timeService);
+		final StreamingSinkOperator<?, ?, ?, ?> sinkOperator = new StreamingSinkOperator<>(sink, timeService);
 		sinkOperator.setup(parameters.getContainingTask(), parameters.getStreamConfig(), parameters.getOutput());
 		return (T) sinkOperator;
 	}

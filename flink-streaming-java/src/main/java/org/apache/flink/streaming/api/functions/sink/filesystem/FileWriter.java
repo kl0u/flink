@@ -171,6 +171,11 @@ public class FileWriter<BucketID, IN> {
 		}
 	}
 
+	public Long getCommonState() {
+		checkState(initialized);
+		return partCounter;
+	}
+
 	private InProgressFileWriter.PendingFileRecoverable rollPartFile(final long currentTime) throws IOException {
 		final InProgressFileWriter.PendingFileRecoverable recoverable = closePartFile();
 
@@ -186,9 +191,8 @@ public class FileWriter<BucketID, IN> {
 		return recoverable;
 	}
 
-	// TODO: 20.08.20 adding the attempt id removes the need for union state.
 	private Path assembleNewPartPath() {
-		return new Path(bucketPath, outputFileConfig.getPartPrefix() + '-' + subtaskIndex + '-' + attemptId + "-" + partCounter + outputFileConfig.getPartSuffix());
+		return new Path(bucketPath, outputFileConfig.getPartPrefix() + '-' + subtaskIndex + '-' + partCounter + outputFileConfig.getPartSuffix());
 	}
 
 	private InProgressFileWriter.PendingFileRecoverable closePartFile() throws IOException {
