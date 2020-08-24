@@ -44,13 +44,8 @@ public class FileSink<BucketID, IN> implements Sink<IN, InProgressFileWriter.Pen
 
 	private final BucketsBuilder<IN, BucketID, ? extends BucketsBuilder<IN, BucketID, ?>> bucketsBuilder;
 
-	private final long bucketCheckInterval;
-
-	private FileSink(
-			final BucketsBuilder<IN, BucketID, ? extends BucketsBuilder<IN, BucketID, ?>> bucketsBuilder,
-			final long bucketCheckInterval) {
+	private FileSink(final BucketsBuilder<IN, BucketID, ? extends BucketsBuilder<IN, BucketID, ?>> bucketsBuilder) {
 		this.bucketsBuilder = checkNotNull(bucketsBuilder);
-		this.bucketCheckInterval = bucketCheckInterval;
 	}
 
 	@Override
@@ -183,7 +178,7 @@ public class FileSink<BucketID, IN> implements Sink<IN, InProgressFileWriter.Pen
 
 		/** Creates the actual sink. */
 		public FileSink<BucketID, IN> build() {
-			return new FileSink<>(this, bucketCheckInterval);
+			return new FileSink<>(this);
 		}
 
 		@VisibleForTesting

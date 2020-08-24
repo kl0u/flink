@@ -71,6 +71,8 @@ public class FileWriterTracker<IN, BucketID> implements
 
 	private long maxPartCounter;
 
+	private boolean alreadyRegisteredTimer;
+
 	FileWriterTracker(
 			final int subtaskId,
 			final int attemptId,
@@ -90,6 +92,7 @@ public class FileWriterTracker<IN, BucketID> implements
 		this.rollingPolicy = checkNotNull(rollingPolicy);
 		this.outputFileConfig = checkNotNull(outputFileConfig);
 		this.bucketCheckInterval = bucketCheckInterval;
+		this.alreadyRegisteredTimer = false;
 
 		this.activeBuckets = new HashMap<>();
 		this.bucketerContext = new Buckets.BucketerContext();
@@ -154,7 +157,11 @@ public class FileWriterTracker<IN, BucketID> implements
 		// another part file for the bucket, if we start from 0 we may overwrite previous parts.
 
 		this.maxPartCounter = Math.max(maxPartCounter, unstagedPartCounter);
-		ctx.registerCallback(this, bucketCheckInterval);
+
+		if (!alreadyRegisteredTimer) {
+			ctx.registerCallback(this, bucketCheckInterval);
+			alreadyRegisteredTimer = true;
+		}
 	}
 
 	private FileWriter<BucketID, IN> getOrCreateBucketForBucketId(
@@ -232,5 +239,6 @@ public class FileWriterTracker<IN, BucketID> implements
 				activeBuckets.remove(bucket.getBucketId());
 			}
 		}
+		ctx.registerCallback(this, bucketCheckInterval);
 	}
 }
