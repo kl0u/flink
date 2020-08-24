@@ -63,7 +63,6 @@ public class FileWriterTracker<IN, BucketID> implements
 
 	private final int attemptId;
 
-	// TODO: 22.08.20 do we ever clean??? check the Buckets
 	private final Map<BucketID, FileWriter<BucketID, IN>> activeBuckets;
 
 	private final Buckets.BucketerContext bucketerContext;
@@ -146,6 +145,9 @@ public class FileWriterTracker<IN, BucketID> implements
 				bucketId, Collections.emptyList(), output);
 
 		final long unstagedPartCounter = bucket.write(element, ctx, output);
+		if (!bucket.isActive()) {
+			activeBuckets.remove(bucketId);
+		}
 
 		// we update the global max counter here because as buckets become inactive and
 		// get removed from the list of active buckets, at the time when we want to create
@@ -197,18 +199,26 @@ public class FileWriterTracker<IN, BucketID> implements
 		for (FileWriter<BucketID, IN> writer : activeBuckets.values()) {
 			final FileWriterState<BucketID> state = writer.getSubtaskState(output);
 			states.add(state);
+			if (!writer.isActive()) {
+				activeBuckets.remove(writer.getBucketId());
+			}
 		}
 		return states;
 	}
 
 	@Override
-	public void flush(WriterOutput<InProgressFileWriter.PendingFileRecoverable> output) throws Exception {
+	public void flush(final WriterOutput<InProgressFileWriter.PendingFileRecoverable> output) throws Exception {
 		if (activeBuckets.isEmpty()) {
 			return;
 		}
 
 		for (FileWriter<BucketID, IN> writer : activeBuckets.values()) {
-			writer.finalize(output);
+			writer.flush(output);
+			if (!writer.isActive()) {
+				activeBuckets.remove(writer.getBucketId());
+			} else {
+				LOG.warn("Bucket {} has active in progress file after calling flush().", writer.getBucketId());
+			}
 		}
 	}
 
@@ -218,6 +228,9 @@ public class FileWriterTracker<IN, BucketID> implements
 			final WriterOutput<InProgressFileWriter.PendingFileRecoverable> output) throws IOException {
 		for (FileWriter<BucketID, IN> bucket : activeBuckets.values()) {
 			bucket.apply(ctx, output);
+			if (!bucket.isActive()) {
+				activeBuckets.remove(bucket.getBucketId());
+			}
 		}
 	}
 }
