@@ -39,8 +39,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Javadoc.
  */
 @Internal
-public class FileWriterTracker<IN, BucketID> implements
-		Writer<IN, InProgressFileWriter.PendingFileRecoverable, FileWriterState<BucketID>, Long>,
+public class FileWriterTracker<IN, WriterID> implements
+		Writer<IN, InProgressFileWriter.PendingFileRecoverable, FileWriterState<WriterID>, Long>,
 		Writer.TimerCallback<InProgressFileWriter.PendingFileRecoverable> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(FileWriterTracker.class);
@@ -49,11 +49,11 @@ public class FileWriterTracker<IN, BucketID> implements
 
 	private final Path basePath;
 
-	private final BucketAssigner<IN, BucketID> bucketAssigner;
+	private final BucketAssigner<IN, WriterID> bucketAssigner;
 
-	private final BucketWriter<IN, BucketID> bucketWriter;
+	private final BucketWriter<IN, WriterID> bucketWriter;
 
-	private final RollingPolicy<IN, BucketID> rollingPolicy;
+	private final RollingPolicy<IN, WriterID> rollingPolicy;
 
 	private final long bucketCheckInterval;
 
@@ -63,7 +63,7 @@ public class FileWriterTracker<IN, BucketID> implements
 
 	private final int attemptId;
 
-	private final Map<BucketID, FileWriter<BucketID, IN>> activeBuckets;
+	private final Map<WriterID, FileWriter<WriterID, IN>> activeBuckets;
 
 	private final Buckets.BucketerContext bucketerContext;
 
@@ -77,9 +77,9 @@ public class FileWriterTracker<IN, BucketID> implements
 			final int subtaskId,
 			final int attemptId,
 			final Path basePath,
-			final BucketAssigner<IN, BucketID> bucketAssigner,
-			final BucketWriter<IN, BucketID> bucketWriter,
-			final RollingPolicy<IN, BucketID> rollingPolicy,
+			final BucketAssigner<IN, WriterID> bucketAssigner,
+			final BucketWriter<IN, WriterID> bucketWriter,
+			final RollingPolicy<IN, WriterID> rollingPolicy,
 			final OutputFileConfig outputFileConfig,
 			final long bucketCheckInterval) {
 		this.subtaskId = subtaskId;
@@ -100,7 +100,7 @@ public class FileWriterTracker<IN, BucketID> implements
 
 	@Override
 	public void init(
-			final List<FileWriterState<BucketID>> subtaskState,
+			final List<FileWriterState<WriterID>> subtaskState,
 			final List<Long> sharedState,
 			final WriterOutput<InProgressFileWriter.PendingFileRecoverable> output) throws Exception {
 		checkNotNull(subtaskState);
@@ -110,7 +110,7 @@ public class FileWriterTracker<IN, BucketID> implements
 		this.maxPartCounter = getMaxCounter(sharedState);
 		LOG.info("Subtask {} initializing its state (max part counter={}).", subtaskId, maxPartCounter);
 
-		for (Map.Entry<BucketID, List<FileWriterState<BucketID>>> entry : groupByBucket(subtaskState).entrySet()) {
+		for (Map.Entry<WriterID, List<FileWriterState<WriterID>>> entry : groupByBucket(subtaskState).entrySet()) {
 			getOrCreateBucketForBucketId(entry.getKey(), entry.getValue(), output);
 		}
 	}
@@ -123,10 +123,10 @@ public class FileWriterTracker<IN, BucketID> implements
 		return maxCounter;
 	}
 
-	private Map<BucketID, List<FileWriterState<BucketID>>> groupByBucket(final List<FileWriterState<BucketID>> states) {
-		final Map<BucketID, List<FileWriterState<BucketID>>> statesByKey = new HashMap<>();
-		for (FileWriterState<BucketID> state : states) {
-			final List<FileWriterState<BucketID>> stateForKey = statesByKey
+	private Map<WriterID, List<FileWriterState<WriterID>>> groupByBucket(final List<FileWriterState<WriterID>> states) {
+		final Map<WriterID, List<FileWriterState<WriterID>>> statesByKey = new HashMap<>();
+		for (FileWriterState<WriterID> state : states) {
+			final List<FileWriterState<WriterID>> stateForKey = statesByKey
 					.computeIfAbsent(state.getBucketID(), k -> new ArrayList<>());
 			stateForKey.add(state);
 		}
@@ -143,8 +143,8 @@ public class FileWriterTracker<IN, BucketID> implements
 				ctx.currentWatermark(),
 				ctx.currentProcessingTime());
 
-		final BucketID bucketId = bucketAssigner.getBucketId(element, bucketerContext);
-		final FileWriter<BucketID, IN> bucket = getOrCreateBucketForBucketId(
+		final WriterID bucketId = bucketAssigner.getBucketId(element, bucketerContext);
+		final FileWriter<WriterID, IN> bucket = getOrCreateBucketForBucketId(
 				bucketId, Collections.emptyList(), output);
 
 		final long unstagedPartCounter = bucket.write(element, ctx, output);
@@ -164,11 +164,11 @@ public class FileWriterTracker<IN, BucketID> implements
 		}
 	}
 
-	private FileWriter<BucketID, IN> getOrCreateBucketForBucketId(
-			final BucketID bucketId,
-			final List<FileWriterState<BucketID>> initStates,
+	private FileWriter<WriterID, IN> getOrCreateBucketForBucketId(
+			final WriterID bucketId,
+			final List<FileWriterState<WriterID>> initStates,
 			final WriterOutput<InProgressFileWriter.PendingFileRecoverable> output) throws IOException {
-		FileWriter<BucketID, IN> bucket = activeBuckets.get(bucketId);
+		FileWriter<WriterID, IN> bucket = activeBuckets.get(bucketId);
 		if (bucket == null) {
 			final Path bucketPath = assembleBucketPath(bucketId);
 			bucket = new FileWriter<>(
@@ -186,7 +186,7 @@ public class FileWriterTracker<IN, BucketID> implements
 		return bucket;
 	}
 
-	private Path assembleBucketPath(BucketID bucketId) {
+	private Path assembleBucketPath(WriterID bucketId) {
 		final String child = bucketId.toString();
 		return "".equals(child) ? basePath : new Path(basePath, child);
 	}
@@ -197,14 +197,14 @@ public class FileWriterTracker<IN, BucketID> implements
 	}
 
 	@Override
-	public List<FileWriterState<BucketID>> snapshotState(final WriterOutput<InProgressFileWriter.PendingFileRecoverable> output) throws Exception {
-		final List<FileWriterState<BucketID>> states = new ArrayList<>();
+	public List<FileWriterState<WriterID>> snapshotState(final WriterOutput<InProgressFileWriter.PendingFileRecoverable> output) throws Exception {
+		final List<FileWriterState<WriterID>> states = new ArrayList<>();
 		if (activeBuckets.isEmpty()) {
 			return states;
 		}
 
-		for (FileWriter<BucketID, IN> writer : activeBuckets.values()) {
-			final FileWriterState<BucketID> state = writer.getSubtaskState(output);
+		for (FileWriter<WriterID, IN> writer : activeBuckets.values()) {
+			final FileWriterState<WriterID> state = writer.getSubtaskState(output);
 			states.add(state);
 			if (!writer.isActive()) {
 				activeBuckets.remove(writer.getBucketId());
@@ -219,7 +219,7 @@ public class FileWriterTracker<IN, BucketID> implements
 			return;
 		}
 
-		for (FileWriter<BucketID, IN> writer : activeBuckets.values()) {
+		for (FileWriter<WriterID, IN> writer : activeBuckets.values()) {
 			writer.flush(output);
 			if (!writer.isActive()) {
 				activeBuckets.remove(writer.getBucketId());
@@ -233,7 +233,7 @@ public class FileWriterTracker<IN, BucketID> implements
 	public void apply(
 			final Context<InProgressFileWriter.PendingFileRecoverable> ctx,
 			final WriterOutput<InProgressFileWriter.PendingFileRecoverable> output) throws IOException {
-		for (FileWriter<BucketID, IN> bucket : activeBuckets.values()) {
+		for (FileWriter<WriterID, IN> bucket : activeBuckets.values()) {
 			bucket.apply(ctx, output);
 			if (!bucket.isActive()) {
 				activeBuckets.remove(bucket.getBucketId());

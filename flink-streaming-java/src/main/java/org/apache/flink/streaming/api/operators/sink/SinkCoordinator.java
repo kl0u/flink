@@ -48,6 +48,8 @@ import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Javadoc.
+ * FOR NOW, I assume that this may be used also in streaming, that is why I have implemented
+ * also the checkpoint-related methods. If not needed, we can remove them in the future.
  */
 public class SinkCoordinator<Committable> implements OperatorCoordinator, JobStatusListener {
 

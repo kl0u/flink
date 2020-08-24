@@ -52,7 +52,7 @@ public class FileWriter<BucketID, IN> {
 
 	private final OutputFileConfig outputFileConfig;
 
-	private final int attemptId; // TODO: 24.08.20 this may become the epoch. 
+	private final int attemptId; // TODO: 24.08.20 this may become the epoch.
 
 	private boolean initialized;
 
@@ -107,10 +107,10 @@ public class FileWriter<BucketID, IN> {
 						bucketId, recoverable, state.getInProgressFileCreationTime());
 			} else {
 				// TODO: 13.08.20 test this
-				final InProgressFileWriter.PendingFileRecoverable rec = bucketWriter
+				final InProgressFileWriter.PendingFileRecoverable toCommit = bucketWriter
 						.resumeInProgressFileFrom(bucketId, recoverable, state.getInProgressFileCreationTime())
 						.closeForCommit();
-				output.sendToCommit(rec);
+				output.sendToCommit(toCommit);
 			}
 		}
 		this.initialized = true;
