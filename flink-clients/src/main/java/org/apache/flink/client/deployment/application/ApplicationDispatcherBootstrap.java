@@ -169,17 +169,13 @@ public class ApplicationDispatcherBootstrap extends AbstractDispatcherBootstrap 
 			final DispatcherGateway dispatcher,
 			final ScheduledExecutor scheduledExecutor) {
 
-		final Optional<String> configuredJobId =
-				configuration.getOptional(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID);
-
-		if (!HighAvailabilityMode.isHighAvailabilityModeActivated(configuration) && !configuredJobId.isPresent()) {
-			return runApplicationAsync(dispatcher, scheduledExecutor, false);
+		if (HighAvailabilityMode.isHighAvailabilityModeActivated(configuration)) {
+			if (!configuration.getOptional(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID).isPresent()) {
+				configuration.set(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID, ZERO_JOB_ID.toHexString());
+			}
+			return runApplicationAsync(dispatcher, scheduledExecutor, true);
 		}
-
-		if (!configuredJobId.isPresent()) {
-			configuration.set(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID, ZERO_JOB_ID.toHexString());
-		}
-		return runApplicationAsync(dispatcher, scheduledExecutor, true);
+		return runApplicationAsync(dispatcher, scheduledExecutor, false);
 	}
 
 	/**
