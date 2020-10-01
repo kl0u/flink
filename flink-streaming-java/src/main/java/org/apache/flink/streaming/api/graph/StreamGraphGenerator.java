@@ -33,13 +33,12 @@ import org.apache.flink.streaming.api.RuntimeExecutionMode;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.operators.InputFormatOperatorFactory;
-import org.apache.flink.streaming.api.operators.OutputFormatOperatorFactory;
-import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.transformations.AbstractMultipleInputTransformation;
 import org.apache.flink.streaming.api.transformations.CoFeedbackTransformation;
 import org.apache.flink.streaming.api.transformations.FeedbackTransformation;
 import org.apache.flink.streaming.api.transformations.KeyedMultipleInputTransformation;
 import org.apache.flink.streaming.api.transformations.LegacySourceTransformation;
+import org.apache.flink.streaming.api.transformations.OneInputStreamTransformationTranslator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.transformations.PhysicalTransformation;
@@ -127,6 +126,8 @@ public class StreamGraphGenerator {
 
 	private RuntimeExecutionMode runtimeExecutionMode = RuntimeExecutionMode.STREAMING;
 
+	private boolean shouldExecuteInBatchMode;
+
 	// This is used to assign a unique ID to iteration source/sink
 	protected static Integer iterationIdCounter = 0;
 	public static int getNewIterationNodeId() {
@@ -190,6 +191,7 @@ public class StreamGraphGenerator {
 
 	public StreamGraph generate() {
 		streamGraph = new StreamGraph(executionConfig, checkpointConfig, savepointRestoreSettings);
+		shouldExecuteInBatchMode = shouldExecuteInBatchMode(runtimeExecutionMode);
 		configureStreamGraph(streamGraph);
 
 		alreadyTransformed = new HashMap<>();
@@ -216,7 +218,7 @@ public class StreamGraphGenerator {
 		graph.setTimeCharacteristic(timeCharacteristic);
 		graph.setJobName(jobName);
 
-		if (shouldExecuteInBatchMode(runtimeExecutionMode)) {
+		if (shouldExecuteInBatchMode) {
 			graph.setAllVerticesInSameSlotSharingGroupByDefault(false);
 			graph.setGlobalDataExchangeMode(GlobalDataExchangeMode.POINTWISE_EDGES_PIPELINED);
 			graph.setScheduleMode(ScheduleMode.LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST);
@@ -276,32 +278,7 @@ public class StreamGraphGenerator {
 		// call at least once to trigger exceptions about MissingTypeInfo
 		transform.getOutputType();
 
-		Collection<Integer> transformedIds;
-		if (transform instanceof OneInputTransformation<?, ?>) {
-			transformedIds = transformOneInputTransform((OneInputTransformation<?, ?>) transform);
-		} else if (transform instanceof TwoInputTransformation<?, ?, ?>) {
-			transformedIds = transformTwoInputTransform((TwoInputTransformation<?, ?, ?>) transform);
-		} else if (transform instanceof AbstractMultipleInputTransformation<?>) {
-			transformedIds = transformMultipleInputTransform((AbstractMultipleInputTransformation<?>) transform);
-		} else if (transform instanceof SourceTransformation) {
-			transformedIds = transformSource((SourceTransformation<?>) transform);
-		} else if (transform instanceof LegacySourceTransformation<?>) {
-			transformedIds = transformLegacySource((LegacySourceTransformation<?>) transform);
-		} else if (transform instanceof SinkTransformation<?>) {
-			transformedIds = transformSink((SinkTransformation<?>) transform);
-		} else if (transform instanceof UnionTransformation<?>) {
-			transformedIds = transformUnion((UnionTransformation<?>) transform);
-		} else if (transform instanceof FeedbackTransformation<?>) {
-			transformedIds = transformFeedback((FeedbackTransformation<?>) transform);
-		} else if (transform instanceof CoFeedbackTransformation<?>) {
-			transformedIds = transformCoFeedback((CoFeedbackTransformation<?>) transform);
-		} else if (transform instanceof PartitionTransformation<?>) {
-			transformedIds = transformPartition((PartitionTransformation<?>) transform);
-		} else if (transform instanceof SideOutputTransformation<?>) {
-			transformedIds = transformSideOutput((SideOutputTransformation<?>) transform);
-		} else {
-			throw new IllegalStateException("Unknown transformation: " + transform);
-		}
+		final Collection<Integer> transformedIds = transformInternal(transform);
 
 		// need this check because the iterate transformation adds itself before
 		// transforming the feedback edges
@@ -340,6 +317,36 @@ public class StreamGraphGenerator {
 			transform.getManagedMemoryOperatorScopeUseCaseWeights(),
 			transform.getManagedMemorySlotScopeUseCases());
 
+		return transformedIds;
+	}
+
+	protected Collection<Integer> transformInternal(Transformation<?> transform) {
+		Collection<Integer> transformedIds;
+		if (transform instanceof OneInputTransformation<?, ?>) {
+			transformedIds = transformOneInputTransform((OneInputTransformation<?, ?>) transform);
+		} else if (transform instanceof TwoInputTransformation<?, ?, ?>) {
+			transformedIds = transformTwoInputTransform((TwoInputTransformation<?, ?, ?>) transform);
+		} else if (transform instanceof AbstractMultipleInputTransformation<?>) {
+			transformedIds = transformMultipleInputTransform((AbstractMultipleInputTransformation<?>) transform);
+		} else if (transform instanceof SourceTransformation) {
+			transformedIds = transformSource((SourceTransformation<?>) transform);
+		} else if (transform instanceof LegacySourceTransformation<?>) {
+			transformedIds = transformLegacySource((LegacySourceTransformation<?>) transform);
+		} else if (transform instanceof SinkTransformation<?>) {
+			transformedIds = transformSink((SinkTransformation<?>) transform);
+		} else if (transform instanceof UnionTransformation<?>) {
+			transformedIds = transformUnion((UnionTransformation<?>) transform);
+		} else if (transform instanceof FeedbackTransformation<?>) {
+			transformedIds = transformFeedback((FeedbackTransformation<?>) transform);
+		} else if (transform instanceof CoFeedbackTransformation<?>) {
+			transformedIds = transformCoFeedback((CoFeedbackTransformation<?>) transform);
+		} else if (transform instanceof PartitionTransformation<?>) {
+			transformedIds = transformPartition((PartitionTransformation<?>) transform);
+		} else if (transform instanceof SideOutputTransformation<?>) {
+			transformedIds = transformSideOutput((SideOutputTransformation<?>) transform);
+		} else {
+			throw new IllegalStateException("Unknown transformation: " + transform);
+		}
 		return transformedIds;
 	}
 
@@ -612,11 +619,6 @@ public class StreamGraphGenerator {
 				null,
 				"Sink: " + sink.getName());
 
-		StreamOperatorFactory operatorFactory = sink.getOperatorFactory();
-		if (operatorFactory instanceof OutputFormatOperatorFactory) {
-			streamGraph.setOutputFormat(sink.getId(), ((OutputFormatOperatorFactory) operatorFactory).getOutputFormat());
-		}
-
 		int parallelism = sink.getParallelism() != ExecutionConfig.PARALLELISM_DEFAULT ?
 			sink.getParallelism() : executionConfig.getParallelism();
 		streamGraph.setParallelism(sink.getId(), parallelism);
@@ -643,40 +645,24 @@ public class StreamGraphGenerator {
 	 * <p>This recursively transforms the inputs, creates a new {@code StreamNode} in the graph and
 	 * wired the inputs to this new node.
 	 */
-	private <IN, OUT> Collection<Integer> transformOneInputTransform(OneInputTransformation<IN, OUT> transform) {
+	private <IN, OUT> Collection<Integer> transformOneInputTransform(final OneInputTransformation<IN, OUT> transform) {
+		checkNotNull(transform);
 
-		Collection<Integer> inputIds = transform(transform.getInput());
+		final Collection<Integer> inputIds = transform(transform.getInput());
 
 		// the recursive call might have already transformed this
 		if (alreadyTransformed.containsKey(transform)) {
 			return alreadyTransformed.get(transform);
 		}
 
-		String slotSharingGroup = determineSlotSharingGroup(transform.getSlotSharingGroup(), inputIds);
+		final String slotSharingGroup = determineSlotSharingGroup(
+				transform.getSlotSharingGroup(), inputIds);
 
-		streamGraph.addOperator(transform.getId(),
-				slotSharingGroup,
-				transform.getCoLocationGroupKey(),
-				transform.getOperatorFactory(),
-				transform.getInputType(),
-				transform.getOutputType(),
-				transform.getName());
-
-		if (transform.getStateKeySelector() != null) {
-			TypeSerializer<?> keySerializer = transform.getStateKeyType().createSerializer(executionConfig);
-			streamGraph.setOneInputStateKey(transform.getId(), transform.getStateKeySelector(), keySerializer);
-		}
-
-		int parallelism = transform.getParallelism() != ExecutionConfig.PARALLELISM_DEFAULT ?
-			transform.getParallelism() : executionConfig.getParallelism();
-		streamGraph.setParallelism(transform.getId(), parallelism);
-		streamGraph.setMaxParallelism(transform.getId(), transform.getMaxParallelism());
-
-		for (Integer inputId: inputIds) {
-			streamGraph.addEdge(inputId, transform.getId(), 0);
-		}
-
-		return Collections.singleton(transform.getId());
+		final Translator.Context translationContext = new ContextImpl(
+				shouldExecuteInBatchMode, executionConfig, inputIds, slotSharingGroup);
+		final OneInputStreamTransformationTranslator<IN, OUT> translator =
+				new OneInputStreamTransformationTranslator<>(streamGraph);
+		return translator.translate(transform, translationContext);
 	}
 
 	/**
@@ -817,6 +803,48 @@ public class StreamGraphGenerator {
 				}
 			}
 			return inputGroup == null ? DEFAULT_SLOT_SHARING_GROUP : inputGroup;
+		}
+	}
+
+	private static class ContextImpl implements Translator.Context {
+
+		private final boolean translateForBatch;
+
+		private final ExecutionConfig executionConfig;
+
+		private final Collection<Integer> parentIds;
+
+		private final String slotSharingGroup;
+
+		public ContextImpl(
+				final boolean translateForBatch,
+				final ExecutionConfig executionConfig,
+				final Collection<Integer> parentIds,
+				final String slotSharingGroup) {
+			this.translateForBatch = translateForBatch;
+			this.executionConfig = checkNotNull(executionConfig);
+			this.parentIds = checkNotNull(parentIds);
+			this.slotSharingGroup = checkNotNull(slotSharingGroup);
+		}
+
+		@Override
+		public boolean translateForBatch() {
+			return translateForBatch;
+		}
+
+		@Override
+		public ExecutionConfig getExecutionConfig() {
+			return executionConfig;
+		}
+
+		@Override
+		public Collection<Integer> getParentNodeIds() {
+			return parentIds;
+		}
+
+		@Override
+		public String getSlotSharingGroup() {
+			return slotSharingGroup;
 		}
 	}
 }
