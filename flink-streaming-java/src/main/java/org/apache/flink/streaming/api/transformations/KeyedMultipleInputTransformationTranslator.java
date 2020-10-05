@@ -23,11 +23,13 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.Translator;
+import org.apache.flink.streaming.runtime.io.MultipleInputSelectionHandler;
 
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -45,6 +47,9 @@ public class KeyedMultipleInputTransformationTranslator<OUT> implements Translat
 		checkNotNull(transformation);
 		checkNotNull(streamGraph);
 		checkNotNull(translationContext);
+
+		checkArgument(!transformation.getInputs().isEmpty(), "Empty inputs for MultipleInputTransformation. Did you forget to add inputs?");
+		MultipleInputSelectionHandler.checkSupportedInputCount(transformation.getInputs().size());
 
 		final int transformationId = transformation.getId();
 		final ExecutionConfig executionConfig = translationContext.getExecutionConfig();
