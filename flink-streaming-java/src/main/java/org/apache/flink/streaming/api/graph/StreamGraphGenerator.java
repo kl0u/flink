@@ -64,6 +64,7 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A generator that generates a {@link StreamGraph} from a graph of
@@ -614,11 +615,17 @@ public class StreamGraphGenerator {
 	/**
 	 * Transforms a {@code SinkTransformation}.
 	 */
-	private <T> Collection<Integer> transformSink(SinkTransformation<T> sink) {
+	private <T> Collection<Integer> transformSink(final SinkTransformation<T> sink) {
+		checkNotNull(sink);
 
-		Collection<Integer> inputIds = transform(sink.getInput());
+		final List<Collection<Integer>> allInputIds =
+				getPredecessors(sink.getInput());
 
-		String slotSharingGroup = determineSlotSharingGroup(sink.getSlotSharingGroup(), inputIds);
+		final String slotSharingGroup = determineSlotSharingGroup(
+				sink.getSlotSharingGroup(),
+				allInputIds.stream()
+						.flatMap(Collection::stream)
+						.collect(Collectors.toList()));
 
 		streamGraph.addSink(sink.getId(),
 				slotSharingGroup,
@@ -633,11 +640,9 @@ public class StreamGraphGenerator {
 		streamGraph.setParallelism(sink.getId(), parallelism);
 		streamGraph.setMaxParallelism(sink.getId(), sink.getMaxParallelism());
 
-		for (Integer inputId: inputIds) {
-			streamGraph.addEdge(inputId,
-					sink.getId(),
-					0
-			);
+		checkState(allInputIds.size() == 1);
+		for (Integer inputId: allInputIds.get(0)) {
+			streamGraph.addEdge(inputId, sink.getId(), 0);
 		}
 
 		if (sink.getStateKeySelector() != null) {
