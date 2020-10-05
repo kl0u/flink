@@ -37,7 +37,10 @@ import org.apache.flink.streaming.api.transformations.AbstractMultipleInputTrans
 import org.apache.flink.streaming.api.transformations.CoFeedbackTransformation;
 import org.apache.flink.streaming.api.transformations.FeedbackTransformation;
 import org.apache.flink.streaming.api.transformations.KeyedMultipleInputTransformation;
+import org.apache.flink.streaming.api.transformations.KeyedMultipleInputTransformationTranslator;
 import org.apache.flink.streaming.api.transformations.LegacySourceTransformation;
+import org.apache.flink.streaming.api.transformations.MultipleInputTransformation;
+import org.apache.flink.streaming.api.transformations.MultipleInputTransformationTranslator;
 import org.apache.flink.streaming.api.transformations.OneInputStreamTransformationTranslator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
@@ -135,6 +138,8 @@ public class StreamGraphGenerator {
 		Map<Class<? extends Transformation>, Translator<?, ? extends Transformation>> tmp = new HashMap<>();
 		tmp.put(OneInputTransformation.class, new OneInputStreamTransformationTranslator<>()); // TODO: 05.10.20 put the streamgraph here
 		tmp.put(TwoInputTransformation.class, new TwoInputStreamTransformationTranslator<>()); // TODO: 05.10.20 put the streamgraph here
+		tmp.put(MultipleInputTransformation.class, new MultipleInputTransformationTranslator<>()); // TODO: 05.10.20 put the streamgraph here
+		tmp.put(KeyedMultipleInputTransformation.class, new KeyedMultipleInputTransformationTranslator<>()); // TODO: 05.10.20 put the streamgraph here
 		translatorMap = tmp;
 	}
 
@@ -330,7 +335,12 @@ public class StreamGraphGenerator {
 		return transformedIds;
 	}
 
-	protected Collection<Integer> transformInternal(Transformation<?> transform) {
+	protected <OUT> Collection<Integer> transformInternal(Transformation<?> transform) {
+		final Translator<OUT, Transformation<OUT>> translator =
+				(Translator<OUT, Transformation<OUT>>) translatorMap.get(transform.getClass());
+		if (translator != null) {
+
+		}
 		Collection<Integer> transformedIds;
 		if (transform instanceof OneInputTransformation<?, ?>) {
 			transformedIds = transformOneInputTransform((OneInputTransformation<?, ?>) transform);
@@ -358,6 +368,36 @@ public class StreamGraphGenerator {
 			throw new IllegalStateException("Unknown transformation: " + transform);
 		}
 		return transformedIds;
+	}
+
+	/**
+	 * Transforms a {@code OneInputTransformation}.
+	 *
+	 * <p>This recursively transforms the inputs, creates a new {@code StreamNode} in the graph and
+	 * wired the inputs to this new node.
+	 */
+	private <IN, OUT> Collection<Integer> transformOneInputTransformHelper(final OneInputTransformation<IN, OUT> transform) {
+		checkNotNull(transform);
+
+		final List<Collection<Integer>> inputIds =
+				getPredecessors(Collections.singleton(transform.getInput()));
+
+		// the recursive call might have already transformed this
+		if (alreadyTransformed.containsKey(transform)) {
+			return alreadyTransformed.get(transform);
+		}
+
+		final String slotSharingGroup = determineSlotSharingGroup(
+				transform.getSlotSharingGroup(),
+				inputIds.stream()
+						.flatMap(Collection::stream)
+						.collect(Collectors.toList()));
+
+		final Translator.Context translationContext = new ContextImpl(
+				shouldExecuteInBatchMode, executionConfig, inputIds, slotSharingGroup);
+		final Translator<OUT, Transformation<OUT>> translator =
+				(Translator<OUT, Transformation<OUT>>) translatorMap.get(transform.getClass());
+		return translator.translate(transform, streamGraph, translationContext);
 	}
 
 	/**
@@ -619,7 +659,7 @@ public class StreamGraphGenerator {
 		checkNotNull(sink);
 
 		final List<Collection<Integer>> allInputIds =
-				getPredecessors(sink.getInput());
+				getPredecessors(Collections.singleton(sink.getInput()));
 
 		final String slotSharingGroup = determineSlotSharingGroup(
 				sink.getSlotSharingGroup(),
@@ -663,7 +703,7 @@ public class StreamGraphGenerator {
 		checkNotNull(transform);
 
 		final List<Collection<Integer>> inputIds =
-				getPredecessors(transform.getInput());
+				getPredecessors(Collections.singleton(transform.getInput()));
 
 		// the recursive call might have already transformed this
 		if (alreadyTransformed.containsKey(transform)) {
@@ -683,29 +723,20 @@ public class StreamGraphGenerator {
 		return translator.translate(transform, streamGraph, translationContext);
 	}
 
-	private List<Collection<Integer>> getPredecessors(Transformation<?>... predecessors) {
-		if (predecessors == null || predecessors.length == 0) {
-			return new ArrayList<>();
-		}
-
-		final List<Collection<Integer>> allInputIds = new ArrayList<>();
-		for (Transformation<?> transformation : predecessors) {
-			allInputIds.add(transform(transformation));
-		}
-		return allInputIds;
-	}
-
 	/**
 	 * Transforms a {@code TwoInputTransformation}.
 	 *
 	 * <p>This recursively transforms the inputs, creates a new {@code StreamNode} in the graph and
 	 * wired the inputs to this new node.
 	 */
-	private <IN1, IN2, OUT> Collection<Integer> transformTwoInputTransform(TwoInputTransformation<IN1, IN2, OUT> transform) {
+	private <IN1, IN2, OUT> Collection<Integer> transformTwoInputTransform(final TwoInputTransformation<IN1, IN2, OUT> transform) {
 		checkNotNull(transform);
 
-		final List<Collection<Integer>> allInputIds =
-				getPredecessors(transform.getInput1(), transform.getInput2());
+		final List<Transformation<?>> parents = new ArrayList<>();
+		parents.add(transform.getInput1());
+		parents.add(transform.getInput2());
+
+		final List<Collection<Integer>> allInputIds = getPredecessors(parents);
 
 		// the recursive call might have already transformed this
 		if (alreadyTransformed.containsKey(transform)) {
@@ -725,58 +756,41 @@ public class StreamGraphGenerator {
 		return translator.translate(transform, streamGraph, translationContext);
 	}
 
-	private <OUT> Collection<Integer> transformMultipleInputTransform(AbstractMultipleInputTransformation<OUT> transform) {
+	private <OUT> Collection<Integer> transformMultipleInputTransform(final AbstractMultipleInputTransformation<OUT> transform) {
 		checkArgument(!transform.getInputs().isEmpty(), "Empty inputs for MultipleInputTransformation. Did you forget to add inputs?");
 		MultipleInputSelectionHandler.checkSupportedInputCount(transform.getInputs().size());
 
-		List<Collection<Integer>> allInputIds = new ArrayList<>();
-
-		for (Transformation<?> input : transform.getInputs()) {
-			allInputIds.add(transform(input));
-		}
+		final List<Collection<Integer>> allInputIds =
+				getPredecessors(transform.getInputs());
 
 		// the recursive call might have already transformed this
 		if (alreadyTransformed.containsKey(transform)) {
 			return alreadyTransformed.get(transform);
 		}
 
-		String slotSharingGroup = determineSlotSharingGroup(
+		final String slotSharingGroup = determineSlotSharingGroup(
 			transform.getSlotSharingGroup(),
 			allInputIds.stream()
 				.flatMap(Collection::stream)
 				.collect(Collectors.toList()));
 
-		streamGraph.addMultipleInputOperator(
-			transform.getId(),
-			slotSharingGroup,
-			transform.getCoLocationGroupKey(),
-			transform.getOperatorFactory(),
-			transform.getInputTypes(),
-			transform.getOutputType(),
-			transform.getName());
+		final Translator.Context translationContext = new ContextImpl(
+				shouldExecuteInBatchMode, executionConfig, allInputIds, slotSharingGroup);
+		final Translator<OUT, Transformation<OUT>> translator =
+				(Translator<OUT, Transformation<OUT>>) translatorMap.get(transform.getClass());
+		return translator.translate(transform, streamGraph, translationContext);
+	}
 
-		int parallelism = transform.getParallelism() != ExecutionConfig.PARALLELISM_DEFAULT ?
-			transform.getParallelism() : executionConfig.getParallelism();
-		streamGraph.setParallelism(transform.getId(), parallelism);
-		streamGraph.setMaxParallelism(transform.getId(), transform.getMaxParallelism());
-
-		if (transform instanceof KeyedMultipleInputTransformation) {
-			KeyedMultipleInputTransformation keyedTransform = (KeyedMultipleInputTransformation) transform;
-			TypeSerializer<?> keySerializer = keyedTransform.getStateKeyType().createSerializer(executionConfig);
-			streamGraph.setMultipleInputStateKey(transform.getId(), keyedTransform.getStateKeySelectors(), keySerializer);
+	private List<Collection<Integer>> getPredecessors(final Collection<Transformation<?>> predecessors) {
+		final List<Collection<Integer>> allInputIds = new ArrayList<>();
+		if (predecessors == null) {
+			return allInputIds;
 		}
 
-		for (int i = 0; i < allInputIds.size(); i++) {
-			Collection<Integer> inputIds = allInputIds.get(i);
-			for (Integer inputId: inputIds) {
-				streamGraph.addEdge(inputId,
-					transform.getId(),
-					i + 1
-				);
-			}
+		for (Transformation<?> transformation : predecessors) {
+			allInputIds.add(transform(transformation));
 		}
-
-		return Collections.singleton(transform.getId());
+		return allInputIds;
 	}
 
 	/**
