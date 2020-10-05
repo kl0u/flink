@@ -27,8 +27,10 @@ import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.SourceOperator;
 import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 
 /**
  * A {@link PhysicalTransformation} for {@link Source}.
@@ -56,6 +58,11 @@ public class SourceTransformation<OUT> extends PhysicalTransformation<OUT> imple
 	@Override
 	public Boundedness getBoundedness() {
 		return sourceFactory.getBoundedness();
+	}
+
+	@Override
+	public List<Transformation<?>> getInputs() {
+		return new ArrayList<>();
 	}
 
 	/**

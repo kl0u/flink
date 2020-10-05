@@ -30,6 +30,7 @@ import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
@@ -86,6 +87,13 @@ public class OneInputTransformation<IN, OUT> extends PhysicalTransformation<OUT>
 	 */
 	public Transformation<IN> getInput() {
 		return input;
+	}
+
+	@Override
+	public List<Transformation<?>> getInputs() {
+		final List<Transformation<?>> inputs = new ArrayList<>();
+		inputs.add(input);
+		return inputs;
 	}
 
 	/**

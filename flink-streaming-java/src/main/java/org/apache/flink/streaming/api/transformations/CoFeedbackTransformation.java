@@ -24,6 +24,7 @@ import org.apache.flink.api.dag.Transformation;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -113,6 +114,11 @@ public class CoFeedbackTransformation<F> extends Transformation<F> {
 	@Override
 	public Collection<Transformation<?>> getTransitivePredecessors() {
 		return Collections.<Transformation<?>>singleton(this);
+	}
+
+	@Override
+	public List<Transformation<?>> getInputs() {
+		return new ArrayList<>();
 	}
 }
 

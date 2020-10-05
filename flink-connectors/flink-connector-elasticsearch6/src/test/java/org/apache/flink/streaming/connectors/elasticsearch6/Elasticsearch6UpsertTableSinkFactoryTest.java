@@ -47,6 +47,7 @@ import org.apache.http.HttpHost;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.junit.Test;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -216,6 +217,11 @@ public class Elasticsearch6UpsertTableSinkFactoryTest extends ElasticsearchUpser
 		@Override
 		public Collection<Transformation<?>> getTransitivePredecessors() {
 			return null;
+		}
+
+		@Override
+		public List<Transformation<?>> getInputs() {
+			return new ArrayList<>();
 		}
 	}
 }

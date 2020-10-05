@@ -23,6 +23,7 @@ import org.apache.flink.util.OutputTag;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
@@ -66,5 +67,12 @@ public class SideOutputTransformation<T> extends Transformation<T> {
 		result.add(this);
 		result.addAll(input.getTransitivePredecessors());
 		return result;
+	}
+
+	@Override
+	public List<Transformation<?>> getInputs() {
+		final List<Transformation<?>> inputs = new ArrayList<>();
+		inputs.add(input);
+		return inputs;
 	}
 }

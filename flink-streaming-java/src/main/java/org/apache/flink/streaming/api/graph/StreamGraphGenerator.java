@@ -407,10 +407,10 @@ public class StreamGraphGenerator {
 	 * that downstream operations can connect to all upstream nodes.
 	 */
 	private <T> Collection<Integer> transformUnion(UnionTransformation<T> union) {
-		List<Transformation<T>> inputs = union.getInputs();
+		List<Transformation<?>> inputs = union.getInputs();
 		List<Integer> resultIds = new ArrayList<>();
 
-		for (Transformation<T> input: inputs) {
+		for (Transformation<?> input: inputs) {
 			resultIds.addAll(transform(input));
 		}
 
@@ -481,7 +481,7 @@ public class StreamGraphGenerator {
 			throw new IllegalStateException("Iteration " + iterate + " does not have any feedback edges.");
 		}
 
-		Transformation<T> input = iterate.getInput();
+		Transformation<T> input = (Transformation<T>) iterate.getInputs().get(0);
 		List<Integer> resultIds = new ArrayList<>();
 
 		// first transform the input stream(s) and store the result IDs

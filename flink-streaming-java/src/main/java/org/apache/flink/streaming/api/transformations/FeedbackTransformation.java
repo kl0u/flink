@@ -24,6 +24,7 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -70,9 +71,9 @@ public class FeedbackTransformation<T> extends Transformation<T> {
 	/**
 	 * Returns the input {@code Transformation} of this {@code FeedbackTransformation}.
 	 */
-	public Transformation<T> getInput() {
-		return input;
-	}
+//	public Transformation<T> getInput() {
+//		return input;
+//	}
 
 	/**
 	 * Adds a feedback edge. The parallelism of the {@code Transformation} must match
@@ -116,6 +117,11 @@ public class FeedbackTransformation<T> extends Transformation<T> {
 		result.add(this);
 		result.addAll(input.getTransitivePredecessors());
 		return result;
+	}
+
+	@Override
+	public List<Transformation<?>> getInputs() {
+		return Collections.singletonList(input);
 	}
 }
 

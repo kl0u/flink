@@ -25,8 +25,10 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.is;
@@ -84,6 +86,11 @@ public class TransformationTest extends TestLogger {
 		@Override
 		public Collection<Transformation<?>> getTransitivePredecessors() {
 			return Collections.EMPTY_LIST;
+		}
+
+		@Override
+		public List<Transformation<?>> getInputs() {
+			return new ArrayList<>();
 		}
 	}
 }
