@@ -128,6 +128,13 @@ public class StreamGraphGenerator {
 
 	private boolean shouldExecuteInBatchMode;
 
+	private static final Map<Class<? extends Transformation>, Translator<?, ? extends Transformation>> translatorMap;
+	static {
+		Map<Class<? extends Transformation>, Translator<?, ? extends Transformation>> tmp = new HashMap<>();
+		tmp.put(OneInputTransformation.class, new OneInputStreamTransformationTranslator<>());
+		translatorMap = tmp;
+	}
+
 	// This is used to assign a unique ID to iteration source/sink
 	protected static Integer iterationIdCounter = 0;
 	public static int getNewIterationNodeId() {
@@ -660,9 +667,9 @@ public class StreamGraphGenerator {
 
 		final Translator.Context translationContext = new ContextImpl(
 				shouldExecuteInBatchMode, executionConfig, inputIds, slotSharingGroup);
-		final OneInputStreamTransformationTranslator<IN, OUT> translator =
-				new OneInputStreamTransformationTranslator<>(streamGraph);
-		return translator.translate(transform, translationContext);
+		final Translator<OUT, Transformation<OUT>> translator =
+				(Translator<OUT, Transformation<OUT>>) translatorMap.get(transform.getClass());
+		return translator.translate(transform, streamGraph, translationContext);
 	}
 
 	/**

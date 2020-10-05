@@ -30,6 +30,7 @@ public interface Translator<O, T extends Transformation<O>> {
 
 	Collection<Integer> translate(
 			final T transformation,
+			final StreamGraph streamGraph,
 			final Context translationContext);
 
 	/**

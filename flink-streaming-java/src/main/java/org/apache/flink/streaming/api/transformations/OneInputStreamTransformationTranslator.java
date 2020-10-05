@@ -35,15 +35,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class OneInputStreamTransformationTranslator<IN, OUT> implements Translator<OUT, OneInputTransformation<IN, OUT>> {
 
-	private final StreamGraph streamGraph;
-
-	public OneInputStreamTransformationTranslator(final StreamGraph streamGraph) {
-		this.streamGraph = checkNotNull(streamGraph);
-	}
-
 	@Override
 	public Collection<Integer> translate(
 			final OneInputTransformation<IN, OUT> transformation,
+			final StreamGraph streamGraph,
 			final Context translationContext) {
 		checkNotNull(transformation);
 		checkNotNull(translationContext);
