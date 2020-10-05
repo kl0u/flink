@@ -22,6 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.dag.Transformation;
 
 import java.util.Collection;
+import java.util.List;
 
 /**
  * Javadoc.
@@ -42,7 +43,7 @@ public interface Translator<O, T extends Transformation<O>> {
 
 		ExecutionConfig getExecutionConfig();
 
-		Collection<Integer> getParentNodeIds();
+		List<Collection<Integer>> getParentNodeIdsByParent();
 
 		String getSlotSharingGroup();
 	}

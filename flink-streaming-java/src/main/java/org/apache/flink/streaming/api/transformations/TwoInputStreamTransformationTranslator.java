@@ -26,19 +26,19 @@ import org.apache.flink.streaming.api.graph.Translator;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Javadoc.
  */
 @Internal
-public class OneInputStreamTransformationTranslator<IN, OUT> implements Translator<OUT, OneInputTransformation<IN, OUT>> {
+public class TwoInputStreamTransformationTranslator<IN1, IN2, OUT> implements Translator<OUT, TwoInputTransformation<IN1, IN2, OUT>> {
 
 	@Override
 	public Collection<Integer> translate(
-			final OneInputTransformation<IN, OUT> transformation,
+			final TwoInputTransformation<IN1, IN2, OUT> transformation,
 			final StreamGraph streamGraph,
 			final Context translationContext) {
 		checkNotNull(transformation);
@@ -49,18 +49,23 @@ public class OneInputStreamTransformationTranslator<IN, OUT> implements Translat
 		final ExecutionConfig executionConfig = translationContext.getExecutionConfig();
 		final String slotSharingGroup = translationContext.getSlotSharingGroup();
 
-		streamGraph.addOperator(
+		streamGraph.addCoOperator(
 				transformationId,
 				slotSharingGroup,
 				transformation.getCoLocationGroupKey(),
 				transformation.getOperatorFactory(),
-				transformation.getInputType(),
+				transformation.getInputType1(),
+				transformation.getInputType2(),
 				transformation.getOutputType(),
 				transformation.getName());
 
-		if (transformation.getStateKeySelector() != null) {
-			final TypeSerializer<?> keySerializer = transformation.getStateKeyType().createSerializer(executionConfig);
-			streamGraph.setOneInputStateKey(transformationId, transformation.getStateKeySelector(), keySerializer);
+		if (transformation.getStateKeySelector1() != null || transformation.getStateKeySelector2() != null) {
+			TypeSerializer<?> keySerializer = transformation.getStateKeyType().createSerializer(executionConfig);
+			streamGraph.setTwoInputStateKey(
+					transformationId,
+					transformation.getStateKeySelector1(),
+					transformation.getStateKeySelector2(),
+					keySerializer);
 		}
 
 		int parallelism = transformation.getParallelism() != ExecutionConfig.PARALLELISM_DEFAULT
@@ -70,11 +75,13 @@ public class OneInputStreamTransformationTranslator<IN, OUT> implements Translat
 		streamGraph.setParallelism(transformationId, parallelism);
 		streamGraph.setMaxParallelism(transformationId, transformation.getMaxParallelism());
 
-		checkState(translationContext.getParentNodeIdsByParent().size() == 1);
-		for (Integer inputId: translationContext.getParentNodeIdsByParent().get(0)) {
-			streamGraph.addEdge(inputId, transformationId, 0);
+		final List<Collection<Integer>> allInputIds = translationContext.getParentNodeIdsByParent();
+		for (int i = 0; i < allInputIds.size(); i++) {
+			final Collection<Integer> inputIds = allInputIds.get(i);
+			for (Integer inputId: inputIds) {
+				streamGraph.addEdge(inputId, transformationId, i + 1);
+			}
 		}
-
 		return Collections.singleton(transformationId);
 	}
 }

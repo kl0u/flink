@@ -45,6 +45,7 @@ import org.apache.flink.streaming.api.transformations.PhysicalTransformation;
 import org.apache.flink.streaming.api.transformations.SideOutputTransformation;
 import org.apache.flink.streaming.api.transformations.SinkTransformation;
 import org.apache.flink.streaming.api.transformations.SourceTransformation;
+import org.apache.flink.streaming.api.transformations.TwoInputStreamTransformationTranslator;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.streaming.api.transformations.UnionTransformation;
 import org.apache.flink.streaming.api.transformations.WithBoundedness;
@@ -131,7 +132,8 @@ public class StreamGraphGenerator {
 	private static final Map<Class<? extends Transformation>, Translator<?, ? extends Transformation>> translatorMap;
 	static {
 		Map<Class<? extends Transformation>, Translator<?, ? extends Transformation>> tmp = new HashMap<>();
-		tmp.put(OneInputTransformation.class, new OneInputStreamTransformationTranslator<>());
+		tmp.put(OneInputTransformation.class, new OneInputStreamTransformationTranslator<>()); // TODO: 05.10.20 put the streamgraph here
+		tmp.put(TwoInputTransformation.class, new TwoInputStreamTransformationTranslator<>()); // TODO: 05.10.20 put the streamgraph here
 		translatorMap = tmp;
 	}
 
@@ -655,7 +657,8 @@ public class StreamGraphGenerator {
 	private <IN, OUT> Collection<Integer> transformOneInputTransform(final OneInputTransformation<IN, OUT> transform) {
 		checkNotNull(transform);
 
-		final Collection<Integer> inputIds = transform(transform.getInput());
+		final List<Collection<Integer>> inputIds =
+				getPredecessors(transform.getInput());
 
 		// the recursive call might have already transformed this
 		if (alreadyTransformed.containsKey(transform)) {
@@ -663,13 +666,28 @@ public class StreamGraphGenerator {
 		}
 
 		final String slotSharingGroup = determineSlotSharingGroup(
-				transform.getSlotSharingGroup(), inputIds);
+				transform.getSlotSharingGroup(),
+				inputIds.stream()
+						.flatMap(Collection::stream)
+						.collect(Collectors.toList()));
 
 		final Translator.Context translationContext = new ContextImpl(
 				shouldExecuteInBatchMode, executionConfig, inputIds, slotSharingGroup);
 		final Translator<OUT, Transformation<OUT>> translator =
 				(Translator<OUT, Transformation<OUT>>) translatorMap.get(transform.getClass());
 		return translator.translate(transform, streamGraph, translationContext);
+	}
+
+	private List<Collection<Integer>> getPredecessors(Transformation<?>... predecessors) {
+		if (predecessors == null || predecessors.length == 0) {
+			return new ArrayList<>();
+		}
+
+		final List<Collection<Integer>> allInputIds = new ArrayList<>();
+		for (Transformation<?> transformation : predecessors) {
+			allInputIds.add(transform(transformation));
+		}
+		return allInputIds;
 	}
 
 	/**
@@ -679,56 +697,27 @@ public class StreamGraphGenerator {
 	 * wired the inputs to this new node.
 	 */
 	private <IN1, IN2, OUT> Collection<Integer> transformTwoInputTransform(TwoInputTransformation<IN1, IN2, OUT> transform) {
+		checkNotNull(transform);
 
-		Collection<Integer> inputIds1 = transform(transform.getInput1());
-		Collection<Integer> inputIds2 = transform(transform.getInput2());
+		final List<Collection<Integer>> allInputIds =
+				getPredecessors(transform.getInput1(), transform.getInput2());
 
 		// the recursive call might have already transformed this
 		if (alreadyTransformed.containsKey(transform)) {
 			return alreadyTransformed.get(transform);
 		}
 
-		List<Integer> allInputIds = new ArrayList<>();
-		allInputIds.addAll(inputIds1);
-		allInputIds.addAll(inputIds2);
+		final String slotSharingGroup = determineSlotSharingGroup(
+				transform.getSlotSharingGroup(),
+				allInputIds.stream()
+						.flatMap(Collection::stream)
+						.collect(Collectors.toList()));
 
-		String slotSharingGroup = determineSlotSharingGroup(transform.getSlotSharingGroup(), allInputIds);
-
-		streamGraph.addCoOperator(
-				transform.getId(),
-				slotSharingGroup,
-				transform.getCoLocationGroupKey(),
-				transform.getOperatorFactory(),
-				transform.getInputType1(),
-				transform.getInputType2(),
-				transform.getOutputType(),
-				transform.getName());
-
-		if (transform.getStateKeySelector1() != null || transform.getStateKeySelector2() != null) {
-			TypeSerializer<?> keySerializer = transform.getStateKeyType().createSerializer(executionConfig);
-			streamGraph.setTwoInputStateKey(transform.getId(), transform.getStateKeySelector1(), transform.getStateKeySelector2(), keySerializer);
-		}
-
-		int parallelism = transform.getParallelism() != ExecutionConfig.PARALLELISM_DEFAULT ?
-			transform.getParallelism() : executionConfig.getParallelism();
-		streamGraph.setParallelism(transform.getId(), parallelism);
-		streamGraph.setMaxParallelism(transform.getId(), transform.getMaxParallelism());
-
-		for (Integer inputId: inputIds1) {
-			streamGraph.addEdge(inputId,
-					transform.getId(),
-					1
-			);
-		}
-
-		for (Integer inputId: inputIds2) {
-			streamGraph.addEdge(inputId,
-					transform.getId(),
-					2
-			);
-		}
-
-		return Collections.singleton(transform.getId());
+		final Translator.Context translationContext = new ContextImpl(
+				shouldExecuteInBatchMode, executionConfig, allInputIds, slotSharingGroup);
+		final Translator<OUT, Transformation<OUT>> translator =
+				(Translator<OUT, Transformation<OUT>>) translatorMap.get(transform.getClass());
+		return translator.translate(transform, streamGraph, translationContext);
 	}
 
 	private <OUT> Collection<Integer> transformMultipleInputTransform(AbstractMultipleInputTransformation<OUT> transform) {
@@ -819,14 +808,14 @@ public class StreamGraphGenerator {
 
 		private final ExecutionConfig executionConfig;
 
-		private final Collection<Integer> parentIds;
+		private final List<Collection<Integer>> parentIds;
 
 		private final String slotSharingGroup;
 
 		public ContextImpl(
 				final boolean translateForBatch,
 				final ExecutionConfig executionConfig,
-				final Collection<Integer> parentIds,
+				final List<Collection<Integer>> parentIds,
 				final String slotSharingGroup) {
 			this.translateForBatch = translateForBatch;
 			this.executionConfig = checkNotNull(executionConfig);
@@ -845,7 +834,7 @@ public class StreamGraphGenerator {
 		}
 
 		@Override
-		public Collection<Integer> getParentNodeIds() {
+		public List<Collection<Integer>> getParentNodeIdsByParent() {
 			return parentIds;
 		}
 
