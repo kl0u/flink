@@ -50,6 +50,7 @@ import org.apache.flink.streaming.runtime.translators.LegacySourceTransformation
 import org.apache.flink.streaming.runtime.translators.MultiInputTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.OneInputTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.PartitionTransformationTranslator;
+import org.apache.flink.streaming.runtime.translators.SideOutputTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.SourceTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.TwoInputTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.UnionTransformationTranslator;
@@ -149,6 +150,7 @@ public class StreamGraphGenerator {
 		tmp.put(LegacySourceTransformation.class, new LegacySourceTransformationTranslator<>());
 		tmp.put(UnionTransformation.class, new UnionTransformationTranslator<>());
 		tmp.put(PartitionTransformation.class, new PartitionTransformationTranslator<>());
+		tmp.put(SideOutputTransformation.class, new SideOutputTransformationTranslator<>());
 		translatorMap = Collections.unmodifiableMap(tmp);
 	}
 
@@ -328,8 +330,6 @@ public class StreamGraphGenerator {
 			transformedIds = transformFeedback((FeedbackTransformation<?>) transform);
 		} else if (transform instanceof CoFeedbackTransformation<?>) {
 			transformedIds = transformCoFeedback((CoFeedbackTransformation<?>) transform);
-		} else if (transform instanceof SideOutputTransformation<?>) {
-			transformedIds = transformSideOutput((SideOutputTransformation<?>) transform);
 		} else {
 			throw new IllegalStateException("Unknown transformation: " + transform);
 		}
@@ -366,36 +366,6 @@ public class StreamGraphGenerator {
 			transform.getManagedMemorySlotScopeUseCases());
 
 		return transformedIds;
-	}
-
-	/**
-	 * Transforms a {@code SideOutputTransformation}.
-	 *
-	 * <p>For this we create a virtual node in the {@code StreamGraph} that holds the side-output
-	 * {@link org.apache.flink.util.OutputTag}.
-	 *
-	 * @see org.apache.flink.streaming.api.graph.StreamGraphGenerator
-	 */
-	private <T> Collection<Integer> transformSideOutput(SideOutputTransformation<T> sideOutput) {
-		List<Transformation<?>> inputs = sideOutput.getInputs();
-		checkState(inputs.size() == 1);
-		Transformation<?> input = inputs.get(0);
-
-		Collection<Integer> resultIds = transform(input);
-
-		// the recursive transform might have already transformed this
-		if (alreadyTransformed.containsKey(sideOutput)) {
-			return alreadyTransformed.get(sideOutput);
-		}
-
-		List<Integer> virtualResultIds = new ArrayList<>();
-
-		for (int inputId : resultIds) {
-			int virtualId = Transformation.getNewNodeId();
-			streamGraph.addVirtualSideOutputNode(inputId, virtualId, sideOutput.getOutputTag());
-			virtualResultIds.add(virtualId);
-		}
-		return virtualResultIds;
 	}
 
 	/**
