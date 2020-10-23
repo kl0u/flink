@@ -154,7 +154,7 @@ public class SortingBoundedInputITCase extends AbstractTestBase {
 	}
 
 	@Test
-	public void testThreeInputOperator() throws Exception {
+	public void testThreeInputOperator() {
 		long numberOfRecords = 500_000;
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
@@ -259,9 +259,11 @@ public class SortingBoundedInputITCase extends AbstractTestBase {
 						Integer value,
 						Context ctx,
 						Collector<Tuple3<Long, Integer, Integer>> out) throws Exception {
+
 					Long elementTimestamp = ctx.timestamp();
 					long nextTen = ((elementTimestamp + 10) / 10) * 10;
 					ctx.timerService().registerEventTimeTimer(nextTen);
+
 					if (elementTimestamp < ctx.timerService().currentWatermark()) {
 						ctx.output(lateElements, value);
 					} else {
@@ -281,6 +283,9 @@ public class SortingBoundedInputITCase extends AbstractTestBase {
 						Collector<Tuple3<Long, Integer, Integer>> out) throws Exception {
 					out.collect(Tuple3.of(timestamp, ctx.getCurrentKey(), countState.get(timestamp)));
 					countState.remove(timestamp);
+
+					// this would go in infinite loop if we did not quiesce the timer service.
+					ctx.timerService().registerEventTimeTimer(timestamp + 1);
 				}
 			});
 
@@ -409,6 +414,9 @@ public class SortingBoundedInputITCase extends AbstractTestBase {
 						Collector<Tuple3<Long, Integer, Integer>> out) throws Exception {
 					out.collect(Tuple3.of(timestamp, ctx.getCurrentKey(), countState.get(timestamp)));
 					countState.remove(timestamp);
+
+					// this would go in infinite loop if we did not quiesce the timer service.
+					ctx.timerService().registerEventTimeTimer(timestamp + 1);
 				}
 			});
 
@@ -431,9 +439,9 @@ public class SortingBoundedInputITCase extends AbstractTestBase {
 		new WatermarkGenerator<Tuple2<Integer, Integer>>() {
 			@Override
 			public void onEvent(
-				Tuple2<Integer, Integer> event,
-				long eventTimestamp,
-				WatermarkOutput output) {
+					Tuple2<Integer, Integer> event,
+					long eventTimestamp,
+					WatermarkOutput output) {
 				if (eventTimestamp == 4) {
 					output.emitWatermark(new Watermark(5));
 				} else if (eventTimestamp == 14) {
