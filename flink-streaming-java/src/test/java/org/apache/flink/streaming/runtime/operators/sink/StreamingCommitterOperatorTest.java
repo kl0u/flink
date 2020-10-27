@@ -202,12 +202,11 @@ public class StreamingCommitterOperatorTest extends TestLogger {
 			Committer<String> committer,
 			SimpleVersionedSerializer<String> serializer) throws Exception {
 		return new OneInputStreamOperatorTestHarness<>(
-				new StreamingCommitterOperatorFactory<>(TestSink
-						.newBuilder()
-						.addWriter()
-						.addCommitter(committer)
-						.setCommittableSerializer(serializer)
-						.build()),
-				StringSerializer.INSTANCE);
+				new StreamingCommitterOperatorFactory<>(
+						TestSink.newBuilder()
+								.addCommitter(committer)
+								.setCommittableSerializer(serializer)
+								.build()
+				), StringSerializer.INSTANCE);
 	}
 }

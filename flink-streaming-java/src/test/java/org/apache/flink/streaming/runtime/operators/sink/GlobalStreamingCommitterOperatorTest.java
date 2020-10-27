@@ -48,7 +48,7 @@ public class GlobalStreamingCommitterOperatorTest extends TestLogger {
 	@Test(expected = IllegalStateException.class)
 	public void throwExceptionWithoutSerializer() throws Exception {
 		final OneInputStreamOperatorTestHarness<String, String> testHarness =
-				createTestHarness(new TestSink.DefaultGlobalCommitter(""), null);
+				createTestHarness(new TestSink.DefaultGlobalCommitter(), null);
 		testHarness.initializeEmptyState();
 		testHarness.open();
 	}
@@ -82,7 +82,7 @@ public class GlobalStreamingCommitterOperatorTest extends TestLogger {
 
 	@Test
 	public void closeCommitter() throws Exception {
-		final TestSink.DefaultGlobalCommitter globalCommitter = new TestSink.DefaultGlobalCommitter("");
+		final TestSink.DefaultGlobalCommitter globalCommitter = new TestSink.DefaultGlobalCommitter();
 		final OneInputStreamOperatorTestHarness<String, String> testHarness = createTestHarness(
 				globalCommitter);
 		testHarness.initializeEmptyState();
@@ -104,7 +104,7 @@ public class GlobalStreamingCommitterOperatorTest extends TestLogger {
 				createTestHarness(),
 				input2);
 
-		final TestSink.DefaultGlobalCommitter globalCommitter = new TestSink.DefaultGlobalCommitter("");
+		final TestSink.DefaultGlobalCommitter globalCommitter = new TestSink.DefaultGlobalCommitter();
 		final OneInputStreamOperatorTestHarness<String, String> testHarness = createTestHarness(
 				globalCommitter);
 
@@ -126,11 +126,6 @@ public class GlobalStreamingCommitterOperatorTest extends TestLogger {
 		testHarness.notifyOfCompletedCheckpoint(1L);
 		testHarness.close();
 
-		// TODO:: maybe there is no output at all
-		assertThat(
-				testHarness.getOutput(),
-				containsInAnyOrder(expectedOutput.stream().map(StreamRecord::new).toArray()));
-
 		assertThat(
 				globalCommitter.getCommittedData(),
 				containsInAnyOrder(expectedOutput.toArray()));
@@ -139,7 +134,7 @@ public class GlobalStreamingCommitterOperatorTest extends TestLogger {
 	@Test
 	public void commitMultipleStagesTogether() throws Exception {
 
-		final TestSink.DefaultGlobalCommitter globalCommitter = new TestSink.DefaultGlobalCommitter("");
+		final TestSink.DefaultGlobalCommitter globalCommitter = new TestSink.DefaultGlobalCommitter();
 
 		final List<String> input1 = Arrays.asList("cautious", "nature");
 		final List<String> input2 = Arrays.asList("count", "over");
@@ -211,7 +206,7 @@ public class GlobalStreamingCommitterOperatorTest extends TestLogger {
 
 	@Test
 	public void endOfInput() throws Exception {
-		final TestSink.DefaultGlobalCommitter globalCommitter = new TestSink.DefaultGlobalCommitter("");
+		final TestSink.DefaultGlobalCommitter globalCommitter = new TestSink.DefaultGlobalCommitter();
 
 		final OneInputStreamOperatorTestHarness<String, String> testHarness = createTestHarness(
 				globalCommitter);
@@ -228,7 +223,7 @@ public class GlobalStreamingCommitterOperatorTest extends TestLogger {
 
 	private OneInputStreamOperatorTestHarness<String, String> createTestHarness() throws Exception {
 		return createTestHarness(
-				new TestSink.DefaultGlobalCommitter(""),
+				new TestSink.DefaultGlobalCommitter(),
 				TestSink.StringCommittableSerializer.INSTANCE);
 	}
 
@@ -241,12 +236,11 @@ public class GlobalStreamingCommitterOperatorTest extends TestLogger {
 			GlobalCommitter<String, String> globalCommitter,
 			SimpleVersionedSerializer<String> serializer) throws Exception {
 		return new OneInputStreamOperatorTestHarness<>(
-				new GlobalStreamingCommitterOperatorFactory<>(TestSink
-						.newBuilder()
-						.addWriter()
-						.addGlobalCommitter(globalCommitter)
-						.setGlobalCommittableSerializer(serializer)
-						.build()),
-				StringSerializer.INSTANCE);
+				new GlobalStreamingCommitterOperatorFactory<>(
+						TestSink.newBuilder()
+								.addGlobalCommitter(globalCommitter)
+								.setGlobalCommittableSerializer(serializer)
+								.build()
+				), StringSerializer.INSTANCE);
 	}
 }

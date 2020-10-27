@@ -47,11 +47,11 @@ public abstract class WriterOperatorTestBase extends TestLogger {
 		final long initialTime = 0;
 
 		final OneInputStreamOperatorTestHarness<Integer, String> testHarness =
-				createTestHarness(TestSink
-						.newBuilder()
-						.addWriter(new NonBufferingWriter())
-						.setWriterStateSerializer(TestSink.StringCommittableSerializer.INSTANCE)
-						.build());
+				createTestHarness(
+						TestSink.newBuilder()
+								.addWriter(new NonBufferingWriter())
+								.withWriterState()
+								.build());
 		testHarness.open();
 
 		testHarness.processWatermark(initialTime);
@@ -74,11 +74,11 @@ public abstract class WriterOperatorTestBase extends TestLogger {
 		final long initialTime = 0;
 
 		final OneInputStreamOperatorTestHarness<Integer, String> testHarness =
-				createTestHarness(TestSink
-						.newBuilder()
-						.addWriter(new NonBufferingWriter())
-						.setWriterStateSerializer(TestSink.StringCommittableSerializer.INSTANCE)
-						.build());
+				createTestHarness(
+						TestSink.newBuilder()
+								.addWriter(new NonBufferingWriter())
+								.withWriterState()
+								.build());
 		testHarness.open();
 
 		testHarness.processWatermark(initialTime);
@@ -100,11 +100,11 @@ public abstract class WriterOperatorTestBase extends TestLogger {
 		final long initialTime = 0;
 
 		final OneInputStreamOperatorTestHarness<Integer, String> testHarness =
-				createTestHarness(TestSink
-						.newBuilder()
-						.addWriter(new BufferingWriter())
-						.setWriterStateSerializer(TestSink.StringCommittableSerializer.INSTANCE)
-						.build());
+				createTestHarness(
+						TestSink.newBuilder()
+								.addWriter(new BufferingWriter())
+								.withWriterState()
+								.build());
 		testHarness.open();
 
 		testHarness.processWatermark(initialTime);
@@ -125,11 +125,11 @@ public abstract class WriterOperatorTestBase extends TestLogger {
 		final long initialTime = 0;
 
 		final OneInputStreamOperatorTestHarness<Integer, String> testHarness =
-				createTestHarness(TestSink
-						.newBuilder()
-						.addWriter(new BufferingWriter())
-						.setWriterStateSerializer(TestSink.StringCommittableSerializer.INSTANCE)
-						.build());
+				createTestHarness(
+						TestSink.newBuilder()
+								.addWriter(new BufferingWriter())
+								.withWriterState()
+								.build());
 		testHarness.open();
 
 		testHarness.processWatermark(initialTime);
@@ -150,17 +150,12 @@ public abstract class WriterOperatorTestBase extends TestLogger {
 	 * A {@link Writer} that returns all committables from {@link #prepareCommit(boolean)} without
 	 * waiting for {@code flush} to be {@code true}.
 	 */
-	static class NonBufferingWriter extends TestSink.TestWriter {
+	static class NonBufferingWriter extends TestSink.DefaultWriter {
 		@Override
 		public List<String> prepareCommit(boolean flush) {
 			List<String> result = elements;
 			elements = new ArrayList<>();
 			return result;
-		}
-
-		@Override
-		void restoredFrom(List<String> states) {
-
 		}
 	}
 
@@ -168,27 +163,19 @@ public abstract class WriterOperatorTestBase extends TestLogger {
 	 * A {@link Writer} that only returns committables from {@link #prepareCommit(boolean)} when
 	 * {@code flush} is {@code true}.
 	 */
-	static class BufferingWriter extends TestSink.TestWriter {
+	static class BufferingWriter extends TestSink.DefaultWriter {
 		@Override
 		public List<String> prepareCommit(boolean flush) {
-			if (flush) {
-				List<String> result = elements;
-				elements = new ArrayList<>();
-				return result;
-			} else {
+			if (!flush) {
 				return Collections.emptyList();
 			}
-		}
-
-		@Override
-		void restoredFrom(List<String> states) {
-
+			List<String> result = elements;
+			elements = new ArrayList<>();
+			return result;
 		}
 	}
 
-	protected OneInputStreamOperatorTestHarness<Integer, String> createTestHarness(
-			TestSink sink) throws Exception {
-
+	protected OneInputStreamOperatorTestHarness<Integer, String> createTestHarness(TestSink sink) throws Exception {
 		return new OneInputStreamOperatorTestHarness<>(
 				createWriterOperator(sink),
 				IntSerializer.INSTANCE);

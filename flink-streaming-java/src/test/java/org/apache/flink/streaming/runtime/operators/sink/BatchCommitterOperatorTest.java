@@ -99,12 +99,11 @@ public class BatchCommitterOperatorTest extends TestLogger {
 
 	private OneInputStreamOperatorTestHarness<String, String> createTestHarness(Committer<String> committer) throws Exception {
 		return new OneInputStreamOperatorTestHarness<>(
-				new BatchCommitterOperatorFactory<>(TestSink
-						.newBuilder()
-						.addWriter()
-						.addCommitter(committer)
-						.setCommittableSerializer(TestSink.StringCommittableSerializer.INSTANCE)
-						.build()),
-				StringSerializer.INSTANCE);
+				new BatchCommitterOperatorFactory<>(
+						TestSink.newBuilder()
+								.addCommitter(committer)
+								.setCommittableSerializer(TestSink.StringCommittableSerializer.INSTANCE)
+								.build()
+				), StringSerializer.INSTANCE);
 	}
 }

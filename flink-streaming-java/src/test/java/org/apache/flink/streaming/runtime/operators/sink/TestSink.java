@@ -37,7 +37,6 @@ import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Function;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -47,7 +46,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class TestSink implements Sink<Integer, String, String, String> {
 
-	private final TestWriter writer;
+	private final DefaultWriter writer;
 
 	@Nullable
 	private final SimpleVersionedSerializer<String> writerStateSerializer;
@@ -65,7 +64,7 @@ public class TestSink implements Sink<Integer, String, String, String> {
 	private final SimpleVersionedSerializer<String> globalCommittableSerializer;
 
 	private TestSink(
-			TestWriter writer,
+			DefaultWriter writer,
 			@Nullable SimpleVersionedSerializer<String> writerStateSerializer,
 			@Nullable Committer<String> committer,
 			@Nullable SimpleVersionedSerializer<String> committableSerializer,
@@ -119,7 +118,7 @@ public class TestSink implements Sink<Integer, String, String, String> {
 	 */
 	public static class Builder {
 
-		private TestWriter writer;
+		private DefaultWriter writer = new DefaultWriter();
 
 		private SimpleVersionedSerializer<String> writerStateSerializer;
 
@@ -131,21 +130,13 @@ public class TestSink implements Sink<Integer, String, String, String> {
 
 		private SimpleVersionedSerializer<String> globalCommittableSerializer;
 
-		public Builder addWriter(TestWriter writer) {
+		public Builder addWriter(DefaultWriter writer) {
 			this.writer = checkNotNull(writer);
 			return this;
 		}
 
-		/**
-		 * Using the {@link DefaultWriter}.
-		 */
-		public Builder addWriter() {
-			this.writer = new DefaultWriter();
-			return this;
-		}
-
-		public Builder setWriterStateSerializer(SimpleVersionedSerializer<String> writerStateSerializer) {
-			this.writerStateSerializer = writerStateSerializer;
+		public Builder withWriterState() {
+			this.writerStateSerializer = StringCommittableSerializer.INSTANCE;
 			return this;
 		}
 
@@ -159,49 +150,13 @@ public class TestSink implements Sink<Integer, String, String, String> {
 			return this;
 		}
 
-		/**
-		 * Add a {@link DefaultWriter}.
-		 */
-		public Builder addCommitter() {
-			this.committer = new DefaultCommitter();
-			this.committableSerializer = StringCommittableSerializer.INSTANCE;
-			return this;
-		}
-
-		/**
-		 * Add a {@link Committer} which commits data to the queue provided by the supplier.
-		 */
-		public Builder addCommitter(Supplier<Queue<String>> queueSupplier) {
-			this.committer = new DefaultCommitter(queueSupplier);
-			this.committableSerializer = StringCommittableSerializer.INSTANCE;
-			return this;
-		}
-
 		public Builder addGlobalCommitter(GlobalCommitter<String, String> globalCommitter) {
 			this.globalCommitter = globalCommitter;
 			return this;
 		}
 
-		/**
-		 * Add a {@link GlobalCommitter} which commits data to the queue provided by the supplier.
-		 */
-		public Builder addGlobalCommitter(Supplier<Queue<String>> queueSupplier) {
-			this.globalCommitter = new DefaultGlobalCommitter(queueSupplier);
-			this.globalCommittableSerializer = StringCommittableSerializer.INSTANCE;
-			return this;
-		}
-
 		public Builder setGlobalCommittableSerializer(SimpleVersionedSerializer<String> globalCommittableSerializer) {
 			this.globalCommittableSerializer = globalCommittableSerializer;
-			return this;
-		}
-
-		/**
-		 * Using the {@link DefaultGlobalCommitter}.
-		 */
-		public Builder addGlobalCommitter() {
-			this.globalCommitter = new DefaultGlobalCommitter("");
-			this.globalCommittableSerializer = StringCommittableSerializer.INSTANCE;
 			return this;
 		}
 
@@ -221,12 +176,11 @@ public class TestSink implements Sink<Integer, String, String, String> {
 	/**
 	 * Base class for out testing {@link Writer Writers}.
 	 */
-	abstract static class TestWriter
-			implements Writer<Integer, String, String>, Serializable {
+	static class DefaultWriter implements Writer<Integer, String, String> {
 
 		protected List<String> elements;
 
-		TestWriter() {
+		DefaultWriter() {
 			this.elements = new ArrayList<>();
 		}
 
@@ -238,6 +192,13 @@ public class TestSink implements Sink<Integer, String, String, String> {
 		}
 
 		@Override
+		public List<String> prepareCommit(boolean flush) {
+			List<String> result = elements;
+			elements = new ArrayList<>();
+			return result;
+		}
+
+		@Override
 		public List<String> snapshotState() {
 			return Collections.emptyList();
 		}
@@ -246,22 +207,6 @@ public class TestSink implements Sink<Integer, String, String, String> {
 		public void close() throws Exception {
 		}
 
-		abstract void restoredFrom(List<String> states);
-	}
-
-	/**
-	 * A {@link Writer} that pre-commit all it received.
-	 */
-	static class DefaultWriter extends TestWriter {
-
-		@Override
-		public List<String> prepareCommit(boolean flush) {
-			List<String> result = elements;
-			elements = new ArrayList<>();
-			return result;
-		}
-
-		@Override
 		void restoredFrom(List<String> states) {
 
 		}
@@ -272,21 +217,14 @@ public class TestSink implements Sink<Integer, String, String, String> {
 	/**
 	 * Base class for testing {@link Committer} and {@link GlobalCommitter}.
 	 */
-	static class TestCommitter implements Serializable {
+	static class DefaultCommitter implements Committer<String>, Serializable {
 
-		private Queue<String> committedData;
+		private final Queue<String> committedData;
 
 		private boolean isClosed;
 
-		private Supplier<Queue<String>> queueSupplier;
-
-		public TestCommitter() {
+		public DefaultCommitter() {
 			this.committedData = new ConcurrentLinkedQueue<>();
-			this.isClosed = false;
-		}
-
-		public TestCommitter(Supplier<Queue<String>> queueSupplier) {
-			this.queueSupplier = queueSupplier;
 			this.isClosed = false;
 		}
 
@@ -294,11 +232,10 @@ public class TestSink implements Sink<Integer, String, String, String> {
 			return new ArrayList<>(committedData);
 		}
 
-		public void commitData(List<String> data) {
-			if (committedData == null) {
-				committedData = queueSupplier.get();
-			}
-			committedData.addAll(data);
+		@Override
+		public List<String> commit(List<String> committables) {
+			committedData.addAll(committables);
+			return Collections.emptyList();
 		}
 
 		public void close() throws Exception {
@@ -311,29 +248,9 @@ public class TestSink implements Sink<Integer, String, String, String> {
 	}
 
 	/**
-	 * A {@link Committer} that always commits committables successfully.
-	 */
-	static class DefaultCommitter extends TestCommitter implements Committer<String> {
-
-		public DefaultCommitter() {
-			super();
-		}
-
-		public DefaultCommitter(Supplier<Queue<String>> queueSupplier) {
-			super(queueSupplier);
-		}
-
-		@Override
-		public List<String> commit(List<String> committables) {
-			commitData(committables);
-			return Collections.emptyList();
-		}
-	}
-
-	/**
 	 * A {@link Committer} that always re-commits the committables data it received.
 	 */
-	static class AlwaysRetryCommitter extends TestCommitter implements Committer<String> {
+	static class AlwaysRetryCommitter extends DefaultCommitter implements Committer<String> {
 
 		@Override
 		public List<String> commit(List<String> committables) {
@@ -346,7 +263,7 @@ public class TestSink implements Sink<Integer, String, String, String> {
 	/**
 	 * A {@link GlobalCommitter} that always commits global committables successfully.
 	 */
-	static class DefaultGlobalCommitter extends TestCommitter implements GlobalCommitter<String, String> {
+	static class DefaultGlobalCommitter extends DefaultCommitter implements GlobalCommitter<String, String> {
 
 		static final Function<List<String>, String> COMBINER = strings -> {
 			//we sort here because we want to have a deterministic result during the unit test
@@ -356,9 +273,8 @@ public class TestSink implements Sink<Integer, String, String, String> {
 
 		private final String committedSuccessData;
 
-		DefaultGlobalCommitter(Supplier<Queue<String>> queueSupplier) {
-			super(queueSupplier);
-			committedSuccessData = "";
+		DefaultGlobalCommitter() {
+			this("");
 		}
 
 		DefaultGlobalCommitter(String committedSuccessData) {
@@ -384,21 +300,15 @@ public class TestSink implements Sink<Integer, String, String, String> {
 		}
 
 		@Override
-		public List<String> commit(List<String> globalCommittables) {
-			commitData(globalCommittables);
-			return Collections.emptyList();
-		}
-
-		@Override
 		public void endOfInput() {
-			commitData(Collections.singletonList("end of input"));
+			commit(Collections.singletonList("end of input"));
 		}
 	}
 
 	/**
 	 * A {@link GlobalCommitter} that always re-commits global committables it received.
 	 */
-	static class AlwaysRetryGlobalCommitter extends TestCommitter implements GlobalCommitter<String, String> {
+	static class AlwaysRetryGlobalCommitter extends DefaultGlobalCommitter {
 
 		@Override
 		public List<String> filterRecoveredCommittables(List<String> globalCommittables) {

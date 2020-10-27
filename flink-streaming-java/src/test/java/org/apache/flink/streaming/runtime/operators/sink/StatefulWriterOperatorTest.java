@@ -21,7 +21,6 @@ package org.apache.flink.streaming.runtime.operators.sink;
 import org.apache.flink.api.connector.sink.Writer;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
-import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.SimpleVersionedStringSerializer;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
@@ -39,8 +38,7 @@ import static org.junit.Assert.assertThat;
 public class StatefulWriterOperatorTest extends WriterOperatorTestBase {
 
 	@Override
-	protected AbstractWriterOperatorFactory createWriterOperator(
-			TestSink sink) {
+	protected AbstractWriterOperatorFactory createWriterOperator(TestSink sink) {
 		return new StatefulWriterOperatorFactory<>(sink);
 	}
 
@@ -49,11 +47,11 @@ public class StatefulWriterOperatorTest extends WriterOperatorTestBase {
 		final long initialTime = 0;
 
 		final OneInputStreamOperatorTestHarness<Integer, String> testHarness =
-				createTestHarness(TestSink
-						.newBuilder()
-						.addWriter(new SnapshottingBufferingWriter())
-						.setWriterStateSerializer(SimpleVersionedStringSerializer.INSTANCE)
-						.build());
+				createTestHarness(
+						TestSink.newBuilder()
+								.addWriter(new SnapshottingBufferingWriter())
+								.withWriterState()
+								.build());
 
 		testHarness.open();
 
@@ -73,11 +71,11 @@ public class StatefulWriterOperatorTest extends WriterOperatorTestBase {
 		testHarness.close();
 
 		final OneInputStreamOperatorTestHarness<Integer, String> restoredTestHarness =
-				createTestHarness(TestSink
-						.newBuilder()
-						.addWriter(new SnapshottingBufferingWriter())
-						.setWriterStateSerializer(SimpleVersionedStringSerializer.INSTANCE)
-						.build());
+				createTestHarness(
+						TestSink.newBuilder()
+								.addWriter(new SnapshottingBufferingWriter())
+								.withWriterState()
+								.build());
 
 		restoredTestHarness.initializeState(snapshot);
 		restoredTestHarness.open();

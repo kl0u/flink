@@ -61,8 +61,7 @@ public class BatchGlobalCommitterOperatorTest extends TestLogger {
 
 	@Test
 	public void endOfInput() throws Exception {
-		final TestSink.DefaultGlobalCommitter globalCommitter = new TestSink.DefaultGlobalCommitter(
-				"");
+		final TestSink.DefaultGlobalCommitter globalCommitter = new TestSink.DefaultGlobalCommitter();
 		final OneInputStreamOperatorTestHarness<String, String> testHarness =
 				createTestHarness(globalCommitter);
 		final List<String> inputs = Arrays.asList("compete", "swear", "shallow");
@@ -70,10 +69,8 @@ public class BatchGlobalCommitterOperatorTest extends TestLogger {
 		testHarness.initializeEmptyState();
 		testHarness.open();
 
-		testHarness.processElements(inputs
-				.stream()
-				.map(StreamRecord::new)
-				.collect(Collectors.toList()));
+		testHarness.processElements(
+				inputs.stream().map(StreamRecord::new).collect(Collectors.toList()));
 
 		testHarness.endInput();
 
@@ -91,8 +88,7 @@ public class BatchGlobalCommitterOperatorTest extends TestLogger {
 
 	@Test
 	public void close() throws Exception {
-		final TestSink.DefaultGlobalCommitter globalCommitter = new TestSink.DefaultGlobalCommitter(
-				"");
+		final TestSink.DefaultGlobalCommitter globalCommitter = new TestSink.DefaultGlobalCommitter();
 		final OneInputStreamOperatorTestHarness<String, String> testHarness =
 				createTestHarness(globalCommitter);
 		testHarness.initializeEmptyState();
@@ -106,12 +102,11 @@ public class BatchGlobalCommitterOperatorTest extends TestLogger {
 			GlobalCommitter<String, String> globalCommitter) throws Exception {
 
 		return new OneInputStreamOperatorTestHarness<>(
-				new BatchGlobalCommitterOperatorFactory<>(TestSink
-						.newBuilder()
-						.addWriter()
-						.addGlobalCommitter(globalCommitter)
-						.setGlobalCommittableSerializer(TestSink.StringCommittableSerializer.INSTANCE)
-						.build()),
-				StringSerializer.INSTANCE);
+				new BatchGlobalCommitterOperatorFactory<>(
+						TestSink.newBuilder()
+								.addGlobalCommitter(globalCommitter)
+								.setGlobalCommittableSerializer(TestSink.StringCommittableSerializer.INSTANCE)
+								.build()
+				), StringSerializer.INSTANCE);
 	}
 }
