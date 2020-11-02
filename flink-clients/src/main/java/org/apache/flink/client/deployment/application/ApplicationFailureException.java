@@ -20,6 +20,7 @@ package org.apache.flink.client.deployment.application;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.util.FlinkException;
@@ -32,9 +33,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * application with a given {@link ApplicationStatus}.
  */
 @Internal
-public class ApplicationFailureException extends FlinkException {
-
-	private final JobID jobID;
+public class ApplicationFailureException extends JobExecutionException {
 
 	private final ApplicationStatus status;
 
@@ -43,13 +42,8 @@ public class ApplicationFailureException extends FlinkException {
 			final ApplicationStatus status,
 			final String message,
 			final Throwable cause) {
-		super(message, cause);
-		this.jobID = jobID;
+		super(jobID, message, cause);
 		this.status = checkNotNull(status);
-	}
-
-	public JobID getJobID() {
-		return jobID;
 	}
 
 	public ApplicationStatus getStatus() {
