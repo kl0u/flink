@@ -98,6 +98,11 @@ public interface Sink<InputT, CommT, WriterStateT, GlobalCommT> extends Serializ
 	interface InitContext {
 
 		/**
+		 * @return A processing timer service.
+		 */
+		ProcessingTimerService getProcessingTimerService();
+
+		/**
 		 * @return The id of task where the writer is.
 		 */
 		int getSubtaskId();
@@ -106,5 +111,38 @@ public interface Sink<InputT, CommT, WriterStateT, GlobalCommT> extends Serializ
 		 * @return The metric group this writer belongs to.
 		 */
 		MetricGroup metricGroup();
+	}
+
+	/**
+	 * This service is responsible for executing user's given callback at given timestamp.
+	 */
+	interface ProcessingTimerService {
+
+		/**
+		 * @return Current process time.
+		 */
+		long getCurrentProcessingTime();
+
+		/**
+		 * Invoking the given callback at the given timestamp.
+		 *
+		 * @param time Time when the callback is invoked at
+		 * @param processingTimerCallback The callback to be invoked.
+		 */
+		void registerProcessingTimer(long time, ProcessingTimerCallback processingTimerCallback);
+
+		/**
+		 * The callback that could be register at {@link ProcessingTimerService}.
+		 */
+		interface ProcessingTimerCallback {
+
+			/**
+			 * This method is invoked with the time which the callback register for.
+			 *
+			 * @param time The time this callback registers with the {@link ProcessingTimerService}
+			 */
+			void onProcessingTime(long time) throws IOException;
+
+		}
 	}
 }
