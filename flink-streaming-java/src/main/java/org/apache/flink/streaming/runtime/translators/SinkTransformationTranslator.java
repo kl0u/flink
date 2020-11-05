@@ -324,6 +324,7 @@ public class SinkTransformationTranslator<InputT, CommT, WriterStateT, GlobalCom
 					transformationId,
 					String.format("%s %s", prefix, sinkTransformation.getUid()));
 		}
+
 		for (int input : inputs) {
 			streamGraph.addEdge(input, transformationId, 0);
 		}
