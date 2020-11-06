@@ -29,9 +29,9 @@ import java.util.List;
  * data, e.g. in-progress files. The data (or metadata pointing to where the actual data is staged) ready to commit is
  * returned to the system by the {@link #prepareCommit(boolean)}.
  *
- * @param <InputT> The type of the sink writer's input
- * @param <CommT> The type of information needed to commit data staged by the sink
- * @param <WriterStateT> The type of the writer's state
+ * @param <InputT>         The type of the sink writer's input
+ * @param <CommT>          The type of information needed to commit data staged by the sink
+ * @param <WriterStateT>   The type of the writer's state
  */
 @Experimental
 public interface SinkWriter<InputT, CommT, WriterStateT> extends AutoCloseable {
@@ -52,7 +52,6 @@ public interface SinkWriter<InputT, CommT, WriterStateT> extends AutoCloseable {
 	 * <p>This will be called before we checkpoint the Writer's state in Streaming execution mode.
 	 *
 	 * @param flush Whether flushing the un-staged data or not
-	 *
 	 * @return The data is ready to commit.
 	 *
 	 * @throws IOException if fail to prepare for a commit.
@@ -65,6 +64,7 @@ public interface SinkWriter<InputT, CommT, WriterStateT> extends AutoCloseable {
 	 * @throws IOException if fail to snapshot writer's state.
 	 */
 	List<WriterStateT> snapshotState() throws IOException;
+
 
 	/**
 	 * Context that {@link #write} can use for getting additional data about an input record.
