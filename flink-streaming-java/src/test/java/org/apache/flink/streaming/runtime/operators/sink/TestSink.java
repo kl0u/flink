@@ -85,7 +85,7 @@ public class TestSink implements Sink<Integer, String, String, String> {
 			InitContext context,
 			List<String> states) {
 		writer.restoredFrom(states);
-		writer.setProcessingTimerService(context.getProcessingTimerService());
+		writer.setProcessingTimerService(context.getProcessingTimeService());
 		return writer;
 	}
 
@@ -209,7 +209,7 @@ public class TestSink implements Sink<Integer, String, String, String> {
 
 		protected List<String> elements;
 
-		protected ProcessingTimerService processingTimerService;
+		protected ProcessingTimeService processingTimerService;
 
 		DefaultSinkWriter() {
 			this.elements = new ArrayList<>();
@@ -242,7 +242,7 @@ public class TestSink implements Sink<Integer, String, String, String> {
 
 		}
 
-		void setProcessingTimerService(ProcessingTimerService processingTimerService) {
+		void setProcessingTimerService(ProcessingTimeService processingTimerService) {
 			this.processingTimerService = processingTimerService;
 		}
 	}

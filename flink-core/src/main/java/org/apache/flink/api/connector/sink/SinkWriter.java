@@ -67,15 +67,6 @@ public interface SinkWriter<InputT, CommT, WriterStateT> extends AutoCloseable {
 	List<WriterStateT> snapshotState() throws IOException;
 
 	/**
-	 * Called when a timer fired.
-	 *
-	 * @param time The timestamp of the firing timer.
-	 * @param context The context that user can use to register a processing timer when calling {@link #onTimer(long, OnTimerContext)}.
-	 */
-	default void onTimer(long time, OnTimerContext context) {
-	}
-
-	/**
 	 * Context that {@link #write} can use for getting additional data about an input record.
 	 */
 	interface Context {
@@ -90,17 +81,5 @@ public interface SinkWriter<InputT, CommT, WriterStateT> extends AutoCloseable {
 		 * have an assigned timestamp.
 		 */
 		Long timestamp();
-	}
-
-	/**
-	 * Context that user can use to register a processing timer when calling {@link #onTimer(long, OnTimerContext)}.
-	 */
-	interface OnTimerContext {
-		/**
-		 * Registers a timer to be fired when processing time passes the given time.
-		 *
-		 * @param time The timestamp of the firing timer.
-		 */
-		void registerProcessingTimer(long time);
 	}
 }

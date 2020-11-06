@@ -217,7 +217,7 @@ public abstract class SinkWriterOperatorTestBase extends TestLogger {
 	/**
 	 * A {@link SinkWriter} that buffers the committables and send the cached committables per second.
 	 */
-	static class TimeBasedBufferingSinkWriter extends TestSink.DefaultSinkWriter implements Sink.ProcessingTimerService.ProcessingTimerCallback {
+	static class TimeBasedBufferingSinkWriter extends TestSink.DefaultSinkWriter implements Sink.ProcessingTimeService.ProcessingTimeCallback {
 
 		private final List<String> cachedCommittables = new ArrayList<>();
 
@@ -228,7 +228,7 @@ public abstract class SinkWriterOperatorTestBase extends TestLogger {
 					.toString());
 		}
 
-		void setProcessingTimerService(Sink.ProcessingTimerService processingTimerService) {
+		void setProcessingTimerService(Sink.ProcessingTimeService processingTimerService) {
 			super.setProcessingTimerService(processingTimerService);
 			this.processingTimerService.registerProcessingTimer(1000, this);
 		}

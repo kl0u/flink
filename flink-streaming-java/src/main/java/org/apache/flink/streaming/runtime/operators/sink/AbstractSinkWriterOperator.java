@@ -104,22 +104,10 @@ abstract class AbstractSinkWriterOperator<InputT, CommT> extends AbstractStreamO
 	}
 
 	protected Sink.InitContext createInitContext() {
-		return new Sink.InitContext() {
-			@Override
-			public Sink.ProcessingTimerService getProcessingTimerService() {
-				return new InternalProcessingTimerService();
-			}
-
-			@Override
-			public int getSubtaskId() {
-				return getRuntimeContext().getIndexOfThisSubtask();
-			}
-
-			@Override
-			public MetricGroup metricGroup() {
-				return getMetricGroup();
-			}
-		};
+		return new InitContextImpl(
+				getRuntimeContext().getIndexOfThisSubtask(),
+				processingTimeService,
+				getMetricGroup());
 	}
 
 	/**
@@ -153,7 +141,46 @@ abstract class AbstractSinkWriterOperator<InputT, CommT> extends AbstractStreamO
 		}
 	}
 
-	private class InternalProcessingTimerService implements Sink.ProcessingTimerService {
+	private static class InitContextImpl implements Sink.InitContext {
+
+		private final int subtaskIdx;
+
+		private final ProcessingTimeService processingTimeService;
+
+		private final MetricGroup metricGroup;
+
+		public InitContextImpl(
+				int subtaskIdx,
+				ProcessingTimeService processingTimeService,
+				MetricGroup metricGroup) {
+			this.subtaskIdx = subtaskIdx;
+			this.processingTimeService = checkNotNull(processingTimeService);
+			this.metricGroup = checkNotNull(metricGroup);
+		}
+
+		@Override
+		public Sink.ProcessingTimeService getProcessingTimeService() {
+			return new ProcessingTimerServiceImpl(processingTimeService);
+		}
+
+		@Override
+		public int getSubtaskId() {
+			return subtaskIdx;
+		}
+
+		@Override
+		public MetricGroup metricGroup() {
+			return metricGroup;
+		}
+	}
+
+	private static class ProcessingTimerServiceImpl implements Sink.ProcessingTimeService {
+
+		private final ProcessingTimeService processingTimeService;
+
+		public ProcessingTimerServiceImpl(ProcessingTimeService processingTimeService) {
+			this.processingTimeService = checkNotNull(processingTimeService);
+		}
 
 		@Override
 		public long getCurrentProcessingTime() {
@@ -161,12 +188,10 @@ abstract class AbstractSinkWriterOperator<InputT, CommT> extends AbstractStreamO
 		}
 
 		@Override
-		public void registerProcessingTimer(
-				long time,
-				ProcessingTimerCallback processingTimerCallback) {
+		public void registerProcessingTimer(long time, ProcessingTimeCallback processingTimerCallback) {
 			checkNotNull(processingTimerCallback);
-			processingTimeService.registerTimer(time,
-					processingTimerCallback::onProcessingTime);
+			processingTimeService.registerTimer(
+					time, processingTimerCallback::onProcessingTime);
 		}
 	}
 }
