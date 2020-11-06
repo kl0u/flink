@@ -98,7 +98,8 @@ public interface Sink<InputT, CommT, WriterStateT, GlobalCommT> extends Serializ
 	interface InitContext {
 
 		/**
-		 * @return A processing timer service.
+		 * Returns a {@link ProcessingTimeService} that can be used to
+		 * get the current time and register timers.
 		 */
 		ProcessingTimeService getProcessingTimeService();
 
@@ -114,12 +115,13 @@ public interface Sink<InputT, CommT, WriterStateT, GlobalCommT> extends Serializ
 	}
 
 	/**
-	 * This service is responsible for executing user's given callback at given timestamp.
+	 * A service that allows to get the current processing time and register timers that
+	 * will execute the given {@link ProcessingTimeCallback} when firing.
 	 */
 	interface ProcessingTimeService {
 
 		/**
-		 * @return Current process time.
+		 * @return Current processing time.
 		 */
 		long getCurrentProcessingTime();
 
