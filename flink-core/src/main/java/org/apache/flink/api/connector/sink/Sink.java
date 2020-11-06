@@ -98,9 +98,10 @@ public interface Sink<InputT, CommT, WriterStateT, GlobalCommT> extends Serializ
 	interface InitContext {
 
 		/**
-		 * @return A processing timer service.
+		 * Returns a {@link ProcessingTimeService} that can be used to
+		 * get the current time and register timers.
 		 */
-		ProcessingTimerService getProcessingTimerService();
+		ProcessingTimeService getProcessingTimeService();
 
 		/**
 		 * @return The id of task where the writer is.
@@ -114,12 +115,13 @@ public interface Sink<InputT, CommT, WriterStateT, GlobalCommT> extends Serializ
 	}
 
 	/**
-	 * This service is responsible for executing user's given callback at given timestamp.
+	 * A service that allows to get the current processing time and register timers that
+	 * will execute the given {@link ProcessingTimeCallback} when firing.
 	 */
-	interface ProcessingTimerService {
+	interface ProcessingTimeService {
 
 		/**
-		 * @return Current process time.
+		 * @return Current processing time.
 		 */
 		long getCurrentProcessingTime();
 
@@ -129,20 +131,19 @@ public interface Sink<InputT, CommT, WriterStateT, GlobalCommT> extends Serializ
 		 * @param time Time when the callback is invoked at
 		 * @param processingTimerCallback The callback to be invoked.
 		 */
-		void registerProcessingTimer(long time, ProcessingTimerCallback processingTimerCallback);
+		void registerProcessingTimer(long time, ProcessingTimeCallback processingTimerCallback);
 
 		/**
-		 * The callback that could be register at {@link ProcessingTimerService}.
+		 * The callback that could be register at {@link ProcessingTimeService}.
 		 */
-		interface ProcessingTimerCallback {
+		interface ProcessingTimeCallback {
 
 			/**
 			 * This method is invoked with the time which the callback register for.
 			 *
-			 * @param time The time this callback registers with the {@link ProcessingTimerService}
+			 * @param time The time this callback registers with the {@link ProcessingTimeService}
 			 */
 			void onProcessingTime(long time) throws IOException;
-
 		}
 	}
 }

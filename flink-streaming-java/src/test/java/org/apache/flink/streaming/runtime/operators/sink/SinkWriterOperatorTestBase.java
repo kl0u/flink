@@ -53,7 +53,7 @@ public abstract class SinkWriterOperatorTestBase extends TestLogger {
 		final OneInputStreamOperatorTestHarness<Integer, String> testHarness =
 				createTestHarness(TestSink
 						.newBuilder()
-						.setWriter(new NonBufferingSinkWriter())
+						.setWriter(new TestSink.DefaultSinkWriter())
 						.withWriterState()
 						.build());
 		testHarness.open();
@@ -80,7 +80,7 @@ public abstract class SinkWriterOperatorTestBase extends TestLogger {
 		final OneInputStreamOperatorTestHarness<Integer, String> testHarness =
 				createTestHarness(TestSink
 						.newBuilder()
-						.setWriter(new NonBufferingSinkWriter())
+						.setWriter(new TestSink.DefaultSinkWriter())
 						.withWriterState()
 						.build());
 		testHarness.open();
@@ -162,6 +162,8 @@ public abstract class SinkWriterOperatorTestBase extends TestLogger {
 						.build());
 		testHarness.open();
 
+		testHarness.setProcessingTime(0L);
+
 		testHarness.processElement(1, initialTime + 1);
 		testHarness.processElement(2, initialTime + 2);
 
@@ -186,19 +188,6 @@ public abstract class SinkWriterOperatorTestBase extends TestLogger {
 	}
 
 	/**
-	 * A {@link SinkWriter} that returns all committables from {@link #prepareCommit(boolean)} without
-	 * waiting for {@code flush} to be {@code true}.
-	 */
-	static class NonBufferingSinkWriter extends TestSink.DefaultSinkWriter {
-		@Override
-		public List<String> prepareCommit(boolean flush) {
-			List<String> result = elements;
-			elements = new ArrayList<>();
-			return result;
-		}
-	}
-
-	/**
 	 * A {@link SinkWriter} that only returns committables from {@link #prepareCommit(boolean)} when
 	 * {@code flush} is {@code true}.
 	 */
@@ -217,7 +206,7 @@ public abstract class SinkWriterOperatorTestBase extends TestLogger {
 	/**
 	 * A {@link SinkWriter} that buffers the committables and send the cached committables per second.
 	 */
-	static class TimeBasedBufferingSinkWriter extends TestSink.DefaultSinkWriter implements Sink.ProcessingTimerService.ProcessingTimerCallback {
+	static class TimeBasedBufferingSinkWriter extends TestSink.DefaultSinkWriter implements Sink.ProcessingTimeService.ProcessingTimeCallback {
 
 		private final List<String> cachedCommittables = new ArrayList<>();
 
@@ -228,7 +217,7 @@ public abstract class SinkWriterOperatorTestBase extends TestLogger {
 					.toString());
 		}
 
-		void setProcessingTimerService(Sink.ProcessingTimerService processingTimerService) {
+		void setProcessingTimerService(Sink.ProcessingTimeService processingTimerService) {
 			super.setProcessingTimerService(processingTimerService);
 			this.processingTimerService.registerProcessingTimer(1000, this);
 		}
