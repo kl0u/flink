@@ -50,8 +50,8 @@ import static org.apache.flink.util.Preconditions.checkState;
  * Writer implementation for {@link FileSink}.
  */
 @Internal
-public class FileWriter<IN>
-		implements SinkWriter<IN, FileSinkCommittable, FileWriterBucketState>,
+public class FileWriter<IN> implements
+		SinkWriter<IN, FileSinkCommittable, FileWriterBucketState>,
 		Sink.ProcessingTimeService.ProcessingTimeCallback {
 
 	private static final Logger LOG = LoggerFactory.getLogger(FileWriter.class);
@@ -122,9 +122,6 @@ public class FileWriter<IN>
 				bucketCheckInterval > 0,
 				"Bucket checking interval for processing time should be positive.");
 		this.bucketCheckInterval = bucketCheckInterval;
-		processingTimeService.registerProcessingTimer(
-				processingTimeService.getCurrentProcessingTime() + bucketCheckInterval,
-				this);
 	}
 
 	/**
@@ -162,6 +159,8 @@ public class FileWriter<IN>
 
 			updateActiveBucketId(bucketId, restoredBucket);
 		}
+
+		registerNextBucketInspectionTimer();
 	}
 
 	private void updateActiveBucketId(
@@ -257,9 +256,12 @@ public class FileWriter<IN>
 			bucket.onProcessingTime(time);
 		}
 
-		processingTimeService.registerProcessingTimer(
-				processingTimeService.getCurrentProcessingTime() + bucketCheckInterval,
-				this);
+		registerNextBucketInspectionTimer();
+	}
+
+	private void registerNextBucketInspectionTimer() {
+		final long nextInspectionTime = processingTimeService.getCurrentProcessingTime() + bucketCheckInterval;
+		processingTimeService.registerProcessingTimer(nextInspectionTime, this);
 	}
 
 	/**

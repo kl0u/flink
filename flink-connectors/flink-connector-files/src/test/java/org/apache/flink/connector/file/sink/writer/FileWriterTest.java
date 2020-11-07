@@ -39,13 +39,14 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Deque;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.PriorityQueue;
+import java.util.Queue;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -201,6 +202,7 @@ public class FileWriterTest {
 				new OutputFileConfig("part-", ""),
 				processingTimeService,
 				5);
+		fileWriter.initializeState(Collections.emptyList());
 
 		// Test timer registered timer@15 on startup
 		fileWriter.write("test1", new ContextImpl());
@@ -265,7 +267,8 @@ public class FileWriterTest {
 
 		private long now;
 
-		private Deque<Tuple2<Long, ProcessingTimeCallback>> timers = new ArrayDeque<>();
+		private final Queue<Tuple2<Long, ProcessingTimeCallback>> timers =
+				new PriorityQueue<>(Comparator.comparingLong(o -> o.f0));
 
 		@Override
 		public long getCurrentProcessingTime() {
@@ -289,18 +292,14 @@ public class FileWriterTest {
 			if (time > now) {
 				now = time;
 
-				int size = timers.size();
-				for (int i = 0; i < size; ++i) {
-					Tuple2<Long, ProcessingTimeCallback> timer = timers.poll();
-					if (now >= timer.f0) {
-						try {
-							timer.f1.onProcessingTime(now);
-						} catch (IOException e) {
-							e.printStackTrace();
-						}
-					} else {
-						timers.add(timer);
+				Tuple2<Long, ProcessingTimeCallback> timer;
+				while ((timer = timers.peek()) != null && timer.f0 <= now) {
+					try {
+						timer.f1.onProcessingTime(now);
+					} catch (IOException e) {
+						e.printStackTrace();
 					}
+					timers.poll();
 				}
 			}
 		}

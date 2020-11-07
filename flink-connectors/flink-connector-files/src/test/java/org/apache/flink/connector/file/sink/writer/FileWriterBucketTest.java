@@ -213,7 +213,7 @@ public class FileWriterBucketTest {
 				bucket.getInProgressPart());
 
 		bucket.write("test-element", 21);
-		bucket.onProcessingTime(30);
+		bucket.onProcessingTime(21);
 		assertNull(
 				"The bucket should roll since interval is reached",
 				bucket.getInProgressPart());
