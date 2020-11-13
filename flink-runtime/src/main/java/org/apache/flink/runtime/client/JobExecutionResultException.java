@@ -26,8 +26,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * This exception is the base exception for all exceptions that signals the failure of an
  * application with a given {@link ApplicationStatus}.
- *
- * @throws JobCancellationException if the job was cancelled
  */
 public class JobExecutionResultException extends JobExecutionException {
 

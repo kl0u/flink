@@ -228,7 +228,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 					env.execute();
 				}
 				catch (Throwable t) {
-					if (!(t instanceof JobCancellationException)) {
+					if (!(t instanceof JobExecutionResultException && t.getCause() instanceof JobCancellationException)) {
 						errorRef.set(t);
 					}
 				}
@@ -259,7 +259,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 		runner.join();
 
 		final Throwable t = errorRef.get();
-		if (t != null && ((JobExecutionResultException) t).getStatus() == ApplicationStatus.FAILED) {
+		if (t != null) {
 			throw new RuntimeException("Job failed with an exception", t);
 		}
 
@@ -314,7 +314,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 					env.execute();
 				}
 				catch (Throwable t) {
-					if (!(t instanceof JobCancellationException)) {
+					if (!wasJobCancelled(t)) {
 						errorRef.set(t);
 					}
 				}
@@ -344,7 +344,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 		runner.join();
 
 		final Throwable t = errorRef.get();
-		if (t != null && ((JobExecutionResultException) t).getStatus() == ApplicationStatus.FAILED) {
+		if (t != null && !wasJobCancelled(t)) {
 			throw new RuntimeException("Job failed with an exception", t);
 		}
 
@@ -2169,6 +2169,16 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 		waitUntilNoJobIsRunning(client);
 
 		return success;
+	}
+
+	private static boolean wasJobCancelled(final Throwable throwable) {
+		if (!(throwable instanceof JobExecutionResultException)) {
+			return false;
+		}
+
+		final JobExecutionResultException exception = (JobExecutionResultException) throwable;
+		return exception.getStatus() == ApplicationStatus.CANCELED
+				&& exception.getCause() instanceof JobCancellationException;
 	}
 
 	// ------------------------------------------------------------------------
