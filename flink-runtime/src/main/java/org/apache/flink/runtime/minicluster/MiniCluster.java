@@ -676,6 +676,8 @@ public class MiniCluster implements AutoCloseableAsync {
 		try {
 			return jobResult.toJobExecutionResult(Thread.currentThread().getContextClassLoader());
 		} catch (IOException | ClassNotFoundException e) {
+			// TODO: 17.11.20 can this be misleading? like the application was successful but it failed to deserialize so now we have status SUCCEEDED but with an exception???
+			// if this is the case, should we put UNKNOWN???
 			throw new JobExecutionException(job.getJobID(), jobResult.getApplicationStatus(), e);
 		}
 	}

@@ -222,8 +222,11 @@ public class ExecutionGraphBuilder {
 				vertex.initializeOnMaster(classLoader);
 			}
 			catch (Throwable t) {
-					throw new JobExecutionException(jobId, ApplicationStatus.fromJobStatus(executionGraph.getState()),
-							"Cannot initialize task '" + vertex.getName() + "': " + t.getMessage(), t);
+				throw new JobExecutionException(
+						jobId,
+						ApplicationStatus.fromJobStatus(executionGraph.getState()),
+						"Cannot initialize task '" + vertex.getName() + "': " + t.getMessage(),
+						t);
 			}
 		}
 
@@ -274,8 +277,11 @@ public class ExecutionGraphBuilder {
 				checkpointIdCounter = recoveryFactory.createCheckpointIDCounter(jobId);
 			}
 			catch (Exception e) {
-				throw new JobExecutionException(jobId, ApplicationStatus.fromJobStatus(executionGraph.getState()),
-						"Failed to initialize high-availability checkpoint handler", e);
+				throw new JobExecutionException(
+						jobId,
+						ApplicationStatus.fromJobStatus(executionGraph.getState()),
+						"Failed to initialize high-availability checkpoint handler",
+						e);
 			}
 
 			// Maximum number of remembered checkpoints
@@ -298,8 +304,11 @@ public class ExecutionGraphBuilder {
 				try {
 					applicationConfiguredBackend = serializedAppConfigured.deserializeValue(classLoader);
 				} catch (IOException | ClassNotFoundException e) {
-					throw new JobExecutionException(jobId, ApplicationStatus.fromJobStatus(executionGraph.getState()),
-							"Could not deserialize application-defined state backend.", e);
+					throw new JobExecutionException(
+							jobId,
+							ApplicationStatus.fromJobStatus(executionGraph.getState()),
+							"Could not deserialize application-defined state backend.",
+							e);
 				}
 			}
 
@@ -309,8 +318,11 @@ public class ExecutionGraphBuilder {
 						applicationConfiguredBackend, jobManagerConfig, classLoader, log);
 			}
 			catch (IllegalConfigurationException | IOException | DynamicCodeLoadingException e) {
-				throw new JobExecutionException(jobId, ApplicationStatus.fromJobStatus(executionGraph.getState()),
-						"Could not instantiate configured state backend", e);
+				throw new JobExecutionException(
+						jobId,
+						ApplicationStatus.fromJobStatus(executionGraph.getState()),
+						"Could not instantiate configured state backend",
+						e);
 			}
 
 			// instantiate the user-defined checkpoint hooks
@@ -327,8 +339,11 @@ public class ExecutionGraphBuilder {
 					hookFactories = serializedHooks.deserializeValue(classLoader);
 				}
 				catch (IOException | ClassNotFoundException e) {
-					throw new JobExecutionException(jobId, ApplicationStatus.fromJobStatus(executionGraph.getState()),
-							"Could not instantiate user-defined checkpoint hooks", e);
+					throw new JobExecutionException(
+							jobId,
+							ApplicationStatus.fromJobStatus(executionGraph.getState()),
+							"Could not instantiate user-defined checkpoint hooks",
+							e);
 				}
 
 				final Thread thread = Thread.currentThread();
