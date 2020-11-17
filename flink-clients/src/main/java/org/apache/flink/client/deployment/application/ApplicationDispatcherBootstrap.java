@@ -155,6 +155,9 @@ public class ApplicationDispatcherBootstrap implements DispatcherBootstrap {
 					if (exception.isPresent()) {
 						final ApplicationStatus applicationStatus = exception.get().getStatus();
 
+						// in the following cases we shutdown the  cluster and
+						// we clean up any HA data attached to the job
+
 						if (applicationStatus == ApplicationStatus.CANCELED || applicationStatus == ApplicationStatus.FAILED) {
 							LOG.info("Application {}: ", applicationStatus, t);
 							return dispatcherGateway.shutDownCluster(applicationStatus);

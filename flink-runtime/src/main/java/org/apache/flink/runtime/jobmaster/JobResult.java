@@ -132,12 +132,7 @@ public class JobResult implements Serializable {
 					accumulatorResults,
 					classLoader));
 		} else {
-			final JobExecutionException exception =
-					getJobExecutionException(serializedThrowable, classLoader);
-
-			throw applicationStatus == ApplicationStatus.CANCELED || applicationStatus == ApplicationStatus.FAILED
-					? new JobExecutionException(jobId, applicationStatus, "Application Status: " + applicationStatus.name(), exception)
-					: new JobExecutionException(jobId, ApplicationStatus.UNKNOWN, "Job failed for unknown reason.", exception);
+			throw getJobExecutionException(serializedThrowable, classLoader);
 		}
 	}
 
@@ -151,7 +146,7 @@ public class JobResult implements Serializable {
 			exception = new JobCancellationException(jobId, "Job was cancelled.", cause);
 		} else {
 			exception = new JobExecutionException(jobId, applicationStatus,
-					"Job completed with illegal application status: " + applicationStatus + '.', cause);
+					"Job completed with application status: " + applicationStatus + '.', cause);
 		}
 		return exception;
 	}
