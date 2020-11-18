@@ -213,7 +213,7 @@ results in case of a failure.
 
 ### Failure Recovery
 
-In STREAMING execution mode, Flink uses checkpoints for failure recover. Take a
+In STREAMING execution mode, Flink uses checkpoints for failure recovery. Take a
 look at the [checkpointing documentation]({% link
 dev/stream/state/checkpointing.md %}) for hands-on documentation about this and
 how to configure it. There is also a more introductory section about [fault
