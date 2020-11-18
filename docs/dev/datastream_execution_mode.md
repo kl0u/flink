@@ -67,14 +67,16 @@ is bounded because this will be more efficient. You have to use STREAMING
 execution mode when your program is unbounded because only this mode is general
 enough to be able to deal with continuous data streams.
 
-TODO: Should we even go into this?
-
 One obvious outlier case is when you want to use a bounded job to bootstrap
 some job state that you then want to use in an unbounded job. For example, by
 running a bounded job using STREAMING mode, taking a savepoint, and then
 restoring that savepoint on an unbounded job. This is a very specific use case
 and one that might soon become obsolete when we allow producing a savepoint as
 additional output of a BATCH execution job.
+
+Another case where you might run a bounded job using STREAMING mode is when
+writing tests for code that will eventually run with unbounded sources. For
+testing it can be more natural to use a bounded source in those cases.
 
 ## Configuring BATCH execution mode
 
@@ -117,7 +119,7 @@ documentation about [task scheduling (TODO)](<TODO>).
 Flink jobs consist of different operations that are connected together in a
 dataflow graph. The system decides how to schedule the execution of these
 operations on different processes/machines (TaskManager) and how data is
-shuffled (sent) betwixt them.
+shuffled (sent) between them.
 
 Multiple operations/operators can be chained together using a feature called
 [chaining]({% link dev/stream/operators/index.md
@@ -195,7 +197,10 @@ intermediate results of tasks to some non-ephemeral storage which allows
 downstream tasks to read them after upstream tasks have already gone off line.
 This will increase the latency of processing but comes with other interesting
 properties. For one, this allows Flink to backtrack to the latest available
-results when a failure happens instead of restarting the whole job.
+results when a failure happens instead of restarting the whole job. Another
+side effect is that BATCH jobs can execute on fewer resources (in terms of
+available slots at TaskManagers) because the system can execute tasks
+sequentially one after the other.
 
 TaskManagers will keep intermediate results at least as long as downstream
 tasks have not consumed them. After that, they will be kept for as long as
