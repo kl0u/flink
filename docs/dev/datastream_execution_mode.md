@@ -127,7 +127,7 @@ Often the term _subtask_ is used to refer to the individual instances of tasks
 that are running in parallel on multiple TaskManagers but we will only use the
 term _task_ here.
 
-Task scheduling and the network shuffle work different for BATCH execution mode
+Task scheduling and the network shuffle work differently for BATCH execution mode
 and STREAMING execution mode. Mostly due to the fact that we know our input
 data is bounded in BATCH execution mode, which allows Flink to use more
 efficient data structures and algorithms.
