@@ -52,7 +52,7 @@ The BATCH execution mode can only be used for Jobs/Flink Programs that are
 _bounded_. Boundedness is a property of a data source that tells us whether all
 the input coming from that source is known before execution or whether new data
 will show up, potentially indefinitely. A job, in turn, is bounded if all its
-sources are bounded and unbounded otherwise.
+sources are bounded, and unbounded otherwise.
 
 STREAMING execution mode, on the other hand, can be used for both bounded and
 unbounded jobs.
