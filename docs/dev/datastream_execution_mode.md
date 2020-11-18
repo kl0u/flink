@@ -71,7 +71,7 @@ TODO: Should we even go into this?
 
 One obvious outlier case is when you want to use a bounded job to bootstrap
 some job state that you then want to use in an unbounded job. For example, by
-running a bounded job using STREAMING mode, taking a savepoint and then
+running a bounded job using STREAMING mode, taking a savepoint, and then
 restoring that savepoint on an unbounded job. This is a very specific use case
 and one that might soon become obsolete when we allow producing a savepoint as
 additional output of a BATCH execution job.
