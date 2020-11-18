@@ -85,7 +85,7 @@ There are three possible values:
  - `BATCH`: Batch-style execution on the DataStream API
  - `AUTOMATIC`: Let the system decide based on the boundedness of the sources
 
- This can be configured either in the `flink-conf.yaml`, via command line
+ This can be configured either in `flink-conf.yaml`, via command line
  parameters of `bin/flink run ...`, or programmatically when
  creating/configuring the `StreamExecutionEnvironment`.
 
