@@ -37,7 +37,7 @@ processing frameworks such as MapReduce. This should be used for bounded jobs
 for which you have a known fixed input and which do not run continuously.
 
 We have these different execution modes because `BATCH` execution allows some
-additional optimizations that we can only do when we now that our input is
+additional optimizations that we can only do when we know that our input is
 bounded. For example, different join/aggregation strategies can be used, in
 additional to a different shuffle implementation that allows more efficient
 failure recovery behavior. We will go into some of the details of the execution
@@ -239,4 +239,3 @@ What doesn't work:
  - iterations
  - operations that rely on checkpointing
  - this includes most "regular" sinks
-
