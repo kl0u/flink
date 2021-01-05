@@ -218,6 +218,7 @@ public class RocksSavepointStrategy<K> implements SavepointStrategy<SnapshotResu
 				readOptions.setSnapshot(snapshot);
 				writeKVStateMetaData(outputView);
 
+				// TODO: 05.01.21 this can move to being an argument in the constructor...
 				kvStateIterators = getStateIterators(readOptions);
 				writeKVStateData(
 						kvStateIterators, checkpointStreamWithResultProvider, keyGroupRangeOffsets);
@@ -231,6 +232,23 @@ public class RocksSavepointStrategy<K> implements SavepointStrategy<SnapshotResu
 
 				IOUtils.closeQuietly(readOptions);
 			}
+		}
+
+		private void writeKVStateMetaData(final DataOutputView outputView) throws IOException {
+			KeyedBackendSerializationProxy<K> serializationProxy =
+					new KeyedBackendSerializationProxy<>(
+
+							// TODO: this code assumes that writing a serializer is threadsafe, we
+							// should support tocget a serialized form already at state registration
+							// time in the future
+
+							keySerializer,
+							stateMetaInfoSnapshots,
+							!Objects.equals(
+									UncompressedStreamCompressionDecorator.INSTANCE,
+									keyGroupCompressionDecorator));
+
+			serializationProxy.write(outputView);
 		}
 
 		private List<Tuple2<RocksIteratorWrapper, Integer>> getStateIterators(ReadOptions readOptions) {
@@ -249,23 +267,6 @@ public class RocksSavepointStrategy<K> implements SavepointStrategy<SnapshotResu
 				++kvStateId;
 			}
 			return kvStateIterators;
-		}
-
-		private void writeKVStateMetaData(final DataOutputView outputView) throws IOException {
-			KeyedBackendSerializationProxy<K> serializationProxy =
-					new KeyedBackendSerializationProxy<>(
-
-							// TODO: this code assumes that writing a serializer is threadsafe, we
-							// should support tocget a serialized form already at state registration
-							// time in the future
-
-							keySerializer,
-							stateMetaInfoSnapshots,
-							!Objects.equals(
-									UncompressedStreamCompressionDecorator.INSTANCE,
-									keyGroupCompressionDecorator));
-
-			serializationProxy.write(outputView);
 		}
 
 		private void writeKVStateData(
