@@ -408,7 +408,6 @@ public class RocksFullSnapshotStrategy<K> extends RocksDBSnapshotStrategyBase<K>
                     kgOutStream.close();
                     kgOutStream = null;
                 }
-
             } finally {
                 // this will just close the outer stream
                 IOUtils.closeQuietly(kgOutStream);
