@@ -241,7 +241,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
             StreamCompressionDecorator keyGroupCompressionDecorator,
             ResourceGuard rocksDBResourceGuard,
             RocksDBSnapshotStrategyBase<K> checkpointSnapshotStrategy,
-            RocksDBSnapshotStrategyBase<K> savepointSnapshotStrategy,
+            RocksDBSnapshotStrategyBase<K> savepointSnapshotStrategy, // TODO: 05.01.21 here it is already the case
             RocksDBWriteBatchWrapper writeBatchWrapper,
             ColumnFamilyHandle defaultColumnFamilyHandle,
             RocksDBNativeMetricMonitor nativeMetricMonitor,
