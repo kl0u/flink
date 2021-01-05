@@ -17,6 +17,7 @@ import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.DoneFuture;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
+import org.apache.flink.runtime.state.KeyGroupStateIterator;
 import org.apache.flink.runtime.state.KeyedBackendSerializationProxy;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.SavepointStrategy;
@@ -283,7 +284,7 @@ public class RocksSavepointStrategy<K> implements SavepointStrategy<SnapshotResu
 			try {
 				// Here we transfer ownership of RocksIterators to the
 				// RocksStatesPerKeyGroupMergeIterator
-				try (RocksStatesPerKeyGroupMergeIterator mergeIterator =
+				try (KeyGroupStateIterator mergeIterator =
 							 new RocksStatesPerKeyGroupMergeIterator(
 									 kvStateIterators, keyGroupPrefixBytes)) {
 
