@@ -242,33 +242,34 @@ public class RocksSavepointStrategyNew<K> extends AbstractSnapshotStrategy<Keyed
 				CheckpointStreamWithResultProvider checkpointStreamWithResultProvider,
 				KeyGroupRangeOffsets keyGroupRangeOffsets) throws IOException, InterruptedException {
 
-			final List<Tuple2<RocksIteratorWrapper, Integer>> kvStateIterators =
-					new ArrayList<>(metaData.size());
 			final DataOutputView outputView =
 					new DataOutputViewStreamWrapper(
 							checkpointStreamWithResultProvider.getCheckpointOutputStream());
 			final ReadOptions readOptions = new ReadOptions();
+
+			List<Tuple2<RocksIteratorWrapper, Integer>> kvStateIterators = null;
 			try {
 				readOptions.setSnapshot(snapshot);
-				writeKVStateMetaData(kvStateIterators, readOptions, outputView);
+
+				kvStateIterators = getKVStateIterators(readOptions);
+				writeKVStateMetaData(outputView);
 				writeKVStateData(
 						kvStateIterators, checkpointStreamWithResultProvider, keyGroupRangeOffsets);
 			} finally {
 
-				for (Tuple2<RocksIteratorWrapper, Integer> kvStateIterator : kvStateIterators) {
-					IOUtils.closeQuietly(kvStateIterator.f0);
+				if (kvStateIterators != null) {
+					for (Tuple2<RocksIteratorWrapper, Integer> kvStateIterator : kvStateIterators) {
+						IOUtils.closeQuietly(kvStateIterator.f0);
+					}
 				}
 
 				IOUtils.closeQuietly(readOptions);
 			}
 		}
 
-		private void writeKVStateMetaData(
-				final List<Tuple2<RocksIteratorWrapper, Integer>> kvStateIterators,
-				final ReadOptions readOptions,
-				final DataOutputView outputView)
-				throws IOException {
-
+		private List<Tuple2<RocksIteratorWrapper, Integer>> getKVStateIterators(final ReadOptions readOptions) {
+			final List<Tuple2<RocksIteratorWrapper, Integer>> kvStateIterators =
+					new ArrayList<>(metaData.size());
 			int kvStateId = 0;
 
 			for (MetaData metaDataEntry : metaData) {
@@ -281,7 +282,10 @@ public class RocksSavepointStrategyNew<K> extends AbstractSnapshotStrategy<Keyed
 				kvStateIterators.add(Tuple2.of(rocksIteratorWrapper, kvStateId)); // TODO: 05.01.21 we fill it here
 				++kvStateId;
 			}
+			return kvStateIterators;
+		}
 
+		private void writeKVStateMetaData(final DataOutputView outputView) throws IOException {
 			KeyedBackendSerializationProxy<K> serializationProxy =
 					new KeyedBackendSerializationProxy<>(
 							// TODO: this code assumes that writing a serializer is threadsafe, we
