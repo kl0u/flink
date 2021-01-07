@@ -59,13 +59,17 @@ public class RocksSavepointStrategy<K> implements SavepointStrategy<SnapshotResu
 
 	private final StreamCompressionDecorator keyGroupCompressionDecorator;
 
+	private final RocksSavepointResources resources;
+
 	public RocksSavepointStrategy(
 			final KeyGroupRange keyGroupRange,
 			final TypeSerializer<K> keySerializer,
+			final RocksSavepointResources resources,
 			final StreamCompressionDecorator keyGroupCompressionDecorator) {
 		this.keySerializer = checkNotNull(keySerializer);
 		this.keyGroupRange = checkNotNull(keyGroupRange);
 		this.keyGroupCompressionDecorator = checkNotNull(keyGroupCompressionDecorator);
+		this.resources = checkNotNull(resources);
 	}
 
 	@Nonnull
@@ -137,38 +141,20 @@ public class RocksSavepointStrategy<K> implements SavepointStrategy<SnapshotResu
 			extends AsyncSnapshotCallable<SnapshotResult<KeyedStateHandle>> {
 
 		/** Supplier for the stream into which we write the snapshot. */
-		@Nonnull
-		private final SupplierWithException<CheckpointStreamWithResultProvider, Exception>
-				checkpointStreamSupplier;
+		private final SupplierWithException<CheckpointStreamWithResultProvider, Exception> checkpointStreamSupplier;
 
-		/** This lease protects the native RocksDB resources. */
-		@Nonnull private final ResourceGuard.Lease dabLease;
+		private final String logPathString;
 
-		/** RocksDB snapshot. */
-		@Nonnull private final Snapshot asnapshot;
-
-		@Nonnull private List<StateMetaInfoSnapshot> stateMetaInfoSnapshots;
-
-		@Nonnull private List<RocksFullSnapshotStrategy.MetaData> metaData;
-
-		@Nonnull private final String logPathString;
+		private final RocksSavepointResources rocksSavepointResources;
 
 		SnapshotAsynchronousPartCallable(
-				@Nonnull
-						SupplierWithException<CheckpointStreamWithResultProvider, Exception>
-						checkpointStreamSupplier,
-				@Nonnull ResourceGuard.Lease dbLease,
-				@Nonnull Snapshot snapshot,
-				@Nonnull List<StateMetaInfoSnapshot> stateMetaInfoSnapshots,
-				@Nonnull List<RocksDBKeyedStateBackend.RocksDbKvStateInfo> metaDataCopy,
-				@Nonnull String logPathString) {
+				SupplierWithException<CheckpointStreamWithResultProvider, Exception> checkpointStreamSupplier,
+				RocksSavepointResources resources,
+				String logPathString) {
 
 			this.checkpointStreamSupplier = checkpointStreamSupplier;
-			this.dbLease = dbLease;
-			this.snapshot = snapshot;
-			this.stateMetaInfoSnapshots = stateMetaInfoSnapshots;
-			this.metaData = fillMetaData(metaDataCopy);
 			this.logPathString = logPathString;
+			this.rocksSavepointResources = checkNotNull(resources);
 		}
 
 		@Override
@@ -192,9 +178,7 @@ public class RocksSavepointStrategy<K> implements SavepointStrategy<SnapshotResu
 
 		@Override
 		protected void cleanupProvidedResources() {
-			db.releaseSnapshot(snapshot);
-			IOUtils.closeQuietly(snapshot);
-			IOUtils.closeQuietly(dbLease);
+			resources.cleanup();
 		}
 
 		@Override
@@ -202,23 +186,27 @@ public class RocksSavepointStrategy<K> implements SavepointStrategy<SnapshotResu
 			logAsyncCompleted(logPathString, startTime);
 		}
 
+		private void writeSnapshotToOutputStreamNew(
+				final CheckpointStreamWithResultProvider checkpointStreamWithResultProvider,
+				final KeyGroupRangeOffsets keyGroupRangeOffsets) throws IOException, InterruptedException {
+
+			final DataOutputView outputView = new DataOutputViewStreamWrapper(
+					checkpointStreamWithResultProvider.getCheckpointOutputStream());
+		}
+
 		private void writeSnapshotToOutputStream(
-				@Nonnull CheckpointStreamWithResultProvider checkpointStreamWithResultProvider,
-				@Nonnull KeyGroupRangeOffsets keyGroupRangeOffsets)
-				throws IOException, InterruptedException {
+				final CheckpointStreamWithResultProvider checkpointStreamWithResultProvider,
+				final KeyGroupRangeOffsets keyGroupRangeOffsets) throws IOException, InterruptedException {
 
-			final DataOutputView outputView =
-					new DataOutputViewStreamWrapper(
-							checkpointStreamWithResultProvider.getCheckpointOutputStream());
-
-
+			final DataOutputView outputView = new DataOutputViewStreamWrapper(
+					checkpointStreamWithResultProvider.getCheckpointOutputStream());
 			final ReadOptions readOptions = new ReadOptions();
 			List<Tuple2<RocksIteratorWrapper, Integer>> kvStateIterators = null;
 			try {
-				readOptions.setSnapshot(snapshot);
 				writeKVStateMetaData(outputView);
 
 				// TODO: 05.01.21 this can move to being an argument in the constructor...
+				readOptions.setSnapshot(snapshot);
 				kvStateIterators = getStateIterators(readOptions);
 				writeKVStateData(
 						kvStateIterators, checkpointStreamWithResultProvider, keyGroupRangeOffsets);
@@ -243,7 +231,7 @@ public class RocksSavepointStrategy<K> implements SavepointStrategy<SnapshotResu
 							// time in the future
 
 							keySerializer,
-							stateMetaInfoSnapshots,
+							rocksSavepointResources.getStateMetaInfoSnapshots(),
 							!Objects.equals(
 									UncompressedStreamCompressionDecorator.INSTANCE,
 									keyGroupCompressionDecorator));
