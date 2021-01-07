@@ -43,9 +43,6 @@ import org.rocksdb.Snapshot;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nonnegative;
-import javax.annotation.Nonnull;
-
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
@@ -173,44 +170,34 @@ public class RocksSavepointStrategyNew<K> extends AbstractSnapshotStrategy<Keyed
 		// nothing to do.
 	}
 
-	private SupplierWithException<CheckpointStreamWithResultProvider, Exception> createCheckpointStreamSupplier(
-			CheckpointStreamFactory primaryStreamFactory) {
-
-		return () -> CheckpointStreamWithResultProvider.createSimpleStream(
-				CheckpointedStateScope.EXCLUSIVE, primaryStreamFactory);
-	}
-
 	/** Encapsulates the process to perform a full snapshot of a RocksDBKeyedStateBackend. */
 	@VisibleForTesting
 	private class SnapshotAsynchronousPartCallable
 			extends AsyncSnapshotCallable<SnapshotResult<KeyedStateHandle>> {
 
 		/** Supplier for the stream into which we write the snapshot. */
-		@Nonnull
 		private final SupplierWithException<CheckpointStreamWithResultProvider, Exception>
 				checkpointStreamSupplier;
 
 		/** This lease protects the native RocksDB resources. */
-		@Nonnull private final ResourceGuard.Lease dbLease;
+		private final ResourceGuard.Lease dbLease;
 
 		/** RocksDB snapshot. */
-		@Nonnull private final Snapshot snapshot;
+		private final Snapshot snapshot;
 
-		@Nonnull private List<StateMetaInfoSnapshot> stateMetaInfoSnapshots;
+		private List<StateMetaInfoSnapshot> stateMetaInfoSnapshots;
 
-		@Nonnull private List<MetaData> metaData;
+		private List<MetaData> metaData;
 
-		@Nonnull private final String logPathString;
+		private final String logPathString;
 
 		SnapshotAsynchronousPartCallable(
-				@Nonnull
-						SupplierWithException<CheckpointStreamWithResultProvider, Exception>
-						checkpointStreamSupplier,
-				@Nonnull ResourceGuard.Lease dbLease,
-				@Nonnull Snapshot snapshot,
-				@Nonnull List<StateMetaInfoSnapshot> stateMetaInfoSnapshots,
-				@Nonnull List<RocksDBKeyedStateBackend.RocksDbKvStateInfo> metaDataCopy,
-				@Nonnull String logPathString) {
+				SupplierWithException<CheckpointStreamWithResultProvider, Exception> checkpointStreamSupplier,
+				ResourceGuard.Lease dbLease,
+				Snapshot snapshot,
+				List<StateMetaInfoSnapshot> stateMetaInfoSnapshots,
+				List<RocksDBKeyedStateBackend.RocksDbKvStateInfo> metaDataCopy,
+				String logPathString) {
 
 			this.checkpointStreamSupplier = checkpointStreamSupplier;
 			this.dbLease = dbLease;
@@ -252,9 +239,8 @@ public class RocksSavepointStrategyNew<K> extends AbstractSnapshotStrategy<Keyed
 		}
 
 		private void writeSnapshotToOutputStream(
-				@Nonnull CheckpointStreamWithResultProvider checkpointStreamWithResultProvider,
-				@Nonnull KeyGroupRangeOffsets keyGroupRangeOffsets)
-				throws IOException, InterruptedException {
+				CheckpointStreamWithResultProvider checkpointStreamWithResultProvider,
+				KeyGroupRangeOffsets keyGroupRangeOffsets) throws IOException, InterruptedException {
 
 			final List<Tuple2<RocksIteratorWrapper, Integer>> kvStateIterators =
 					new ArrayList<>(metaData.size());
