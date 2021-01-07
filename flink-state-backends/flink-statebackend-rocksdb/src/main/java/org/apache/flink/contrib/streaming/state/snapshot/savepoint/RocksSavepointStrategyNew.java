@@ -65,17 +65,8 @@ public class RocksSavepointStrategyNew<K> extends AbstractSnapshotStrategy<Keyed
 
 	private static final Logger LOG = LoggerFactory.getLogger(RocksDBSnapshotStrategyBase.class);
 
-	/** RocksDB instance from the backend. */
-	private final RocksDB db;
-
-	/** Resource guard for the RocksDB instance. */
-	private final ResourceGuard rocksDBResourceGuard;
-
 	/** The key serializer of the backend. */
 	private final TypeSerializer<K> keySerializer;
-
-	/** Key/Value state meta info from the backend. */
-	private final LinkedHashMap<String, RocksDBKeyedStateBackend.RocksDbKvStateInfo> kvStateInformation;
 
 	/** The key-group range for the task. */
 	private final KeyGroupRange keyGroupRange;
@@ -89,21 +80,19 @@ public class RocksSavepointStrategyNew<K> extends AbstractSnapshotStrategy<Keyed
 	/** A {@link CloseableRegistry} that will be closed when the task is cancelled. */
 	private final CloseableRegistry cancelStreamRegistry;
 
+	private final RocksResources resources;
+
 	public RocksSavepointStrategyNew(
-			RocksDB db,
-			ResourceGuard rocksDBResourceGuard,
+			RocksResources resources,
 			TypeSerializer<K> keySerializer,
-			LinkedHashMap<String, RocksDBKeyedStateBackend.RocksDbKvStateInfo> kvStateInformation,
 			KeyGroupRange keyGroupRange,
 			int keyGroupPrefixBytes,
 			LocalRecoveryConfig localRecoveryConfig,
 			CloseableRegistry cancelStreamRegistry,
 			StreamCompressionDecorator keyGroupCompressionDecorator) {
 		super(DESCRIPTION);
-		this.db = checkNotNull(db);
-		this.rocksDBResourceGuard = checkNotNull(rocksDBResourceGuard);
+		this.resources = checkNotNull(resources);
 		this.keySerializer = checkNotNull(keySerializer);
-		this.kvStateInformation = checkNotNull(kvStateInformation);
 		this.keyGroupRange = checkNotNull(keyGroupRange);
 		this.keyGroupPrefixBytes = keyGroupPrefixBytes;
 		this.localRecoveryConfig = checkNotNull(localRecoveryConfig);
@@ -119,7 +108,7 @@ public class RocksSavepointStrategyNew<K> extends AbstractSnapshotStrategy<Keyed
 			CheckpointOptions checkpointOptions)
 			throws Exception {
 
-		if (kvStateInformation.isEmpty()) {
+		if (resources.statesToSavepoint() == 0) {
 			if (LOG.isDebugEnabled()) {
 				LOG.debug(
 						"Asynchronous RocksDB snapshot performed on empty keyed state at {}. Returning null.",
@@ -135,18 +124,12 @@ public class RocksSavepointStrategyNew<K> extends AbstractSnapshotStrategy<Keyed
 		final SupplierWithException<CheckpointStreamWithResultProvider, Exception> checkpointStreamSupplier = () ->
 				CheckpointStreamWithResultProvider.createSimpleStream(CheckpointedStateScope.EXCLUSIVE, primaryStreamFactory);
 
-		final List<StateMetaInfoSnapshot> stateMetaInfoSnapshots =
-				new ArrayList<>(kvStateInformation.size());
-		final List<RocksDBKeyedStateBackend.RocksDbKvStateInfo> metaDataCopy = new ArrayList<>(kvStateInformation.size());
+		// TODO: 07.01.21 maybe optimize to iterate once over the lists
+		final List<StateMetaInfoSnapshot> stateMetaInfoSnapshots = resources.getMetadataSnapshots();
+		final List<RocksDBKeyedStateBackend.RocksDbKvStateInfo> metaDataCopy = resources.getKvStateInfoCopies();
 
-		for (RocksDBKeyedStateBackend.RocksDbKvStateInfo stateInfo : kvStateInformation.values()) {
-			// snapshot meta info
-			stateMetaInfoSnapshots.add(stateInfo.metaInfo.snapshot());
-			metaDataCopy.add(stateInfo);
-		}
-
-		final ResourceGuard.Lease lease = rocksDBResourceGuard.acquireResource();
-		final Snapshot snapshot = db.getSnapshot();
+		final ResourceGuard.Lease lease = resources.acquireResource();
+		final Snapshot snapshot = resources.getSnapshot();
 
 		final SnapshotAsynchronousPartCallable asyncSnapshotCallable =
 				new SnapshotAsynchronousPartCallable(
@@ -228,7 +211,7 @@ public class RocksSavepointStrategyNew<K> extends AbstractSnapshotStrategy<Keyed
 
 		@Override
 		protected void cleanupProvidedResources() {
-			db.releaseSnapshot(snapshot);
+			resources.releaseSnapshot();
 			IOUtils.closeQuietly(snapshot);
 			IOUtils.closeQuietly(dbLease);
 		}
