@@ -65,4 +65,7 @@ public interface KeyGroupStateIterator extends AutoCloseable {
 	 * @return True iff this iterator is valid.
 	 */
 	boolean isValid();
+
+	@Override
+	void close();
 }
