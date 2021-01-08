@@ -32,7 +32,6 @@ import org.apache.flink.runtime.state.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.UncompressedStreamCompressionDecorator;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 import org.apache.flink.util.IOUtils;
-import org.apache.flink.util.ResourceGuard;
 import org.apache.flink.util.function.SupplierWithException;
 
 import org.rocksdb.ColumnFamilyHandle;
@@ -126,7 +125,6 @@ public class RocksSavepointStrategyNew<K> extends AbstractSnapshotStrategy<Keyed
 		// TODO: 07.01.21 maybe optimize to iterate once over the lists
 		final List<StateMetaInfoSnapshot> stateMetaInfoSnapshots = resources.getMetadataSnapshots();
 
-		final ResourceGuard.Lease lease = resources.acquireResource();
 		final Snapshot snapshot = resources.getSnapshot();
 
 		final List<RocksDBKeyedStateBackend.RocksDbKvStateInfo> metaDataCopy = resources.getKvStateInfoCopies();
@@ -135,7 +133,6 @@ public class RocksSavepointStrategyNew<K> extends AbstractSnapshotStrategy<Keyed
 		final SnapshotAsynchronousPartCallable asyncSnapshotCallable =
 				new SnapshotAsynchronousPartCallable(
 						checkpointStreamSupplier,
-						lease,
 						snapshot,
 						stateMetaInfoSnapshots,
 						metaData,
@@ -179,9 +176,6 @@ public class RocksSavepointStrategyNew<K> extends AbstractSnapshotStrategy<Keyed
 		private final SupplierWithException<CheckpointStreamWithResultProvider, Exception>
 				checkpointStreamSupplier;
 
-		/** This lease protects the native RocksDB resources. */
-		private final ResourceGuard.Lease dbLease;
-
 		/** RocksDB snapshot. */
 		private final Snapshot snapshot;
 
@@ -193,13 +187,11 @@ public class RocksSavepointStrategyNew<K> extends AbstractSnapshotStrategy<Keyed
 
 		SnapshotAsynchronousPartCallable(
 				SupplierWithException<CheckpointStreamWithResultProvider, Exception> checkpointStreamSupplier,
-				ResourceGuard.Lease dbLease,
 				Snapshot snapshot,
 				List<StateMetaInfoSnapshot> stateMetaInfoSnapshots,
 				List<MetaData> metaData,
 				String logPathString) {
 			this.checkpointStreamSupplier = checkpointStreamSupplier;
-			this.dbLease = dbLease;
 			this.snapshot = snapshot;
 			this.stateMetaInfoSnapshots = stateMetaInfoSnapshots;
 			this.metaData = checkNotNull(metaData);
@@ -227,9 +219,7 @@ public class RocksSavepointStrategyNew<K> extends AbstractSnapshotStrategy<Keyed
 
 		@Override
 		protected void cleanupProvidedResources() {
-			resources.releaseSnapshot();
-			IOUtils.closeQuietly(snapshot);
-			IOUtils.closeQuietly(dbLease);
+			resources.cleanup();
 		}
 
 		@Override
