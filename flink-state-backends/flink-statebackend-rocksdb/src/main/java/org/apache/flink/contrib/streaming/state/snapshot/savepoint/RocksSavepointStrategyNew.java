@@ -46,7 +46,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.RunnableFuture;
@@ -126,10 +125,12 @@ public class RocksSavepointStrategyNew<K> extends AbstractSnapshotStrategy<Keyed
 
 		// TODO: 07.01.21 maybe optimize to iterate once over the lists
 		final List<StateMetaInfoSnapshot> stateMetaInfoSnapshots = resources.getMetadataSnapshots();
-		final List<RocksDBKeyedStateBackend.RocksDbKvStateInfo> metaDataCopy = resources.getKvStateInfoCopies();
 
 		final ResourceGuard.Lease lease = resources.acquireResource();
 		final Snapshot snapshot = resources.getSnapshot();
+
+		final List<RocksDBKeyedStateBackend.RocksDbKvStateInfo> metaDataCopy = resources.getKvStateInfoCopies();
+		final List<MetaData> metaData = fillMetaData(metaDataCopy);
 
 		final SnapshotAsynchronousPartCallable asyncSnapshotCallable =
 				new SnapshotAsynchronousPartCallable(
@@ -137,10 +138,26 @@ public class RocksSavepointStrategyNew<K> extends AbstractSnapshotStrategy<Keyed
 						lease,
 						snapshot,
 						stateMetaInfoSnapshots,
-						metaDataCopy,
+						metaData,
 						primaryStreamFactory.toString());
 
 		return asyncSnapshotCallable.toAsyncSnapshotFutureTask(cancelStreamRegistry);
+	}
+
+	private static List<MetaData> fillMetaData(List<RocksDBKeyedStateBackend.RocksDbKvStateInfo> metaDataCopy) {
+		List<MetaData> metaData = new ArrayList<>(metaDataCopy.size());
+		for (RocksDBKeyedStateBackend.RocksDbKvStateInfo rocksDbKvStateInfo : metaDataCopy) {
+			StateSnapshotTransformer<byte[]> stateSnapshotTransformer = null;
+			if (rocksDbKvStateInfo.metaInfo instanceof RegisteredKeyValueStateBackendMetaInfo) {
+				stateSnapshotTransformer =
+						((RegisteredKeyValueStateBackendMetaInfo<?, ?>) rocksDbKvStateInfo.metaInfo)
+								.getStateSnapshotTransformFactory()
+								.createForSerializedState()
+								.orElse(null);
+			}
+			metaData.add(new MetaData(rocksDbKvStateInfo, stateSnapshotTransformer));
+		}
+		return metaData;
 	}
 
 	@Override
@@ -170,7 +187,7 @@ public class RocksSavepointStrategyNew<K> extends AbstractSnapshotStrategy<Keyed
 
 		private List<StateMetaInfoSnapshot> stateMetaInfoSnapshots;
 
-		private List<MetaData> metaData;
+		private final List<MetaData> metaData;
 
 		private final String logPathString;
 
@@ -179,14 +196,13 @@ public class RocksSavepointStrategyNew<K> extends AbstractSnapshotStrategy<Keyed
 				ResourceGuard.Lease dbLease,
 				Snapshot snapshot,
 				List<StateMetaInfoSnapshot> stateMetaInfoSnapshots,
-				List<RocksDBKeyedStateBackend.RocksDbKvStateInfo> metaDataCopy,
+				List<MetaData> metaData,
 				String logPathString) {
-
 			this.checkpointStreamSupplier = checkpointStreamSupplier;
 			this.dbLease = dbLease;
 			this.snapshot = snapshot;
 			this.stateMetaInfoSnapshots = stateMetaInfoSnapshots;
-			this.metaData = fillMetaData(metaDataCopy);
+			this.metaData = checkNotNull(metaData);
 			this.logPathString = logPathString;
 		}
 
@@ -403,22 +419,6 @@ public class RocksSavepointStrategyNew<K> extends AbstractSnapshotStrategy<Keyed
 				throw new InterruptedException("RocksDB snapshot interrupted.");
 			}
 		}
-	}
-
-	private static List<MetaData> fillMetaData(List<RocksDBKeyedStateBackend.RocksDbKvStateInfo> metaDataCopy) {
-		List<MetaData> metaData = new ArrayList<>(metaDataCopy.size());
-		for (RocksDBKeyedStateBackend.RocksDbKvStateInfo rocksDbKvStateInfo : metaDataCopy) {
-			StateSnapshotTransformer<byte[]> stateSnapshotTransformer = null;
-			if (rocksDbKvStateInfo.metaInfo instanceof RegisteredKeyValueStateBackendMetaInfo) {
-				stateSnapshotTransformer =
-						((RegisteredKeyValueStateBackendMetaInfo<?, ?>) rocksDbKvStateInfo.metaInfo)
-								.getStateSnapshotTransformFactory()
-								.createForSerializedState()
-								.orElse(null);
-			}
-			metaData.add(new MetaData(rocksDbKvStateInfo, stateSnapshotTransformer));
-		}
-		return metaData;
 	}
 
 	@SuppressWarnings("unchecked")
