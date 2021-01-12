@@ -114,17 +114,10 @@ public class RocksSavepointStrategyNew<K> extends AbstractSnapshotStrategy<Keyed
 		final SupplierWithException<CheckpointStreamWithResultProvider, Exception> checkpointStreamSupplier = () ->
 				CheckpointStreamWithResultProvider.createSimpleStream(CheckpointedStateScope.EXCLUSIVE, primaryStreamFactory);
 
-		// TODO: 07.01.21 maybe optimize to iterate once over the lists
-		final List<StateMetaInfoSnapshot> stateMetaInfoSnapshots = resources.getMetadataSnapshots();
-
-		final Snapshot snapshot = resources.getSnapshot();
-
 		final SnapshotAsynchronousPartCallable asyncSnapshotCallable =
 				new SnapshotAsynchronousPartCallable(
 						resources,
 						checkpointStreamSupplier,
-						snapshot,
-						stateMetaInfoSnapshots,
 						primaryStreamFactory.toString());
 
 		return asyncSnapshotCallable.toAsyncSnapshotFutureTask(cancelStreamRegistry);
@@ -160,14 +153,13 @@ public class RocksSavepointStrategyNew<K> extends AbstractSnapshotStrategy<Keyed
 		SnapshotAsynchronousPartCallable(
 				RocksResources resources,
 				SupplierWithException<CheckpointStreamWithResultProvider, Exception> checkpointStreamSupplier,
-				Snapshot snapshot,
-				List<StateMetaInfoSnapshot> stateMetaInfoSnapshots,
-				String logPathString) {
+				String logPathString) throws IOException {
 			this.resources = checkNotNull(resources);
 			this.checkpointStreamSupplier = checkpointStreamSupplier;
-			this.snapshot = snapshot;
-			this.stateMetaInfoSnapshots = stateMetaInfoSnapshots;
 			this.logPathString = logPathString;
+
+			this.snapshot = resources.getSnapshot();
+			this.stateMetaInfoSnapshots = resources.getMetadataSnapshots();
 		}
 
 		@Override
