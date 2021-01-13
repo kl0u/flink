@@ -39,7 +39,6 @@ import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
 import org.apache.flink.runtime.state.KeyGroupStateIterator;
 import org.apache.flink.runtime.state.KeyedBackendSerializationProxy;
 import org.apache.flink.runtime.state.KeyedStateHandle;
-import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.UncompressedStreamCompressionDecorator;
@@ -88,11 +87,6 @@ public class RocksSavepointStrategy<K> extends AbstractSnapshotStrategy<KeyedSta
 	private final KeyGroupRange keyGroupRange;
 
 	/**
-	 * The configuration for local recovery.
-	 */
-	private final LocalRecoveryConfig localRecoveryConfig;
-
-	/**
 	 * A {@link CloseableRegistry} that will be closed when the task is cancelled.
 	 */
 	private final CloseableRegistry cancelStreamRegistry;
@@ -103,14 +97,12 @@ public class RocksSavepointStrategy<K> extends AbstractSnapshotStrategy<KeyedSta
 			RocksResources resources,
 			TypeSerializer<K> keySerializer,
 			KeyGroupRange keyGroupRange,
-			LocalRecoveryConfig localRecoveryConfig,
 			CloseableRegistry cancelStreamRegistry,
 			StreamCompressionDecorator keyGroupCompressionDecorator) {
 		super(DESCRIPTION);
 		this.resources = checkNotNull(resources);
 		this.keySerializer = checkNotNull(keySerializer);
 		this.keyGroupRange = checkNotNull(keyGroupRange);
-		this.localRecoveryConfig = checkNotNull(localRecoveryConfig);
 		this.cancelStreamRegistry = checkNotNull(cancelStreamRegistry);
 		this.keyGroupCompressionDecorator = checkNotNull(keyGroupCompressionDecorator);
 	}

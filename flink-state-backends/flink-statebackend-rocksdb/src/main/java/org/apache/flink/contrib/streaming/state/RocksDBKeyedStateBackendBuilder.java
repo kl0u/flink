@@ -527,7 +527,6 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 						resources,
 						keySerializerProvider.currentSchemaSerializer(),
 						keyGroupRange,
-						localRecoveryConfig,
 						cancelStreamRegistry,
 						keyGroupCompressionDecorator);
 
