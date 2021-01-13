@@ -29,6 +29,8 @@ import org.apache.flink.contrib.streaming.state.restore.RocksDBRestoreResult;
 import org.apache.flink.contrib.streaming.state.snapshot.RocksDBSnapshotStrategyBase;
 import org.apache.flink.contrib.streaming.state.snapshot.RocksFullSnapshotStrategy;
 import org.apache.flink.contrib.streaming.state.snapshot.RocksIncrementalSnapshotStrategy;
+import org.apache.flink.contrib.streaming.state.snapshot.savepoint.RocksResources;
+import org.apache.flink.contrib.streaming.state.snapshot.savepoint.RocksSavepointStrategyNew;
 import org.apache.flink.contrib.streaming.state.ttl.RocksDbTtlCompactFiltersManager;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.MetricGroup;
@@ -468,14 +470,16 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
             UUID backendUID,
             SortedMap<Long, Set<StateHandleID>> materializedSstFiles,
             long lastCompletedCheckpointId) {
-        RocksDBSnapshotStrategyBase<K> savepointSnapshotStrategy =
-                new RocksFullSnapshotStrategy<>(
-                        db,
-                        rocksDBResourceGuard,
+
+        RocksResources resources =
+                new RocksResources(
+                        db, rocksDBResourceGuard, kvStateInformation, keyGroupPrefixBytes);
+
+        RocksSavepointStrategyNew<K> savepointSnapshotStrategy =
+                new RocksSavepointStrategyNew<>(
+                        resources,
                         keySerializerProvider.currentSchemaSerializer(),
-                        kvStateInformation,
                         keyGroupRange,
-                        keyGroupPrefixBytes,
                         localRecoveryConfig,
                         cancelStreamRegistry,
                         keyGroupCompressionDecorator);
@@ -499,7 +503,17 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
                             lastCompletedCheckpointId,
                             numberOfTransferingThreads);
         } else {
-            checkpointSnapshotStrategy = savepointSnapshotStrategy;
+            checkpointSnapshotStrategy =
+                    new RocksFullSnapshotStrategy<>(
+                            db,
+                            rocksDBResourceGuard,
+                            keySerializerProvider.currentSchemaSerializer(),
+                            kvStateInformation,
+                            keyGroupRange,
+                            keyGroupPrefixBytes,
+                            localRecoveryConfig,
+                            cancelStreamRegistry,
+                            keyGroupCompressionDecorator);
         }
         return new SnapshotStrategy<>(checkpointSnapshotStrategy, savepointSnapshotStrategy);
     }
@@ -548,11 +562,11 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 
     static final class SnapshotStrategy<K> {
         final RocksDBSnapshotStrategyBase<K> checkpointSnapshotStrategy;
-        final RocksDBSnapshotStrategyBase<K> savepointSnapshotStrategy;
+        final RocksSavepointStrategyNew<K> savepointSnapshotStrategy;
 
         SnapshotStrategy(
                 RocksDBSnapshotStrategyBase<K> checkpointSnapshotStrategy,
-                RocksDBSnapshotStrategyBase<K> savepointSnapshotStrategy) {
+                RocksSavepointStrategyNew<K> savepointSnapshotStrategy) {
             this.checkpointSnapshotStrategy = checkpointSnapshotStrategy;
             this.savepointSnapshotStrategy = savepointSnapshotStrategy;
         }

@@ -80,9 +80,6 @@ public class RocksSavepointStrategyNew<K> extends AbstractSnapshotStrategy<Keyed
     /** The key-group range for the task. */
     private final KeyGroupRange keyGroupRange;
 
-    /** Number of bytes in the key-group prefix. */
-    private final int keyGroupPrefixBytes;
-
     /** The configuration for local recovery. */
     private final LocalRecoveryConfig localRecoveryConfig;
 
@@ -95,7 +92,6 @@ public class RocksSavepointStrategyNew<K> extends AbstractSnapshotStrategy<Keyed
             RocksResources resources,
             TypeSerializer<K> keySerializer,
             KeyGroupRange keyGroupRange,
-            int keyGroupPrefixBytes,
             LocalRecoveryConfig localRecoveryConfig,
             CloseableRegistry cancelStreamRegistry,
             StreamCompressionDecorator keyGroupCompressionDecorator) {
@@ -103,7 +99,6 @@ public class RocksSavepointStrategyNew<K> extends AbstractSnapshotStrategy<Keyed
         this.resources = checkNotNull(resources);
         this.keySerializer = checkNotNull(keySerializer);
         this.keyGroupRange = checkNotNull(keyGroupRange);
-        this.keyGroupPrefixBytes = keyGroupPrefixBytes;
         this.localRecoveryConfig = checkNotNull(localRecoveryConfig);
         this.cancelStreamRegistry = checkNotNull(cancelStreamRegistry);
         this.keyGroupCompressionDecorator = checkNotNull(keyGroupCompressionDecorator);
@@ -346,7 +341,6 @@ public class RocksSavepointStrategyNew<K> extends AbstractSnapshotStrategy<Keyed
                     kgOutStream.close();
                     kgOutStream = null;
                 }
-
             } finally {
                 // this will just close the outer stream
                 IOUtils.closeQuietly(kgOutStream);
