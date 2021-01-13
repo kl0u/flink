@@ -288,7 +288,9 @@ public class RocksFullSnapshotStrategy<K> extends RocksDBSnapshotStrategyBase<K>
                                 metaDataEntry.rocksDbKvStateInfo.columnFamilyHandle,
                                 metaDataEntry.stateSnapshotTransformer,
                                 readOptions);
-                kvStateIterators.add(Tuple2.of(rocksIteratorWrapper, kvStateId)); // TODO: 05.01.21 we fill it here
+                kvStateIterators.add(
+                        Tuple2.of(
+                                rocksIteratorWrapper, kvStateId)); // TODO: 05.01.21 we fill it here
                 ++kvStateId;
             }
 

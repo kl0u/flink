@@ -27,129 +27,134 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 public class RocksSavepointResources implements AutoCloseable {
 
-	private final RocksDB db;
+    private final RocksDB db;
 
-	private final ResourceGuard.Lease dbLease;
+    private final ResourceGuard.Lease dbLease;
 
-	private final Snapshot snapshot;
+    private final Snapshot snapshot;
 
-	private final List<StateMetaInfoSnapshot> stateMetaInfoSnapshots;
+    private final List<StateMetaInfoSnapshot> stateMetaInfoSnapshots;
 
-	private final List<MetaData> metaData;
+    private final List<MetaData> metaData;
 
-	private ReadOptions readOptions;
+    private ReadOptions readOptions;
 
-	private List<Tuple2<RocksIteratorWrapper, Integer>> kvStateIterators;
+    private List<Tuple2<RocksIteratorWrapper, Integer>> kvStateIterators;
 
-	public RocksSavepointResources(
-			final RocksDB db,
-			final ResourceGuard rocksDBResourceGuard,
-			final LinkedHashMap<String, RocksDBKeyedStateBackend.RocksDbKvStateInfo> kvStateInformation) throws IOException {
+    public RocksSavepointResources(
+            final RocksDB db,
+            final ResourceGuard rocksDBResourceGuard,
+            final LinkedHashMap<String, RocksDBKeyedStateBackend.RocksDbKvStateInfo>
+                    kvStateInformation)
+            throws IOException {
 
-		this.db = checkNotNull(db);
-		this.dbLease = checkNotNull(rocksDBResourceGuard).acquireResource();
-		this.snapshot = db.getSnapshot();
+        this.db = checkNotNull(db);
+        this.dbLease = checkNotNull(rocksDBResourceGuard).acquireResource();
+        this.snapshot = db.getSnapshot();
 
-		this.stateMetaInfoSnapshots = new ArrayList<>(kvStateInformation.size());
+        this.stateMetaInfoSnapshots = new ArrayList<>(kvStateInformation.size());
 
-		final List<RocksDBKeyedStateBackend.RocksDbKvStateInfo> metaDataCopy = new ArrayList<>(kvStateInformation.size());
-		for (RocksDBKeyedStateBackend.RocksDbKvStateInfo stateInfo : kvStateInformation.values()) {
-			stateMetaInfoSnapshots.add(stateInfo.metaInfo.snapshot());
-			metaDataCopy.add(stateInfo);
-		}
-		this.metaData = fillMetaData(metaDataCopy);
-	}
+        final List<RocksDBKeyedStateBackend.RocksDbKvStateInfo> metaDataCopy =
+                new ArrayList<>(kvStateInformation.size());
+        for (RocksDBKeyedStateBackend.RocksDbKvStateInfo stateInfo : kvStateInformation.values()) {
+            stateMetaInfoSnapshots.add(stateInfo.metaInfo.snapshot());
+            metaDataCopy.add(stateInfo);
+        }
+        this.metaData = fillMetaData(metaDataCopy);
+    }
 
-	public List<StateMetaInfoSnapshot> getStateMetaInfoSnapshots() {
-		return stateMetaInfoSnapshots;
-	}
+    public List<StateMetaInfoSnapshot> getStateMetaInfoSnapshots() {
+        return stateMetaInfoSnapshots;
+    }
 
-	/**
-	 * This should always be called within a {@code try-with-resources} block so that resources that are allocated
-	 * here are removed by the {@link #close()}.
-	 */
-	public KeyGroupStateIterator getStateIterator() {
-		readOptions = new ReadOptions();
-		readOptions.setSnapshot(snapshot);
-		kvStateIterators = getStateIterators(readOptions);
-		return new RocksStatesPerKeyGroupMergeIterator(kvStateIterators, keyGroupPrefixBytes);
-	}
+    /**
+     * This should always be called within a {@code try-with-resources} block so that resources that
+     * are allocated here are removed by the {@link #close()}.
+     */
+    public KeyGroupStateIterator getStateIterator() {
+        readOptions = new ReadOptions();
+        readOptions.setSnapshot(snapshot);
+        kvStateIterators = getStateIterators(readOptions);
+        return new RocksStatesPerKeyGroupMergeIterator(kvStateIterators, keyGroupPrefixBytes);
+    }
 
-	private List<Tuple2<RocksIteratorWrapper, Integer>> getStateIterators(final ReadOptions readOptions) {
-		final List<Tuple2<RocksIteratorWrapper, Integer>> kvStateIterators =
-				new ArrayList<>(metaData.size());
+    private List<Tuple2<RocksIteratorWrapper, Integer>> getStateIterators(
+            final ReadOptions readOptions) {
+        final List<Tuple2<RocksIteratorWrapper, Integer>> kvStateIterators =
+                new ArrayList<>(metaData.size());
 
-		int kvStateId = 0;
-		for (MetaData metaDataEntry : metaData) {
-			RocksIteratorWrapper rocksIteratorWrapper =
-					getRocksIterator(
-							db,
-							metaDataEntry.rocksDbKvStateInfo.columnFamilyHandle,
-							metaDataEntry.stateSnapshotTransformer,
-							readOptions);
-			kvStateIterators.add(Tuple2.of(rocksIteratorWrapper, kvStateId));
-			++kvStateId;
-		}
-		return kvStateIterators;
-	}
+        int kvStateId = 0;
+        for (MetaData metaDataEntry : metaData) {
+            RocksIteratorWrapper rocksIteratorWrapper =
+                    getRocksIterator(
+                            db,
+                            metaDataEntry.rocksDbKvStateInfo.columnFamilyHandle,
+                            metaDataEntry.stateSnapshotTransformer,
+                            readOptions);
+            kvStateIterators.add(Tuple2.of(rocksIteratorWrapper, kvStateId));
+            ++kvStateId;
+        }
+        return kvStateIterators;
+    }
 
-	@Override
-	public void close() {
-		if (kvStateIterators != null) {
-			for (Tuple2<RocksIteratorWrapper, Integer> kvStateIterator : kvStateIterators) {
-				IOUtils.closeQuietly(kvStateIterator.f0);
-			}
-		}
+    @Override
+    public void close() {
+        if (kvStateIterators != null) {
+            for (Tuple2<RocksIteratorWrapper, Integer> kvStateIterator : kvStateIterators) {
+                IOUtils.closeQuietly(kvStateIterator.f0);
+            }
+        }
 
-		if (readOptions != null) {
-			IOUtils.closeQuietly(readOptions);
-		}
-	}
+        if (readOptions != null) {
+            IOUtils.closeQuietly(readOptions);
+        }
+    }
 
-	// TODO: 07.01.21 checked
-	public void cleanup() {
-		db.releaseSnapshot(snapshot);
-		IOUtils.closeQuietly(snapshot);
-		IOUtils.closeQuietly(dbLease);
-	}
+    // TODO: 07.01.21 checked
+    public void cleanup() {
+        db.releaseSnapshot(snapshot);
+        IOUtils.closeQuietly(snapshot);
+        IOUtils.closeQuietly(dbLease);
+    }
 
-	private static List<MetaData> fillMetaData(List<RocksDBKeyedStateBackend.RocksDbKvStateInfo> metaDataCopy) {
-		List<MetaData> metaData = new ArrayList<>(metaDataCopy.size());
-		for (RocksDBKeyedStateBackend.RocksDbKvStateInfo rocksDbKvStateInfo : metaDataCopy) {
-			StateSnapshotTransformer<byte[]> stateSnapshotTransformer = null;
-			if (rocksDbKvStateInfo.metaInfo instanceof RegisteredKeyValueStateBackendMetaInfo) {
-				stateSnapshotTransformer =
-						((RegisteredKeyValueStateBackendMetaInfo<?, ?>) rocksDbKvStateInfo.metaInfo)
-								.getStateSnapshotTransformFactory()
-								.createForSerializedState()
-								.orElse(null);
-			}
-			metaData.add(new MetaData(rocksDbKvStateInfo, stateSnapshotTransformer));
-		}
-		return metaData;
-	}
+    private static List<MetaData> fillMetaData(
+            List<RocksDBKeyedStateBackend.RocksDbKvStateInfo> metaDataCopy) {
+        List<MetaData> metaData = new ArrayList<>(metaDataCopy.size());
+        for (RocksDBKeyedStateBackend.RocksDbKvStateInfo rocksDbKvStateInfo : metaDataCopy) {
+            StateSnapshotTransformer<byte[]> stateSnapshotTransformer = null;
+            if (rocksDbKvStateInfo.metaInfo instanceof RegisteredKeyValueStateBackendMetaInfo) {
+                stateSnapshotTransformer =
+                        ((RegisteredKeyValueStateBackendMetaInfo<?, ?>) rocksDbKvStateInfo.metaInfo)
+                                .getStateSnapshotTransformFactory()
+                                .createForSerializedState()
+                                .orElse(null);
+            }
+            metaData.add(new MetaData(rocksDbKvStateInfo, stateSnapshotTransformer));
+        }
+        return metaData;
+    }
 
-	private static RocksIteratorWrapper getRocksIterator(
-			RocksDB db,
-			ColumnFamilyHandle columnFamilyHandle,
-			StateSnapshotTransformer<byte[]> stateSnapshotTransformer,
-			ReadOptions readOptions) {
-		RocksIterator rocksIterator = db.newIterator(columnFamilyHandle, readOptions);
-		return stateSnapshotTransformer == null
-				? new RocksIteratorWrapper(rocksIterator)
-				: new RocksTransformingIteratorWrapper(rocksIterator, stateSnapshotTransformer);
-	}
+    private static RocksIteratorWrapper getRocksIterator(
+            RocksDB db,
+            ColumnFamilyHandle columnFamilyHandle,
+            StateSnapshotTransformer<byte[]> stateSnapshotTransformer,
+            ReadOptions readOptions) {
+        RocksIterator rocksIterator = db.newIterator(columnFamilyHandle, readOptions);
+        return stateSnapshotTransformer == null
+                ? new RocksIteratorWrapper(rocksIterator)
+                : new RocksTransformingIteratorWrapper(rocksIterator, stateSnapshotTransformer);
+    }
 
-	private static class MetaData {
-		final RocksDBKeyedStateBackend.RocksDbKvStateInfo rocksDbKvStateInfo;
-		final StateSnapshotTransformer<byte[]> stateSnapshotTransformer;
+    private static class MetaData {
+        final RocksDBKeyedStateBackend.RocksDbKvStateInfo rocksDbKvStateInfo;
+        final StateSnapshotTransformer<byte[]> stateSnapshotTransformer;
 
-		private MetaData(
-				RocksDBKeyedStateBackend.RocksDbKvStateInfo rocksDbKvStateInfo,
-				StateSnapshotTransformer<byte[]> stateSnapshotTransformer) {
+        private MetaData(
+                RocksDBKeyedStateBackend.RocksDbKvStateInfo rocksDbKvStateInfo,
+                StateSnapshotTransformer<byte[]> stateSnapshotTransformer) {
 
-			this.rocksDbKvStateInfo = rocksDbKvStateInfo;
-			this.stateSnapshotTransformer = stateSnapshotTransformer;
-		}
-	}
+            this.rocksDbKvStateInfo = rocksDbKvStateInfo;
+            this.stateSnapshotTransformer = stateSnapshotTransformer;
+        }
+    }
 }

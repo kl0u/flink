@@ -10,11 +10,11 @@ import java.util.concurrent.RunnableFuture;
 @Internal
 public interface SavepointStrategy<S extends StateObject> {
 
-	@Nonnull
-	RunnableFuture<S> takeSavepoint(
-			long checkpointId,
-			long timestamp,
-			@Nonnull CheckpointStreamFactory streamFactory,
-			@Nonnull CheckpointOptions checkpointOptions)
-			throws Exception;
+    @Nonnull
+    RunnableFuture<S> takeSavepoint(
+            long checkpointId,
+            long timestamp,
+            @Nonnull CheckpointStreamFactory streamFactory,
+            @Nonnull CheckpointOptions checkpointOptions)
+            throws Exception;
 }

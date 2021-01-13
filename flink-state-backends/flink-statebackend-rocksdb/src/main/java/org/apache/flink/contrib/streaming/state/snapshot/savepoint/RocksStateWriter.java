@@ -31,41 +31,41 @@ import org.rocksdb.Snapshot;
 import java.util.List;
 import java.util.function.Function;
 
-/**
- * Javadoc.
- */
+/** Javadoc. */
 @Internal
 public class RocksStateWriter implements AutoCloseable {
 
-	private final int keyGroupPrefixBytes;
+    private final int keyGroupPrefixBytes;
 
-	private final List<Tuple2<RocksIteratorWrapper, Integer>> kvStateIterators;
+    private final List<Tuple2<RocksIteratorWrapper, Integer>> kvStateIterators;
 
-	private final ReadOptions readOptions;
+    private final ReadOptions readOptions;
 
-	public RocksStateWriter(
-			final Snapshot snapshot,
-			final int keyGroupPrefixBytes,
-			final Function<ReadOptions, List<Tuple2<RocksIteratorWrapper, Integer>>> kvStateIteratorsProvider) { // TODO: 12.01.21 for this we can pass a supplier-with-options
-		this.keyGroupPrefixBytes = keyGroupPrefixBytes;
+    public RocksStateWriter(
+            final Snapshot snapshot,
+            final int keyGroupPrefixBytes,
+            final Function<ReadOptions, List<Tuple2<RocksIteratorWrapper, Integer>>>
+                    kvStateIteratorsProvider) { // TODO: 12.01.21 for this we can pass a
+        // supplier-with-options
+        this.keyGroupPrefixBytes = keyGroupPrefixBytes;
 
-		this.readOptions = new ReadOptions();
-		this.readOptions.setSnapshot(snapshot);
-		this.kvStateIterators = kvStateIteratorsProvider.apply(readOptions);
-	}
+        this.readOptions = new ReadOptions();
+        this.readOptions.setSnapshot(snapshot);
+        this.kvStateIterators = kvStateIteratorsProvider.apply(readOptions);
+    }
 
-	public KeyGroupStateIterator getStateIterator() {
-		return new RocksStatesPerKeyGroupMergeIterator(kvStateIterators, keyGroupPrefixBytes);
-	}
+    public KeyGroupStateIterator getStateIterator() {
+        return new RocksStatesPerKeyGroupMergeIterator(kvStateIterators, keyGroupPrefixBytes);
+    }
 
-	@Override
-	public void close() {
-		if (kvStateIterators != null) {
-			for (Tuple2<RocksIteratorWrapper, Integer> kvStateIterator : kvStateIterators) {
-				IOUtils.closeQuietly(kvStateIterator.f0);
-			}
-		}
+    @Override
+    public void close() {
+        if (kvStateIterators != null) {
+            for (Tuple2<RocksIteratorWrapper, Integer> kvStateIterator : kvStateIterators) {
+                IOUtils.closeQuietly(kvStateIterator.f0);
+            }
+        }
 
-		IOUtils.closeQuietly(readOptions);
-	}
+        IOUtils.closeQuietly(readOptions);
+    }
 }
