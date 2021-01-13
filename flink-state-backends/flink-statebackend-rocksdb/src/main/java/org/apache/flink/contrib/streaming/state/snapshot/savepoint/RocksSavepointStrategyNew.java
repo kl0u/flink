@@ -1,11 +1,28 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.flink.contrib.streaming.state.snapshot.savepoint;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.contrib.streaming.state.RocksIteratorWrapper;
 import org.apache.flink.contrib.streaming.state.snapshot.RocksDBSnapshotStrategyBase;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.memory.DataOutputView;
@@ -30,7 +47,6 @@ import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.function.SupplierWithException;
 
-import org.rocksdb.ReadOptions;
 import org.rocksdb.Snapshot;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,6 +62,10 @@ import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUti
 import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUtil.setMetaDataFollowsFlagInKey;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
+/**
+ * Javadoc.
+ */
+@Internal
 public class RocksSavepointStrategyNew<K> extends AbstractSnapshotStrategy<KeyedStateHandle> implements CheckpointListener {
 
 	private static final String DESCRIPTION = "Asynchronous full RocksDB snapshot";
@@ -191,6 +211,7 @@ public class RocksSavepointStrategyNew<K> extends AbstractSnapshotStrategy<Keyed
 			logAsyncCompleted(logPathString, startTime);
 		}
 
+		// TODO: 12.01.21 all this is in the async part
 		private void writeSnapshotToOutputStream(
 				CheckpointStreamWithResultProvider checkpointStreamWithResultProvider,
 				KeyGroupRangeOffsets keyGroupRangeOffsets) throws IOException, InterruptedException {
@@ -198,25 +219,10 @@ public class RocksSavepointStrategyNew<K> extends AbstractSnapshotStrategy<Keyed
 			final DataOutputView outputView =
 					new DataOutputViewStreamWrapper(
 							checkpointStreamWithResultProvider.getCheckpointOutputStream());
-			final ReadOptions readOptions = new ReadOptions();
 
-			List<Tuple2<RocksIteratorWrapper, Integer>> kvStateIterators = null;
-			try {
-				readOptions.setSnapshot(snapshot);
-
-				kvStateIterators = resources.getKVStateIterators(readOptions);
+			try (RocksStateWriter writer = resources.getStateWriter()) {
 				writeKVStateMetaData(outputView);
-				writeKVStateData(
-						resources, checkpointStreamWithResultProvider, keyGroupRangeOffsets);
-			} finally {
-
-				if (kvStateIterators != null) {
-					for (Tuple2<RocksIteratorWrapper, Integer> kvStateIterator : kvStateIterators) {
-						IOUtils.closeQuietly(kvStateIterator.f0);
-					}
-				}
-
-				IOUtils.closeQuietly(readOptions);
+				writeKVStateData(writer, checkpointStreamWithResultProvider, keyGroupRangeOffsets);
 			}
 		}
 
@@ -237,7 +243,7 @@ public class RocksSavepointStrategyNew<K> extends AbstractSnapshotStrategy<Keyed
 		}
 
 		private void writeKVStateData(
-				final RocksResources resources,
+				final RocksStateWriter writer,
 				final CheckpointStreamWithResultProvider checkpointStreamWithResultProvider,
 				final KeyGroupRangeOffsets keyGroupRangeOffsets)
 				throws IOException, InterruptedException {
@@ -252,7 +258,7 @@ public class RocksSavepointStrategyNew<K> extends AbstractSnapshotStrategy<Keyed
 			try {
 				// Here we transfer ownership of RocksIterators to the
 				// RocksStatesPerKeyGroupMergeIterator
-				try (KeyGroupStateIterator mergeIterator = resources.getStateIterator()) {
+				try (KeyGroupStateIterator mergeIterator = writer.getStateIterator()) {
 
 					// preamble: setup with first key-group as our lookahead
 					if (mergeIterator.isValid()) {

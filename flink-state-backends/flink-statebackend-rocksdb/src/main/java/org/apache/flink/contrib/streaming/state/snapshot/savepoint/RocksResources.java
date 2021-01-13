@@ -1,11 +1,28 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.flink.contrib.streaming.state.snapshot.savepoint;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend;
 import org.apache.flink.contrib.streaming.state.RocksIteratorWrapper;
-import org.apache.flink.contrib.streaming.state.iterator.RocksStatesPerKeyGroupMergeIterator;
 import org.apache.flink.contrib.streaming.state.iterator.RocksTransformingIteratorWrapper;
-import org.apache.flink.runtime.state.KeyGroupStateIterator;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
@@ -25,6 +42,10 @@ import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
+/**
+ * Javadoc.
+ */
+@Internal
 public class RocksResources {
 
 	/** RocksDB instance from the backend. */
@@ -101,9 +122,8 @@ public class RocksResources {
 		return stateMetaInfoSnapshots;
 	}
 
-	public KeyGroupStateIterator getStateIterator() {
-		return new RocksStatesPerKeyGroupMergeIterator(
-				kvStateIterators, keyGroupPrefixBytes);
+	public RocksStateWriter getStateWriter() {
+		return new RocksStateWriter(snapshot, keyGroupPrefixBytes, this::getKVStateIterators);
 	}
 
 	public List<Tuple2<RocksIteratorWrapper, Integer>> getKVStateIterators(final ReadOptions readOptions) {
@@ -135,7 +155,7 @@ public class RocksResources {
 				: new RocksTransformingIteratorWrapper(rocksIterator, stateSnapshotTransformer);
 	}
 
-	public static class MetaData {
+	static class MetaData {
 		final RocksDBKeyedStateBackend.RocksDbKvStateInfo rocksDbKvStateInfo;
 		final StateSnapshotTransformer<byte[]> stateSnapshotTransformer;
 
