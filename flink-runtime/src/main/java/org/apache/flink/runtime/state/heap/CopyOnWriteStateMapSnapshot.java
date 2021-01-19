@@ -116,6 +116,19 @@ public class CopyOnWriteStateMapSnapshot<K, N, S>
 		return snapshotVersion;
 	}
 
+	@Override
+	public Iterator<StateEntry<K, N, S>> getIterator(
+			@Nullable final StateSnapshotTransformer<S> stateSnapshotTransformer) {
+
+		return stateSnapshotTransformer == null
+				? new NonTransformSnapshotIterator<>(
+				numberOfEntriesInSnapshotData, snapshotData)
+				: new TransformedSnapshotIterator<>(
+				numberOfEntriesInSnapshotData,
+				snapshotData,
+				stateSnapshotTransformer);
+	}
+
 	// TODO: 13.01.21 here I think
 	@Override
 	public void writeState(
@@ -143,6 +156,7 @@ public class CopyOnWriteStateMapSnapshot<K, N, S>
 			stateSerializer.serialize(stateEntry.getState(), dov);
 		}
 	}
+
 
 	/**
 	 * Iterator over state entries in a {@link CopyOnWriteStateMapSnapshot}.

@@ -272,8 +272,7 @@ public class RocksSavepointStrategy<K> extends AbstractSnapshotStrategy<KeyedSta
 						// TODO this could be aware of keyGroupPrefixBytes and write only one byte
 						// if possible
 						kgOutView.writeShort(mergeIterator.kvStateId());
-						asdasda
-								previousKey = mergeIterator.key();
+						sdaspreviousKey = mergeIterator.key();
 						previousValue = mergeIterator.value();
 						mergeIterator.next();
 					}

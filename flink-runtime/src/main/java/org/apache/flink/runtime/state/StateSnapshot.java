@@ -26,6 +26,7 @@ import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
+import java.util.Iterator;
 
 /**
  * General interface for state snapshots that should be written partitioned by key-groups. All
@@ -41,35 +42,42 @@ import java.io.IOException;
 @Internal
 public interface StateSnapshot {
 
-    /**
-     * This method returns {@link StateKeyGroupWriter} and should be called in the asynchronous part
-     * of the snapshot.
-     */
-    @Nonnull
-    StateKeyGroupWriter getKeyGroupWriter();
+	/**
+	 * This method returns {@link StateKeyGroupWriter} and should be called in the asynchronous part
+	 * of the snapshot.
+	 */
+	@Nonnull
+	StateKeyGroupWriter getKeyGroupWriter();
 
-    /** Returns a snapshot of the state's meta data. */
-    @Nonnull
-    StateMetaInfoSnapshot getMetaInfoSnapshot();
+	/**
+	 * Returns a snapshot of the state's meta data.
+	 */
+	@Nonnull
+	StateMetaInfoSnapshot getMetaInfoSnapshot();
 
-    /**
-     * Release the snapshot. All snapshots should be released when they are no longer used because
-     * some implementation can only release resources after a release. Produced {@link
-     * StateKeyGroupWriter} should no longer be used after calling this method.
-     */
-    void release();
+	/**
+	 * Release the snapshot. All snapshots should be released when they are no longer used because
+	 * some implementation can only release resources after a release. Produced {@link
+	 * StateKeyGroupWriter} should no longer be used after calling this method.
+	 */
+	void release();
 
-    /** Interface for writing a snapshot that is partitioned into key-groups. */
-    interface StateKeyGroupWriter {
-        /**
-         * Writes the data for the specified key-group to the output. You must call {@link
-         * #getKeyGroupWriter()} once before first calling this method.
-         *
-         * @param dov the output.
-         * @param keyGroupId the key-group to write.
-         * @throws IOException on write-related problems.
-         */
-        void writeStateInKeyGroup(@Nonnull DataOutputView dov, @Nonnegative int keyGroupId)
-                throws IOException;
-    }
+	/**
+	 * Interface for writing a snapshot that is partitioned into key-groups.
+	 */
+	interface StateKeyGroupWriter {
+
+		Iterator<StateEntry> getIterator(int keyGroup);
+
+		/**
+		 * Writes the data for the specified key-group to the output. You must call {@link
+		 * #getKeyGroupWriter()} once before first calling this method.
+		 *
+		 * @param dov        the output.
+		 * @param keyGroupId the key-group to write.
+		 * @throws IOException on write-related problems.
+		 */
+		void writeStateInKeyGroup(@Nonnull DataOutputView dov, @Nonnegative int keyGroupId)
+				throws IOException;
+	}
 }
